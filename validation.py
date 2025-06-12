@@ -233,6 +233,7 @@ def validate_table(table, colnames, coldescrip, tablename,
     
     # If only the header row remains (or DataFrame is empty), return early
     if df.shape[0] <= 1:
+        warnings.warn(f"No data found in {tablename}. Returning empty DataFrame.")
         return df
     
     # Assert NULL or NA is not allowed in specified indices

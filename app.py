@@ -4,6 +4,7 @@ import os
 import tempfile
 import shutil
 import openpyxl
+import warnings
 
 app_ui = ui.page_fluid(
     ui.input_file("file1", "Choose Excel File", multiple = False, accept=".xlsx"),
@@ -21,21 +22,32 @@ def server(input, output, session):
     @reactive.Effect
     def upload():
         if input.file1():
+            msg_lines = ["Attempting validation..."]
+            warn_msgs = []
             try:
                 # Attempt to read the Excel file
                 wb = openpyxl.load_workbook(input.file1()[0]["datapath"])
-                message.set("Attempting validation...")
-                dfs = perform_validation(wb)
-                message.set("Validation successful!")
+                # Capture warnings from perform_validation
+                with warnings.catch_warnings(record=True) as wlist:
+                    warnings.simplefilter("always")
+                    dfs = perform_validation(wb)
+                    # Collect warning messages
+                    for w in wlist:
+                        warn_msgs.append(f"Warning: {str(w.message)}")
+                msg_lines.extend(warn_msgs)
+                msg_lines.append("Validation successful!")
+                message.set("\n".join(msg_lines))
                 dataframes.set(dfs)
             except ValueError as e:
-                # Set the error message if there's an error reading the file
-                message.set(str(e))
+                msg_lines.extend(warn_msgs)
+                msg_lines.append(str(e))
+                message.set("\n".join(msg_lines))
                 dataframes.set([])
             except Exception as e:
-                # Set a general error message for any other exceptions
-                message.set(f"An error occurred: {str(e)}")
-                message.set(f"Please contact the developer.")
+                msg_lines.extend(warn_msgs)
+                msg_lines.append(f"An error occurred: {str(e)}")
+                msg_lines.append("Please contact the developer.")
+                message.set("\n".join(msg_lines))
                 dataframes.set([])
 
     # Downloading data
