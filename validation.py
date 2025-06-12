@@ -25,21 +25,21 @@ def perform_validation(wb):
         - "1) Germplasm GP": Germplasm information.
         - "2) Seed Lot SL": Seed lot information.
         - "3) Experiment information EXP": Experiment metadata.
-        - "4) Experimental Unit UN": Experimental unit details.
-        - "5) Phenotype scores PH": Phenotype scoring data.
-        - "6) Climate CL": Climate data.
-        - "7) Climate Description CD": Climate description metadata.
-        - "8) Management MM": Management interventions.
-        - "9) Phenotype Description PD": Phenotype description metadata.
-        - "10) Experiment intervention I": Experiment interventions.
+        - "4) Phenotype Description PD": Phenotype description metadata.
+        - "5) Experimental Unit UN": Experimental unit details.
+        - "6) Experiment intervention I": Experiment interventions.
+        - "7) Phenotype scores PH": Phenotype scoring data.
+        - "8) Climate Description CD": Climate description metadata.
+        - "9) Climate CL": Climate data.
+        - "10) Management MM": Management interventions.
     Note:
         This function assumes the existence and correct implementation of `validate_table` and `check_links`.
     """
 
     
-    sheetnames = ["READ ME 1st", '1) Germplasm GP', '2) Seed Lot SL', '3) Experiment information EXP', \
-        '4) Experimental Unit UN', '5) Phenotype scores PH', '6) Climate CL', '7) Climate Description CD', \
-            '8) Management MM', '9) Phenotype Description PD', '10) Experiment intervention I']
+    sheetnames = ['READ ME 1st', '1) Germplasm GP', '2) Seed Lot SL', '3) Experiment information EXP', \
+        '4) Phenotype Description PD', '5) Experimental Unit UN', '6) Experiment intervention I', \
+            '7) Phenotype scores PH', '8) Climate Description CD', '9) Climate CL', '10) Management MM']
 
     for i in range(len(wb._sheets)):
         assert (wb._sheets[i]).title == sheetnames[i], f"Expected sheetname {sheetnames[i]} but got " + \
@@ -64,54 +64,56 @@ def perform_validation(wb):
     EXP = validate_table(EXP, ["EXPID", "GPSCoordinates", "PlotSize", "PlotSizeIncludingPath", "StartDate", "EndDate", \
         "Description", "Manager", "Distance", "Comments"], \
         "Experiment ID (Required)","EXP table", [0], [], [0], [4,5], [], [1])
-
-
-    # Experimental unit
-
-    UN = wb[sheetnames[4]]
-    UN = validate_table(UN, ["UNID", "EXPID", "SLID", "GPSCoordinates", "Block", "Column", \
-        "Row", "Comments"], "Unit ID (Required)","UN table", [0], [], [0,1,2], [], [5,6], [3])
-
     
-    # Phenotype scores
-
-    PH = wb[sheetnames[5]]
-    PH = validate_table(PH, ["PHID", "UNID", "PDID", "GENEID", "Date", "Score", "ScoredBy", "Comments"], \
-        "Phenotype ID (Required)","PH table", [0], [5], [0,1,2,5], [4], [], [])
     
-    # Climate
-
-    CL = wb[sheetnames[6]]
-    CL = validate_table(CL, ["CLID", "EXPID", "UNID", "CDID", "Date", "Score", "Comments"], \
-        "Climate ID (Required)","CL table", [0], [5], [0,1,3,5], [4], [], [])
-
-
-    # Climate Description
-
-    CD = wb[sheetnames[7]]
-    CD = validate_table(CD, ["CDID", "Name", "Grouping", "DescriptionOfMethod", "Comments"], \
-        "Climate Description ID (Required)","CD table", [0,1,3], [], [0,1,3], [], [], [])
-
-
-    # Management
-
-    MM = wb[sheetnames[8]]
-    MM = validate_table(MM, ["MMID", "EXPID", "UNID", "Treatment", "Description", "Dosage", "Date", "Comments"], \
-        "Management ID (Required)", "MM table", [0], [], [0,1], [6], [], [])
-
-
     # Phenotype Description
 
-    PD = wb[sheetnames[9]]
+    PD = wb[sheetnames[4]]
     PD = validate_table(PD, ["PDID", "PhenotypeDescription", "Unit", "Grouping", "DescriptionOfMethod", "Comments"], \
         "Phenotype ID (Required)", "PD table", [0, 1, 3], [], [0,1,2,4], [], [], [])
 
 
+    # Experimental unit
+
+    UN = wb[sheetnames[5]]
+    UN = validate_table(UN, ["UNID", "EXPID", "SLID", "GPSCoordinates", "Block", "Column", \
+        "Row", "Comments"], "Unit ID (Required)","UN table", [0], [], [0,1,2], [], [5,6], [3])
+
+
     # Intervention
 
-    I = wb[sheetnames[10]]
+    I = wb[sheetnames[6]]
     I = validate_table(I, ["IID", "UNID", "Intervention", "Description", "Comments"], \
         "Intervention ID (required)", "I table", [0], [], [0,1,2,3], [], [], [])
+
+
+    # Phenotype scores
+
+    PH = wb[sheetnames[7]]
+    PH = validate_table(PH, ["PHID", "UNID", "PDID", "GENEID", "Date", "Score", "ScoredBy", "Comments"], \
+        "Phenotype ID (Required)","PH table", [0], [5], [0,1,2,5], [4], [], [])
+    
+
+    # Climate Description
+    
+    CD = wb[sheetnames[8]]
+    CD = validate_table(CD, ["CDID", "Name", "Grouping", "DescriptionOfMethod", "Comments"], \
+        "Climate Description ID (Required)","CD table", [0,1,3], [], [0,1,3], [], [], [])
+    
+    
+    # Climate
+
+    CL = wb[sheetnames[9]]
+    CL = validate_table(CL, ["CLID", "EXPID", "UNID", "CDID", "Date", "Score", "Comments"], \
+        "Climate ID (Required)","CL table", [0], [5], [0,1,3,5], [4], [], [])
+
+
+    # Management
+
+    MM = wb[sheetnames[10]]
+    MM = validate_table(MM, ["MMID", "EXPID", "UNID", "Treatment", "Description", "Dosage", "Date", "Comments"], \
+        "Management ID (Required)", "MM table", [0], [], [0,1], [6], [], [])
+    
     
     # Checking links
     #PDID
