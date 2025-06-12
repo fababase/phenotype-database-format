@@ -90,8 +90,8 @@ def perform_validation(wb):
     # Phenotype scores
 
     PH = wb[sheetnames[7]]
-    PH = validate_table(PH, ["PHID", "UNID", "PDID", "GENEID", "Date", "Score", "ScoredBy", "Comments"], \
-        "Phenotype ID (Required)","PH table", [0], [5], [0,1,2,5], [4], [], [])
+    PH = validate_table(PH, ["PHID", "UNID", "PDID", "GENEID", "Date", "Score", "GrowthStage", "ScoredBy", "Comments"], \
+        "Phenotype ID (Required)","PH table", [0], [5], [0,1,2,5], [4], [6], [])
     
 
     # Climate Description
