@@ -15,7 +15,7 @@ def perform_validation(wb):
         wb: An openpyxl Workbook object representing the Excel workbook to be validated.
     Returns:
         list: A list containing the validated tables for each sheet, in the following order:
-            [GP, SL, EXP, UN, PH, CL, CD, MM, PD, I]
+            [GP, SL, EXP, UN, I, PD, PH, CD, CL, MM]
             where each element corresponds to a validated table from the respective sheet.
     Raises:
         AssertionError: If any sheet is missing or out of order, or if validation checks fail.
@@ -25,9 +25,9 @@ def perform_validation(wb):
         - "1) Germplasm GP": Germplasm information.
         - "2) Seed Lot SL": Seed lot information.
         - "3) Experiment information EXP": Experiment metadata.
-        - "4) Phenotype Description PD": Phenotype description metadata.
-        - "5) Experimental Unit UN": Experimental unit details.
-        - "6) Experiment intervention I": Experiment interventions.
+        - "4) Experimental Unit UN": Experimental unit details.
+        - "5) Experiment intervention I": Experiment interventions.
+        - "6) Phenotype Description PD": Phenotype description metadata.
         - "7) Phenotype scores PH": Phenotype scoring data.
         - "8) Climate Description CD": Climate description metadata.
         - "9) Climate CL": Climate data.
@@ -38,7 +38,7 @@ def perform_validation(wb):
 
     
     sheetnames = ['READ ME 1st', '1) Germplasm GP', '2) Seed Lot SL', '3) Experiment information EXP', \
-        '4) Phenotype Description PD', '5) Experimental Unit UN', '6) Experiment intervention I', \
+        '4) Experimental Unit UN', '5) Experiment intervention I', '6) Phenotype Description PD' \
             '7) Phenotype scores PH', '8) Climate Description CD', '9) Climate CL', '10) Management MM']
 
     for i in range(len(wb._sheets)):
@@ -64,27 +64,27 @@ def perform_validation(wb):
     EXP = validate_table(EXP, ["EXPID", "GPSCoordinates", "PlotSize", "PlotSizeIncludingPath", "StartDate", "EndDate", \
         "Description", "Manager", "Distance", "Comments"], \
         "Experiment ID (Required)","EXP table", [0], [], [0], [4,5], [], [1])
-    
-    
-    # Phenotype Description
-
-    PD = wb[sheetnames[4]]
-    PD = validate_table(PD, ["PDID", "PhenotypeDescription", "Unit", "Grouping", "DescriptionOfMethod", "Comments"], \
-        "Phenotype ID (Required)", "PD table", [0, 1, 3], [], [0,1,2,4], [], [], [])
 
 
     # Experimental unit
 
-    UN = wb[sheetnames[5]]
+    UN = wb[sheetnames[4]]
     UN = validate_table(UN, ["UNID", "EXPID", "SLID", "GPSCoordinates", "Block", "Column", \
         "Row", "Comments"], "Unit ID (Required)","UN table", [0], [], [0,1,2], [], [5,6], [3])
 
 
     # Intervention
 
-    I = wb[sheetnames[6]]
+    I = wb[sheetnames[5]]
     I = validate_table(I, ["IID", "UNID", "Intervention", "Description", "Comments"], \
         "Intervention ID (required)", "I table", [0], [], [0,1,2,3], [], [], [])
+
+
+    # Phenotype Description
+
+    PD = wb[sheetnames[6]]
+    PD = validate_table(PD, ["PDID", "PhenotypeDescription", "Unit", "Grouping", "DescriptionOfMethod", "Comments"], \
+        "Phenotype ID (Required)", "PD table", [0, 1, 4], [], [0,1,2,4], [], [], [])
 
 
     # Phenotype scores
