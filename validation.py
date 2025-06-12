@@ -111,8 +111,8 @@ def perform_validation(wb):
     # Management
 
     MM = wb[sheetnames[10]]
-    MM = validate_table(MM, ["MMID", "EXPID", "UNID", "Treatment", "Description", "Dosage", "Date", "Comments"], \
-        "Management ID (Required)", "MM table", [0], [], [0,1], [6], [], [])
+    MM = validate_table(MM, ["MMID", "EXPID", "Treatment", "Description", "Dosage", "Date", "Comments"], \
+        "Management ID (Required)", "MM table", [0], [], [0,1], [5], [], [])
     
     
     # Checking links
