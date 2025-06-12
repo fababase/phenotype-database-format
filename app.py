@@ -28,9 +28,14 @@ def server(input, output, session):
                 dfs = perform_validation(wb)
                 message.set("Validation successful!")
                 dataframes.set(dfs)
-            except AssertionError as e:
+            except ValueError as e:
                 # Set the error message if there's an error reading the file
                 message.set(str(e))
+                dataframes.set([])
+            except Exception as e:
+                # Set a general error message for any other exceptions
+                message.set(f"An error occurred: {str(e)}")
+                message.set(f"Please contact the developer.")
                 dataframes.set([])
 
     # Downloading data
