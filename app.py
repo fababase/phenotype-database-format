@@ -78,9 +78,10 @@ def server(input, output, session):
             return zip_path + ".zip"
     
     @output
-    @render.text
+    @render.ui
     def reactive_message():
-        return message.get()
+        # Replace newlines with <br> for HTML rendering
+        return ui.HTML(message.get().replace("\n", "<br>"))
     
      # Render the download button UI conditionally
     @output
