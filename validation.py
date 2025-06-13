@@ -3,9 +3,9 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import re
-import warnings
+
 # Load the workbook
-def perform_validation(wb):
+def perform_validation(wb, warn_callback=None):
     """
     Validates the structure and content of an Excel workbook according to a predefined schema.
     This function checks that the workbook contains the expected sheets in the correct order and that each sheet
@@ -13,6 +13,7 @@ def perform_validation(wb):
     The function relies on helper functions `validate_table` and `check_links` to perform detailed validation.
     Args:
         wb: An openpyxl Workbook object representing the Excel workbook to be validated.
+        warn_callback: Optional function to call with warning messages.
     Returns:
         list: A list containing the validated tables for each sheet, in the following order:
             [GP, SL, EXP, UN, I, PD, PH, CD, CL, MM]
@@ -47,74 +48,55 @@ def perform_validation(wb):
                 f"{wb._sheets[i].title} in excel workbook. Please check the order of the sheets.")
 
     # Germplasm
-
     GP = wb[sheetnames[1]]
     GP = validate_table(GP, ["GPID", "Name", "AlternativeName", "Species", "Donor", "GeographicOrigin", "Maintaining", "Comments"],
-        "Germplasm ID (required)","GP table", [0], [], [0], [], [], [])
+        "Germplasm ID (required)","GP table", [0], [], [0], [], [], [], warn_callback=warn_callback)
 
     # Seed lot
-
     SL = wb[sheetnames[2]]
     SL = validate_table(SL, ["SLID", "GPID", "HarvestDate", "HarvestLocation", "ParentSLID", "Comments"],
-        "Seed lot ID (Required)","SL table", [0], [], [0, 1], [2], [], [])
-
+        "Seed lot ID (Required)","SL table", [0], [], [0, 1], [2], [], [], warn_callback=warn_callback)
 
     # Experiment information
-
     EXP = wb[sheetnames[3]]
     EXP = validate_table(EXP, ["EXPID", "GPSCoordinates", "PlotSize", "PlotSizeIncludingPath", "StartDate", "EndDate",
         "Description", "Manager", "Distance", "Comments"],
-        "Experiment ID (Required)","EXP table", [0], [], [0], [4,5], [], [1])
-
+        "Experiment ID (Required)","EXP table", [0], [], [0], [4,5], [], [1], warn_callback=warn_callback)
 
     # Experimental unit
-
     UN = wb[sheetnames[4]]
     UN = validate_table(UN, ["UNID", "EXPID", "SLID", "GPSCoordinates", "Block", "Column",
-        "Row", "Comments"], "Unit ID (Required)","UN table", [0], [], [0,1,2], [], [5,6], [3])
-
+        "Row", "Comments"], "Unit ID (Required)","UN table", [0], [], [0,1,2], [], [5,6], [3], warn_callback=warn_callback)
 
     # Intervention
-
     I = wb[sheetnames[5]]
     I = validate_table(I, ["IID", "UNID", "Intervention", "Description", "Comments"],
-        "Intervention ID (required)", "I table", [0], [], [0,1,2,3], [], [], [])
-
+        "Intervention ID (required)", "I table", [0], [], [0,1,2,3], [], [], [], warn_callback=warn_callback)
 
     # Phenotype Description
-
     PD = wb[sheetnames[6]]
     PD = validate_table(PD, ["PDID", "PhenotypeDescription", "Unit", "Grouping", "DescriptionOfMethod", "Comments"],
-        "Phenotype ID (Required)", "PD table", [0, 1, 4], [], [0,1,2,4], [], [], [])
-
+        "Phenotype ID (Required)", "PD table", [0, 1, 4], [], [0,1,2,4], [], [], [], warn_callback=warn_callback)
 
     # Phenotype scores
-
     PH = wb[sheetnames[7]]
     PH = validate_table(PH, ["PHID", "UNID", "PDID", "GENEID", "Date", "Score", "GrowthStage", "ScoredBy", "Comments"],
-        "Phenotype ID (Required)","PH table", [0], [5], [0,1,2,5], [4], [6], [])
-
+        "Phenotype ID (Required)","PH table", [0], [5], [0,1,2,5], [4], [6], [], warn_callback=warn_callback)
 
     # Climate Description
-
     CD = wb[sheetnames[8]]
     CD = validate_table(CD, ["CDID", "Name", "Grouping", "DescriptionOfMethod", "Comments"],
-        "Climate Description ID (Required)","CD table", [0,1,3], [], [0,1,3], [], [], [])
-
+        "Climate Description ID (Required)","CD table", [0,1,3], [], [0,1,3], [], [], [], warn_callback=warn_callback)
 
     # Climate
-
     CL = wb[sheetnames[9]]
     CL = validate_table(CL, ["CLID", "EXPID", "UNID", "CDID", "Date", "Score", "Comments"],
-        "Climate ID (Required)","CL table", [0], [5], [0,1,3,5], [4], [], [])
-
+        "Climate ID (Required)","CL table", [0], [5], [0,1,3,5], [4], [], [], warn_callback=warn_callback)
 
     # Management
-
     MM = wb[sheetnames[10]]
     MM = validate_table(MM, ["MMID", "EXPID", "Treatment", "Description", "Dosage", "Date", "Comments"],
-        "Management ID (Required)", "MM table", [0], [], [0,1], [5], [], [])
-
+        "Management ID (Required)", "MM table", [0], [], [0,1], [5], [], [], warn_callback=warn_callback)
 
     # Checking links
     #PDID
@@ -183,7 +165,7 @@ def check_links(arg1, arg2, name, table1, table2, both=False):
 
 
 def validate_table(table, colnames, coldescrip, tablename,
-                   unique, numeric, notnull, date, integer, coordinate):
+                   unique, numeric, notnull, date, integer, coordinate, warn_callback=None):
     """
     Validates the structure and content of a table (e.g., from an Excel worksheet) against specified rules.
     Parameters:
@@ -197,6 +179,7 @@ def validate_table(table, colnames, coldescrip, tablename,
         date (list of int): Indices of columns that must contain dates in yyyy-mm-dd format.
         integer (list of int): Indices of columns that must contain only integer values.
         coordinate (list of int): Indices of columns that must contain coordinates in the format "number; number".
+        warn_callback (callable, optional): Function to call with warning messages.
     Returns:
         pandas.DataFrame: The validated table as a DataFrame with cleaned and checked data.
     Raises:
@@ -212,15 +195,15 @@ def validate_table(table, colnames, coldescrip, tablename,
         if colnames[i] is not colnames_real[i]:
             raise ValueError(f"Expected column name '{colnames[i]}' in column {i + 1} " +
                              f"but got '{colnames_real[i]}' in {tablename}. Please check the column names.")
-    
-    
+
     if table.cell(row = 2, column = 1).value == coldescrip:
-        warnings.warn(f"Skipping first row in {tablename} as it contains column descriptors.")
+        if warn_callback:
+            warn_callback(f"Skipping first row in {tablename} as it contains column descriptors.")
         data = list(table.values)
         data = data[0] + data[2:]  # Skip the first row
     else:
         data = table.values
-        
+
     # Convert sheet to DataFrame for easier processing
     df = pd.DataFrame(data)
     df = df.iloc[:, 0:width]
@@ -233,7 +216,8 @@ def validate_table(table, colnames, coldescrip, tablename,
     
     # If only the header row remains (or DataFrame is empty), return early
     if df.shape[0] <= 1:
-        warnings.warn(f"No data found in {tablename}. Returning empty DataFrame.")
+        if warn_callback:
+            warn_callback(f"No data found in {tablename}. Returning empty DataFrame.")
         return df
     
     # Assert NULL or NA is not allowed in specified indices

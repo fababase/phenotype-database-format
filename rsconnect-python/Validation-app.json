@@ -1,0 +1,12 @@
+{
+    "https://api.shinyapps.io": {
+        "server_url": "https://api.shinyapps.io",
+        "filename": "O:\\Nat_MBG-PMg\\Troels_WM\\PhD\\Faba\\N2CROP\\Validation-app",
+        "app_url": "https://troelsmou.shinyapps.io/n2crop-validation/",
+        "app_id": 14926804,
+        "app_guid": null,
+        "title": "N2Crop-Validation",
+        "app_mode": "python-shiny",
+        "app_store_version": 1
+    }
+}
