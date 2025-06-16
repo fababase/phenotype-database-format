@@ -23,29 +23,29 @@ def perform_validation(wb, warn_callback=None):
         Any exceptions raised by `validate_table` or `check_links` for invalid data.
     Sheet and Table Details:
         - "READ ME 1st": Introductory sheet (no validation).
-        - "1) Germplasm GP": Germplasm information.
-        - "2) Seed Lot SL": Seed lot information.
-        - "3) Experiment information EXP": Experiment metadata.
-        - "4) Experimental Unit UN": Experimental unit details.
-        - "5) Experiment intervention I": Experiment interventions.
-        - "6) Phenotype Description PD": Phenotype description metadata.
-        - "7) Phenotype scores PH": Phenotype scoring data.
-        - "8) Climate Description CD": Climate description metadata.
-        - "9) Climate CL": Climate data.
-        - "10) Management MM": Management interventions.
+        - "Germplasm GP": Germplasm information.
+        - "Seed Lot SL": Seed lot information.
+        - "Experiment information EXP": Experiment metadata.
+        - "Experimental Unit UN": Experimental unit details.
+        - "Experiment intervention I": Experiment interventions.
+        - "Phenotype Description PD": Phenotype description metadata.
+        - "Phenotype scores PH": Phenotype scoring data.
+        - "Climate Description CD": Climate description metadata.
+        - "Climate CL": Climate data.
+        - "Management MM": Management interventions.
     Note:
         This function assumes the existence and correct implementation of `validate_table` and `check_links`.
     """
 
     
-    sheetnames = ['READ ME 1st', '1) Germplasm GP', '2) Seed Lot SL', '3) Experiment information EXP',
-        '4) Experimental Unit UN', '5) Experiment intervention I', '6) Phenotype Description PD',
-            '7) Phenotype scores PH', '8) Climate Description CD', '9) Climate CL', '10) Management MM']
+    sheetnames = ['READ ME 1st', 'Germplasm GP', 'Seed Lot SL', 'Experiment information EXP',
+        'Experimental Unit UN', 'Experiment intervention I', 'Phenotype Description PD',
+            'Phenotype scores PH', 'Climate Description CD', 'Climate CL', 'Management MM']
 
-    for i in range(len(wb._sheets)):
-        if wb._sheets[i].title != sheetnames[i]:
-            raise ValueError(f"Expected sheet {sheetnames[i]} at index {i} but got " +
-                f"{wb._sheets[i].title} in excel workbook. Please check the order of the sheets.")
+    for i in range(len(sheetnames)):
+        if sheetnames[i] not in wb.sheetnames:
+            raise ValueError(f"Could not find {sheetnames[i]} in excel workbook. " +
+                "Please check the names of the sheets.")
 
     # Germplasm
     GP = wb[sheetnames[1]]
