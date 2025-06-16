@@ -192,7 +192,7 @@ def validate_table(table, colnames, coldescrip, tablename,
     # Check columnnames
     colnames_real = [table.cell(row=1, column = i).value for i in range(1, width + 1)]
     for i in range(len(colnames)):
-        if colnames[i] is not colnames_real[i]:
+        if colnames[i] != colnames_real[i]:
             raise ValueError(f"Expected column name '{colnames[i]}' in column {i + 1} " +
                              f"but got '{colnames_real[i]}' in {tablename}. Please check the column names.")
 
