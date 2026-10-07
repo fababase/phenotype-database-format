@@ -75,7 +75,7 @@ tests/                one valid dataset plus deliberately broken ones; run on ev
 ## How data flows
 
 1. A contributor gives an AI the AI kit (the schema doc, `schema.yaml`, `AI_INSTRUCTIONS.md`, the reference tables and the worked example) and a trimmed copy of their raw data.
-2. The AI asks what it needs to know, then writes a script that converts the raw data into one CSV per table.
+2. The AI asks what it needs to know, then writes a script that converts the raw data into one CSV per table. As it goes, it reports what it sees in the data (traits, number of scores, units, ranges), so the contributor can confirm it or catch mistakes early.
 3. The contributor runs the script on the full data and checks the CSVs with the validator, fixing the script until they pass.
 4. The contributor hands over the bundle below. It is kept privately.
 5. The tables of all contributions are merged and published as a new version of the Zenodo record.
@@ -121,7 +121,8 @@ Only the tables go to Zenodo.
   - **Inspect before coding:** every sheet, hidden rows and columns, merged cells, multi-row headers, cell colours, comments, notes below tables, decimal commas and home-made "NA" markers. Use openpyxl, since pandas cannot see colours or merged cells.
   - **Ask, don't guess:** what a unit is, what colours and formatting mean, the unit and method of each trait, what categorical codes mean, which rows to leave out. Never invent metadata; leave it empty and list it in NOTES.md.
   - **Reuse IDs:** map germplasm, traits, climate variables and features to the reference tables, and list any new ones it proposes so they can be approved.
-  - **Keep everything in the script:** raw files are read-only, every decision is in the code, and nothing is edited by hand afterwards. The script writes one CSV per table.
+  - **Deliver a script, not just tables:** the AI writes `convert.py`, a script that turns the messy raw Excel file into the correct CSV files, one per table. The script is saved with the contribution, so the conversion can be rerun and checked later. Raw files are read-only, every decision is in the code, and nothing is edited by hand afterwards.
+  - **Report what it sees** while it writes and runs the script, so the contributor can say "yes, that's right" or spot at once that something is badly wrong. For example: which traits were scored and how many scores each has, how many units, experiments and germplasm there are, the date range, the value range of each trait, and which rows were left out and why.
   - **Run the validator** and fix the script until the tables pass.
   - **Write NOTES.md:** the questions asked and the answers, the assumptions made, and row counts in the raw data vs. in the tables.
   - Work from a trimmed copy of the raw data (headers and some rows) where possible, so the full data does not have to be uploaded to an AI service.
