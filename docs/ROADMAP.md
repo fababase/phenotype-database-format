@@ -96,11 +96,11 @@ Only the tables go to Zenodo.
 
 Order matters: remove the clutter that is committed now, commit that, and only then add the `.gitignore`.
 
-- [ ] Delete files that should not be in the repo and commit the deletion:
+- [x] Delete files that should not be in the repo and commit the deletion:
   - `Thumbs.db`
   - `.gitignore.txt` (empty and misnamed; git only reads a file called exactly `.gitignore`)
   - `manifest.json` and `rsconnect-python/` (only used for shinyapps.io deploys, which Shinylive replaces)
-- [ ] Add `.gitignore` and commit it. Data is blocked by default and allowed only in known-safe places:
+- [x] Add `.gitignore` and commit it. Data is blocked by default and allowed only in known-safe places:
 
   ```gitignore
   # Data: block by default, allow known-safe places
@@ -125,7 +125,7 @@ Order matters: remove the clutter that is committed now, commit that, and only t
   .env
   ```
 
-- [ ] Move files into the [target layout](#target-layout):
+- [x] Move files into the [target layout](#target-layout):
   - `phenotype-database-schema.md` → `schema/schema.md`
   - `Database_schema.png` → `schema/diagram.png`
   - `Database_collection_N2CROP.xlsx` → `template/collection-sheet.xlsx`, with the FAKE DATA rows removed (they become part of the worked example)
@@ -133,9 +133,9 @@ Order matters: remove the clutter that is committed now, commit that, and only t
 - [ ] Decide on a new repository name, and rename the repo **before** setting up GitHub Pages, because the app's address includes the repo name.
   - Rename on GitHub: Settings → General → Repository name. GitHub redirects the old address.
   - In GitHub Desktop: Repository → Repository settings → Remote, and update the URL.
-- [ ] Split the licence: keep `LICENSE` (GPL-3.0) for code and add `LICENSE-CONTENT` (CC-BY-4.0) for the schema doc, collection sheet and reference tables. Say which applies to what in the README.
-- [ ] Write a first `README.md`: what this is, links to the schema, the app and how to contribute data.
-- [ ] Set up a Python environment on a current Python version for running the validator and tests locally.
+- [x] Split the licence: keep `LICENSE` (GPL-3.0) for code and add `LICENSE-CONTENT` (CC-BY-4.0) for the schema doc, collection sheet and reference tables. Say which applies to what in the README.
+- [x] Write a first `README.md`: what this is, links to the schema, the app and how to contribute data.
+- [x] Set up a Python environment on a current Python version for running the validator and tests locally. (Conda env `fababase`, Python 3.12, which matches the Python Shinylive runs in the browser; steps in the README.)
 
 ## Phase 1: Validator and app
 
