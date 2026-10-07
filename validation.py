@@ -136,7 +136,9 @@ def check_links(arg1, arg2, name, table1, table2, both=False):
         table2 (str): The name of the second table (used in error messages).
         both (bool, optional): If True, also checks that all non-null values in arg2 exist in arg1. Default is False.
     Raises:
-        ValueError: If any non-null value in arg1 is not present in arg2, or (if both=True) if any non-null value in arg2 is not present in arg1. The error message includes the missing values and their indexes.
+        ValueError: If any non-null value in arg1 is not present in arg2,
+        or (if both=True) if any non-null value in arg2 is not present in arg1.
+        The error message includes the missing values and their indexes.
     """
     
     
@@ -161,7 +163,7 @@ def check_links(arg1, arg2, name, table1, table2, both=False):
             missing_values_reverse = arg2[~reverse_mask]
             missing_indexes_reverse = missing_values_reverse.index.tolist()
             raise ValueError(f"Not all values in {name} in {table2} table are present in {table1} table \n"
-                                 f"Missing values: {missing_values_reverse.tolist()} at indexes: {missing_indexes_reverse}")
+                                 f"Missing values: {missing_values_reverse.tolist()} at indexes: {missing_indexes_reverse}\n(+-2 for header and possible descriptor row)")
 
 
 def validate_table(table, colnames, coldescrip, tablename,
@@ -199,9 +201,11 @@ def validate_table(table, colnames, coldescrip, tablename,
     if table.cell(row = 2, column = 1).value == coldescrip:
         if warn_callback:
             warn_callback(f"Skipping first row in {tablename} as it contains column descriptors.")
+            row_offset = 2
         data = list(table.values)
-        data = data[0] + data[2:]  # Skip the first row
+        data = data[0:1] + data[2:]  # Skip the first row
     else:
+        row_offset = 1
         data = table.values
 
     # Convert sheet to DataFrame for easier processing
@@ -227,7 +231,7 @@ def validate_table(table, colnames, coldescrip, tablename,
             row_numbers = np.where(null_rows)[0]
             raise ValueError(
                 f"NULL or NA values found in column {index + 1} of " +
-                f"{tablename} \n at rows {row_numbers} where they are not allowed"
+                f"{tablename} \n at rows {row_numbers + row_offset} where they are not allowed"
             )
     # Assert all values have to be unique in specified indices
     for index in unique:
@@ -236,7 +240,7 @@ def validate_table(table, colnames, coldescrip, tablename,
             row_numbers = np.where(duplicate_rows)[0]
             raise ValueError(
                 f"Duplicate values found in column {index + 1} " +
-                f"of {tablename} \n at rows {row_numbers} where values have to be unique"
+                f"of {tablename} \n at rows {row_numbers + row_offset} where values have to be unique."
             )
     # Assert values have to be numeric in specified indices
     for index in numeric:
@@ -245,7 +249,7 @@ def validate_table(table, colnames, coldescrip, tablename,
             row_numbers = np.where(non_numeric_rows)[0] + 1  
             raise ValueError(
                 f"Non-numeric values found in column {index + 1} " +
-                f"of {tablename} \n at rows {row_numbers} where values have to be numeric"
+                f"of {tablename} \n at rows {row_numbers + row_offset} where values have to be numeric"
             )
     # Assert values have to be dates of format yyyy-mm-dd in specified indices
     for index in date:
@@ -254,7 +258,7 @@ def validate_table(table, colnames, coldescrip, tablename,
             row_numbers = np.where(invalid_rows)[0] + 1
             raise ValueError(
                 f"Invalid date format found in column {index + 1} " +
-                     f"of {tablename} \n at rows {row_numbers} where date format yyyy-mm-dd is expected"
+                     f"of {tablename} \n at rows {row_numbers + row_offset} where date format yyyy-mm-dd is expected"
             )
     # Assert values have to be integers in specified indices
     for index in integer:
@@ -263,7 +267,7 @@ def validate_table(table, colnames, coldescrip, tablename,
             row_numbers = np.where(invalid_rows)[0] + 1
             raise ValueError(
                 f"Non-integer values found in column {index + 1} " +
-                     f"of {tablename} \n at rows {row_numbers} where integer values are expected"
+                     f"of {tablename} \n at rows {row_numbers + row_offset} where integer values are expected"
             )
     # Assert values have to be coordinates of format numeric number ; numeric number in specified indices
     for index in coordinate:
@@ -272,7 +276,7 @@ def validate_table(table, colnames, coldescrip, tablename,
             row_numbers = np.where(invalid_rows)[0] + 1
             raise ValueError(
                 f"Invalid coordinate format found in column {index + 1} " +
-                     f"of {tablename} \n at rows {row_numbers} where coordinate format xx.xxxx..;yy.yyyy.. is expected"
+                     f"of {tablename} \n at rows {row_numbers + row_offset} where coordinate format xx.xxxx..;yy.yyyy.. is expected"
             )
             
     return df

@@ -24,7 +24,7 @@ app_ui = ui.page_fluid(
             ui.p("This area is reserved for future plots and visualizations."),
             style="background-color: #f8f9fa; padding: 2em; margin-bottom: 2em; min-height: 200px;"
         ),
-        col_widths = (3, 9)
+        col_widths = (4, 8)
     ),
     style="background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); min-height: 100vh;"
 )

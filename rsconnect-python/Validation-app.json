@@ -5,7 +5,7 @@
         "app_url": "https://troelsmou.shinyapps.io/n2crop-validation/",
         "app_id": 14926804,
         "app_guid": null,
-        "title": "N2Crop-Validation",
+        "title": "Validation-app",
         "app_mode": "python-shiny",
         "app_store_version": 1
     }
