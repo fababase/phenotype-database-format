@@ -10,16 +10,35 @@ This repository describes and checks the format of the FabaBase phenotype databa
 | Path | What it is |
 |---|---|
 | [schema/schema.md](schema/schema.md) | The schema: every table and column, the conventions and the special rules. **Start here.** |
+| [schema/schema.yaml](schema/schema.yaml) | The same schema in machine-readable form, with its version number. The validator reads it. |
 | [schema/diagram.png](schema/diagram.png) | How the tables link together. |
 | [template/collection-sheet.xlsx](template/collection-sheet.xlsx) | Blank collection sheet, one sheet per table, for filling in by hand. |
-| [app/](app/) | The validation app. `validation.py` holds the checks, `app.py` the user interface. |
+| [app/](app/) | The validator. `validation.py` holds the checks and runs from the command line; `app.py` is the app around it. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Decisions, planned work and open questions. |
 
 ## Checking your data
 
-The validation app runs at <https://troelsmou.shinyapps.io/n2crop-validation/>. Upload a filled-in collection sheet and it reports the first problem it finds, such as an ID in one table that is missing from the table it links to.
+The validator checks a set of tables against [schema version 1.0.0](schema/schema.yaml). Give it either:
 
-The app is moving to GitHub Pages, where it will run in your browser so your data never leaves your computer. The address will be added here.
+- one CSV file per table, named after the table: `Germplasm.csv`, `SeedLot.csv`, … Columns can be in any order, and optional columns can be left out. Comma-, semicolon- and tab-separated files all work.
+- or one filled-in [collection sheet](template/collection-sheet.xlsx).
+
+It stops at the first problem it finds and says where it is and how to fix it, for example:
+
+```
+Climate.csv, row 2, column Score: '11,7167' has ',' as the decimal mark. Use '.' instead: 11.7167
+```
+
+When everything passes, it can hand back the tables as clean CSV files: UTF-8, comma-separated, dates as `YYYY-MM-DD`.
+
+**From the command line** (see [Running locally](#running-locally) for the setup):
+
+```
+python app/validation.py path/to/folder-of-csv-files
+python app/validation.py collection-sheet.xlsx --out path/to/new-folder
+```
+
+**In the app**: run it locally as below. It is moving to GitHub Pages, where it will run in your browser so your data never leaves your computer; the address will be added here. The old app at <https://troelsmou.shinyapps.io/n2crop-validation/> still runs the previous version, which only takes a collection sheet.
 
 ## Contributing data
 
@@ -29,7 +48,7 @@ The app is moving to GitHub Pages, where it will run in your browser so your dat
 
 A step-by-step guide, including how to convert messy raw data with the help of an AI, is planned (see the [roadmap](docs/ROADMAP.md#phase-2-schema-doc-example-and-ai-kit)).
 
-## Running the app locally
+## Running locally
 
 With [Anaconda](https://www.anaconda.com/), from the repository folder:
 
@@ -37,10 +56,9 @@ With [Anaconda](https://www.anaconda.com/), from the repository folder:
 conda create -n fababase python=3.12
 conda activate fababase
 pip install -r app/requirements.txt
-shiny run app/app.py
 ```
 
-Then open the address it prints (usually <http://127.0.0.1:8000>).
+Then either check files from the command line (`python app/validation.py --help` lists the options), or start the app with `shiny run app/app.py` and open the address it prints (usually <http://127.0.0.1:8000>).
 
 ## Licences
 

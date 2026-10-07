@@ -1,0 +1,168 @@
+# Machine-readable copy of the phenotype database schema. schema.md describes it in full.
+# The validator (app/validation.py) reads this file, so a change here changes what it checks.
+
+version: "1.0.0"
+
+# Cell values that mean "no value", besides an empty cell. Compared ignoring case and surrounding spaces.
+missing_values: ["NULL", "NA", "N/A", "None", "Not applicable"]
+
+# Column types:
+#   id           text that identifies a row; no fixed format
+#   text         short text
+#   long_text    free text of any length
+#   integer      whole number
+#   number       real number, with "." as the decimal mark
+#   date         YYYY-MM-DD
+#   coordinates  latitude;longitude in decimal degrees, without spaces
+#   features     FTID1=value1;FTID2=value2, with FTIDs from the Features table
+#
+# Each table's first column is its ID column. Columns are optional and not unique unless marked.
+# A table marked required must be present with at least one row; the others may be left out.
+
+tables:
+  Germplasm:
+    code: GP
+    required: true
+    columns:
+      GPID:             {type: id, required: true, unique: true}
+      Name:             {type: text}
+      AlternativeName:  {type: text}
+      Species:          {type: text}
+      Donor:            {type: text}
+      GeographicOrigin: {type: text}
+      Maintaining:      {type: text}
+      Comments:         {type: long_text}
+
+  SeedLot:
+    code: SL
+    required: true
+    columns:
+      SLID:            {type: id, required: true, unique: true}
+      GPID:            {type: id, required: true, links_to: Germplasm}
+      HarvestDate:     {type: date}
+      HarvestLocation: {type: text}
+      ParentSLID:      {type: id, links_to: SeedLot}
+      Comments:        {type: long_text}
+
+  Experiment:
+    code: EXP
+    required: true
+    columns:
+      EXPID:                 {type: id, required: true, unique: true}
+      GPSCoordinates:        {type: coordinates}
+      PlotSize:              {type: text}
+      PlotSizeIncludingPath: {type: text}
+      StartDate:             {type: date}
+      EndDate:               {type: date}
+      Description:           {type: long_text}
+      Manager:               {type: text}
+      Distance:              {type: text}
+      Comments:              {type: long_text}
+
+  ExperimentalUnit:
+    code: UN
+    required: true
+    columns:
+      UNID:           {type: id, required: true, unique: true}
+      EXPID:          {type: id, required: true, links_to: Experiment}
+      SLID:           {type: id, required: true, links_to: SeedLot}
+      GPSCoordinates: {type: coordinates}
+      Features:       {type: features}
+      Block:          {type: integer}
+      Column:         {type: integer}
+      Row:            {type: integer}
+      Comments:       {type: long_text}
+
+  ExperimentIntervention:
+    code: I
+    columns:
+      IID:          {type: id, required: true, unique: true}
+      UNID:         {type: id, required: true, unique: true, links_to: ExperimentalUnit}
+      Intervention: {type: text, required: true}
+      Description:  {type: long_text, required: true}
+
+  Management:
+    code: MM
+    columns:
+      MMID:        {type: id, required: true, unique: true}
+      EXPID:       {type: id, required: true, links_to: Experiment}
+      Treatment:   {type: text}
+      Description: {type: long_text}
+      Dosage:      {type: text}
+      Date:        {type: date}
+      Comments:    {type: long_text}
+
+  PhenotypeDescription:
+    code: PD
+    required: true
+    columns:
+      PDID:                 {type: id, required: true, unique: true}
+      PhenotypeDescription: {type: text, required: true}
+      Unit:                 {type: text, required: true}
+      Grouping:             {type: text}
+      DescriptionOfMethod:  {type: long_text, required: true}
+
+  Phenotype:
+    code: PH
+    required: true
+    columns:
+      PHID:     {type: id, required: true, unique: true}
+      UNID:     {type: id, required: true, links_to: ExperimentalUnit}
+      PDID:     {type: id, required: true, links_to: PhenotypeDescription}
+      Features: {type: features}
+      Date:     {type: date}
+      Score:    {type: number, required: true}
+      ScoredBy: {type: text}
+      Comments: {type: long_text}
+
+  ClimateDescription:
+    code: CD
+    columns:
+      CDID:                {type: id, required: true, unique: true}
+      Name:                {type: text, required: true}
+      Unit:                {type: text, required: true}
+      Grouping:            {type: text}
+      DescriptionOfMethod: {type: long_text, required: true}
+
+  Climate:
+    code: CL
+    columns:
+      CLID:     {type: id, required: true, unique: true}
+      EXPID:    {type: id, required: true, links_to: Experiment}
+      UNID:     {type: id, links_to: ExperimentalUnit}  # empty means all units in the experiment
+      CDID:     {type: id, required: true, links_to: ClimateDescription}
+      Date:     {type: date}
+      Score:    {type: number, required: true}
+      Comments: {type: long_text}
+
+  Features:
+    code: FT
+    columns:
+      FTID:        {type: id, required: true, unique: true}  # cannot contain ";" or "="
+      Type:        {type: text}  # c (text), I (whole number), d (real number); empty means c
+      Unit:        {type: text}
+      Vocabulary:  {type: text}  # c: allowed values separated by ";"; I and d: a range min..max
+      Description: {type: text, required: true}
+
+# Rules that span tables, checked after the links. Each name is implemented in the validator.
+rules:
+  - climate_unit_in_experiment  # a Climate UNID that is filled in belongs to the row's EXPID
+  - one_intervention_per_unit   # in experiments with interventions, every unit has a row in ExperimentIntervention
+  - every_experiment_has_a_unit # every experiment has at least one unit
+
+# The collection sheet (template/collection-sheet.xlsx): the sheet name of each table, and the first
+# cell of the row of column descriptions under the header, which the validator skips.
+collection_sheet:
+  ignore: ["READ ME 1st"]
+  sheets:
+    Germplasm:              {name: Germplasm GP, descriptor: Germplasm ID (required)}
+    SeedLot:                {name: Seed Lot SL, descriptor: Seed lot ID (Required)}
+    Experiment:             {name: Experiment information EXP, descriptor: Experiment ID (Required)}
+    ExperimentalUnit:       {name: Experimental Unit UN, descriptor: Unit ID (Required)}
+    ExperimentIntervention: {name: Experiment intervention I, descriptor: Intervention ID (required)}
+    Management:             {name: Management MM, descriptor: Management ID (Required)}
+    PhenotypeDescription:   {name: Phenotype Description PD, descriptor: Phenotype ID (Required)}
+    Phenotype:              {name: Phenotype scores PH, descriptor: Phenotype ID (Required)}
+    ClimateDescription:     {name: Climate Description CD, descriptor: Climate Description ID (Required)}
+    Climate:                {name: Climate CL, descriptor: Climate ID (Required)}
+    Features:               {name: Features FT, descriptor: Feature ID (required)}

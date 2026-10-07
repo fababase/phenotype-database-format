@@ -27,7 +27,7 @@ This roadmap records the decisions made so far, the work in order, and the quest
 | Zenodo | **One record** for the whole database. New contributions and corrections become new versions of that record. |
 | What is published | **Only the formatted tables**, plus the README and the schema doc. Raw files and conversion scripts are kept privately, not published. |
 | Source of truth | `schema/schema.yaml`. The validator reads it, and tests check the doc and the collection sheet against it. |
-| Validator input | A set of **CSV files**, one per table. |
+| Validator input | A set of **CSV files**, one per table, or a filled-in **collection sheet** (.xlsx). Either way, the tables that pass can be written out as CSV files. |
 | Validator errors | **Stops at the first error.** Later errors are often knock-on effects of the first one, so they are not reported. Each message names the table, row, column and value. |
 | Dates | Written as `YYYY-MM-DD` everywhere, including the validator's output. |
 | App hosting | **Shinylive on GitHub Pages**: the app runs in the visitor's browser, so data never leaves their computer, and it redeploys automatically. Replaces shinyapps.io. |
@@ -94,66 +94,17 @@ Only the tables go to Zenodo.
 
 ## Phase 0: Clean up and restructure
 
-Order matters: remove the clutter that is committed now, commit that, and only then add the `.gitignore`.
-
-- [x] Delete files that should not be in the repo and commit the deletion:
-  - `Thumbs.db`
-  - `.gitignore.txt` (empty and misnamed; git only reads a file called exactly `.gitignore`)
-  - `manifest.json` and `rsconnect-python/` (only used for shinyapps.io deploys, which Shinylive replaces)
-- [x] Add `.gitignore` and commit it. Data is blocked by default and allowed only in known-safe places:
-
-  ```gitignore
-  # Data: block by default, allow known-safe places
-  *.xlsx
-  *.xls
-  *.csv
-  !template/*.xlsx
-  !reference/*.csv
-  !examples/**
-  !tests/**
-  data/
-
-  # Python, environments, build output
-  __pycache__/
-  .venv/
-  site/
-
-  # Windows / Office clutter (~$ = Excel lock files)
-  Thumbs.db
-  desktop.ini
-  ~$*
-  .env
-  ```
-
-- [x] Move files into the [target layout](#target-layout):
-  - `phenotype-database-schema.md` → `schema/schema.md`
-  - `Database_schema.png` → `schema/diagram.png`
-  - `Database_collection_N2CROP.xlsx` → `template/collection-sheet.xlsx`, with the FAKE DATA rows removed (they become part of the worked example)
-  - `app.py`, `validation.py`, `requirements.txt` → `app/`
 - [ ] Decide on a new repository name, and rename the repo **before** setting up GitHub Pages, because the app's address includes the repo name.
   - Rename on GitHub: Settings → General → Repository name. GitHub redirects the old address.
   - In GitHub Desktop: Repository → Repository settings → Remote, and update the URL.
-- [x] Split the licence: keep `LICENSE` (GPL-3.0) for code and add `LICENSE-CONTENT` (CC-BY-4.0) for the schema doc, collection sheet and reference tables. Say which applies to what in the README.
-- [x] Write a first `README.md`: what this is, links to the schema, the app and how to contribute data.
-- [x] Set up a Python environment on a current Python version for running the validator and tests locally. (Conda env `fababase`, Python 3.12, which matches the Python Shinylive runs in the browser; steps in the README.)
 
 ## Phase 1: Validator and app
 
-- [ ] Write `schema/schema.yaml`: every table and column, with type, required, unique and links, following [schema.md](../schema/schema.md). Give it a schema version number.
-- [ ] Rewrite `app/validation.py` to read `schema.yaml` instead of hard-coding columns:
-  - [ ] Read a set of CSV files, one per table, named after the table (`Germplasm.csv`, `SeedLot.csv`, …). Tables that are only needed sometimes (ExperimentIntervention, Management, ClimateDescription, Climate, Features) may be missing.
-  - [ ] Cover all 11 tables, including Features.
-  - [ ] Cover the special rules in the schema doc: Features cells, feature types and vocabularies, Climate's empty UNID meaning all units, a Climate UNID belonging to its EXPID, and one intervention level per unit.
-  - [ ] Treat only empty cells and `NULL` as missing, as the schema doc says.
-  - [ ] Accept and write dates as `YYYY-MM-DD`.
-  - [ ] Stop at the first error, with a message that names the table, row, column and value, and says what was expected.
-  - [ ] Say which schema version the data was checked against.
-  - [ ] Run from the command line as well (`python validation.py <folder>`), so contributors and AI agents can run it locally.
-- [ ] Update `app/app.py`: upload several CSV files at once, show the result, show the schema version.
-- [ ] Pin package versions in `app/requirements.txt`.
 - [ ] Tests in `tests/`: one valid dataset, and one broken dataset per rule, each expected to fail with the right message.
 - [ ] GitHub Action that runs the tests on every push.
 - [ ] Deploy with Shinylive on GitHub Pages: a GitHub Action exports the app with Shinylive and publishes it to Pages on every push to `main`, once the tests pass.
+  - The export has to include `schema.yaml`: copy it into `app/` first. The validator looks for it there before `../schema/`.
+  - The pinned versions in `app/requirements.txt` may have to change to the versions Shinylive's browser Python provides.
 - [ ] Check that file upload works in the browser version.
 - [ ] Once the new app works, retire the old shinyapps.io app (`n2crop-validation`), or replace it with a page pointing to the new address.
 - [ ] Write `docs/deploy-app.md`. Refreshing the app should be: commit and push to `main` in GitHub Desktop, then wait for the Action to finish. Include where to see whether the Action failed.
@@ -202,9 +153,6 @@ To be explored later: instead of each contributor setting up an AI themselves, a
 ## Open questions
 
 - **New repository name.** Needed before Phase 1, since the app's address depends on it.
-- **The hand-filled collection sheet.** The validator now takes CSV files, so a filled-in sheet has to become CSVs first. Saving each sheet as CSV from Excel is error-prone: Danish Excel writes `;` as the separator and `,` as the decimal mark. Options:
-  - the app turns an uploaded sheet into CSVs before validating (recommended; little code, and the app then also offers the CSVs as a download)
-  - a small script that does the same
-  - contributors with a filled-in sheet use the AI route too
+- ~~**The hand-filled collection sheet.**~~ Decided: the validator reads a filled-in sheet directly, both in the app and from the command line, and offers the tables as CSV files (`--out` on the command line).
 - **Merged tables or one folder per contribution** in the Zenodo record. Merged tables make one database that is easy to use, and each contribution can still be traced through its experiments (EXPID). This is the recommendation.
 - **Confidential germplasm.** If some breeding lines cannot be public, they cannot be in `reference/` either. Decide how to handle them.

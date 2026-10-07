@@ -4,6 +4,8 @@ The phenotype database schema is a set of 11 linked tables for phenotype data fr
 
 This document describes every table and column, the conventions that apply throughout, and the few places where the schema does not behave like an ordinary relational database.
 
+This is **version 1.0.0** of the schema. [schema.yaml](schema.yaml) is a machine-readable copy, which the validator checks data against.
+
 > [!NOTE]
 > **In short:** the tables are linked by IDs, and every measured value is a row of its own. Scores are plain numbers, and description tables say what they mean. Two things need special handling: an empty UNID in Climate means *all units*, and Features cells hold lists like `FTID1=value1;FTID2=value2`.
 
@@ -95,10 +97,10 @@ Required columns must have a value in every row. All other columns are optional 
 
 ### Missing values
 
-An empty cell and the text `NULL` both mean that there is no value. In a required column, `NULL` counts as missing.
+An empty cell means that there is no value, and so do the texts `NULL`, `NA`, `N/A`, `None` and `Not applicable`, in upper or lower case. In a required column, these count as missing.
 
 > [!IMPORTANT]
-> There is one exception: an empty or `NULL` UNID in [Climate](#climate) means that the row applies to **all** units in the experiment, not to none. See [Climate rows without a unit apply to all units](#climate-rows-without-a-unit-apply-to-all-units).
+> There is one exception: a missing UNID in [Climate](#climate) means that the row applies to **all** units in the experiment, not to none. See [Climate rows without a unit apply to all units](#climate-rows-without-a-unit-apply-to-all-units).
 
 ### Data types
 
@@ -145,7 +147,7 @@ A row in [Climate](#climate) always belongs to an experiment (EXPID), and can al
 | UNID | The value applies to |
 |---|---|
 | Filled in | That unit only |
-| Empty or `NULL` | **Every unit** in the experiment |
+| Empty, `NULL` or another [missing value](#missing-values) | **Every unit** in the experiment |
 
 - A UNID that is filled in must belong to the same experiment as the row's EXPID.
 - This is the only column in the schema where an empty value means "all". Everywhere else, an empty value means the value is missing.
@@ -157,7 +159,7 @@ A plain join on UNID leaves out the rows that apply to all units. Join on the ex
 
 ```sql
 -- Each climate value, once for every unit it applies to.
--- Assumes the text NULL has been loaded as a real NULL.
+-- Assumes missing values (NULL, NA, ...) have been loaded as a real NULL.
 SELECT u.UNID AS AppliesTo, c.*
 FROM Climate AS c
 JOIN ExperimentalUnit AS u
@@ -191,7 +193,7 @@ Rules:
 - There are no spaces around `=` or `;`.
 - Values cannot contain `;` or `=`.
 - Each value must be valid for its feature's Type and Vocabulary (see [Feature types and vocabularies](#feature-types-and-vocabularies)).
-- An empty or `NULL` cell means the unit or score has no features.
+- An empty cell, or a [missing value](#missing-values) such as `NULL`, means the unit or score has no features.
 
 Features on a unit describe the whole unit: the plot, pot or sample. Features on a phenotype score describe that score only.
 
@@ -447,7 +449,7 @@ Climate measurements for an experiment, or for one unit in it. **One row per mea
 |---|---|---|---|---|---|
 | CLID | ID | Yes, unique | | Climate ID. | TODO |
 | EXPID | ID | Yes | [Experiment](#experiment) | Experiment the measurement belongs to. | TODO |
-| UNID | ID | No | [ExperimentalUnit](#experimentalunit) | Unit the measurement belongs to. **Empty or `NULL` means all units in the experiment.** | TODO |
+| UNID | ID | No | [ExperimentalUnit](#experimentalunit) | Unit the measurement belongs to. **Empty or missing means all units in the experiment.** | TODO |
 | CDID | ID | Yes | [ClimateDescription](#climatedescription) | Climate variable that was measured. | TODO |
 | Date | Date | No | | Date of the measurement. | TODO |
 | Score | Number | Yes | | The measured value, as a number. | TODO |
@@ -545,7 +547,7 @@ A dataset follows the schema when all of the following hold.
 
 **All tables**
 
-- [ ] Every required column has a value in every row (`NULL` counts as empty).
+- [ ] Every required column has a value in every row (`NULL`, `NA`, `N/A`, `None` and `Not applicable` count as empty).
 - [ ] Every ID is unique within its table.
 - [ ] Every ID that refers to another table exists in that table, written exactly the same way.
 
@@ -568,6 +570,7 @@ A dataset follows the schema when all of the following hold.
 **Specific tables**
 
 - [ ] In SeedLot, a ParentSLID that is filled in is an SLID in SeedLot.
+- [ ] Every experiment has at least one unit in ExperimentalUnit.
 - [ ] In Climate, a UNID that is filled in belongs to the experiment given by EXPID.
 - [ ] In experiments with interventions, every unit has exactly one row in ExperimentIntervention.
 

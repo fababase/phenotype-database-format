@@ -1,18 +1,23 @@
-from shiny import ui, App, reactive, render
-from validation import perform_validation
-import os
-import tempfile
-import shutil
-import openpyxl
+import io
+import zipfile
+from pathlib import Path
+
+from shiny import App, reactive, render, ui
+
+from validation import Table, ValidationError, load_schema, summary, validate_files
+
+SCHEMA = load_schema()
 
 app_ui = ui.page_fluid(
     ui.layout_columns(
         # Left column: input and output stacked
         ui.card(
-            ui.h2("Excel Validator"),
-            ui.p("Upload your Excel (.xlsx) file for validation and conversion."),
+            ui.h2("Phenotype data validator"),
+            ui.p("Upload one CSV file per table, named after the table (Germplasm.csv, SeedLot.csv, …), "
+                 "or a filled-in collection sheet (.xlsx)."),
+            ui.p(f"Checks against schema version {SCHEMA.version}. Stops at the first error."),
             ui.hr(),
-            ui.input_file("file1", "Choose Excel File", multiple=False, accept=[".xlsx"]),
+            ui.input_file("files", "Choose files", multiple=True, accept=[".csv", ".xlsx"]),
             ui.hr(),
             ui.output_ui("reactive_message"),
             ui.output_ui("download_ui"),
@@ -31,63 +36,44 @@ app_ui = ui.page_fluid(
 
 def server(input, output, session):
 
-    message = reactive.Value("Input excel file please.")
+    @reactive.calc
+    def validation_result() -> tuple[list[str], dict[str, Table]]:
+        """Validates the uploaded files. Returns the message lines and the checked tables (empty if validation failed)."""
+        uploads = input.files()
+        if not uploads:
+            return ["Upload your files please."], {}
+        lines = []
+        files = [(upload["name"], Path(upload["datapath"])) for upload in uploads]
+        try:
+            tables = validate_files(files, SCHEMA, notice=lambda msg: lines.append(f"Notice: {msg}"))
+        except ValidationError as e:
+            lines.append(f"Validation failed: {e}")
+            return lines, {}
+        except Exception as e:
+            lines.append(f"An error occurred: {e}")
+            lines.append("Please contact the developer.")
+            return lines, {}
+        return lines + summary(tables, SCHEMA), tables
 
-    dataframes = reactive.Value([])
-
-    # Reactive function to read the Excel file when it's uploaded
-    @reactive.Effect
-    def upload():
-        if input.file1():
-            msg_lines = ["Attempting validation..."]
-            message.set("\n".join(msg_lines))
-            def warn_callback(msg):
-                msg_lines.append(f"Notice: {msg}")
-                message.set("\n".join(msg_lines))
-            try:
-                wb = openpyxl.load_workbook(input.file1()[0]["datapath"])
-                dfs = perform_validation(wb, warn_callback=warn_callback)
-                msg_lines.append("Validation successful!")
-                message.set("\n".join(msg_lines))
-                dataframes.set(dfs)
-            except ValueError as e:
-                msg_lines.append(f"Validation failed: {str(e)}")
-                message.set("\n".join(msg_lines))
-                dataframes.set([])
-            except Exception as e:
-                msg_lines.append(f"An error occurred: {str(e)}")
-                msg_lines.append("Please contact the developer.")
-                message.set("\n".join(msg_lines))
-                dataframes.set([])
-
-    # Downloading data
-    @output
-    @render.download
+    # Downloading the checked tables as CSV files
+    @render.download(filename="tables.zip")
     def download_zip():
-        if dataframes.get() is not None:
-            temp_dir = tempfile.mkdtemp()
-            file_paths = []  # Keep track of the generated file paths
-            names = ["GP", "SL", "EXP", "UN", "PH", "CL", "CD", "MM", "PD", "I"]
-            for i, df in enumerate(dataframes.get()):
-                file_path = os.path.join(temp_dir, f"{names[i]}.csv")
-                df.to_csv(file_path, index=False, header = False)
-                file_paths.append(file_path)
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            for name, table in validation_result()[1].items():
+                archive.writestr(f"{name}.csv", table.to_csv())
+        yield buffer.getvalue()
 
-            zip_path = os.path.join(temp_dir, "files")
-            shutil.make_archive(zip_path, 'zip', temp_dir)
-            return zip_path + ".zip"
-    
-    @output
     @render.ui
     def reactive_message():
-        # Replace newlines with <br> for HTML rendering
-        return ui.HTML(message.get().replace("\n", "<br>"))
-    
-     # Render the download button UI conditionally
-    @output
+        # One line per message; ui.div escapes the text, which can hold values from the data
+        return ui.TagList(*(ui.div(line) for line in validation_result()[0]))
+
+    # Render the download button UI conditionally
     @render.ui
     def download_ui():
-        if dataframes.get():
-            return ui.download_button("download_zip", "Download")
+        if validation_result()[1]:
+            return ui.download_button("download_zip", "Download tables as CSV")
+
 # Combine into a Shiny app
 app = App(app_ui, server)
