@@ -153,7 +153,9 @@ To be explored later: instead of each contributor setting up an AI themselves, a
 - **Dates that make sense.** The validator only checks that a date is real and written YYYY-MM-DD. Possible additions:
   - No dates in the future.
   - A warning, not an error, for very early dates.
+  - An experiment's StartDate is not after its EndDate.
   - One warning per table, not per row, when Phenotype, Management or Climate dates fall outside their experiment's StartDate–EndDate.
+  - Maybe stricter: Management dates are not after their experiment's EndDate, and Phenotype dates are not before its StartDate.
   - When a date falls outside its experiment but swapping day and month would bring it inside, say so.
   - A parent seed lot (ParentSLID) is harvested before its child.
   - A seed lot is harvested before the phenotype dates of the units sown from it.
