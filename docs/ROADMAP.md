@@ -154,3 +154,4 @@ To be explored later: instead of each contributor setting up an AI themselves, a
 - **Confidential germplasm.** If some breeding lines cannot be public, they cannot be in `reference/` either. Decide how to handle them.
 - **IDs that start with a digit.** The schema doc recommends against them. Decide whether to make it a rule the validator checks.
 - **Checking the EXPID prefix.** Experiment-level IDs are recommended to start with their EXPID. Decide whether the validator should check it.
+- **Special symbols.** We may restrict special symbols in values where possible, so that each one has a single defined meaning, and any other use is an error.

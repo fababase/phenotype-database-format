@@ -140,9 +140,9 @@ tables:
     code: FT
     columns:
       FTID:        {type: id, required: true, unique: true}
-      Type:        {type: text}  # c (text), I (whole number), d (real number); empty means c
+      Type:        {type: text}  # c (text), i (whole number), d (real number), in lower case; empty means c
       Unit:        {type: text}
-      Vocabulary:  {type: text}  # c: allowed values separated by ";"; I and d: a range min..max
+      Vocabulary:  {type: text}  # c: allowed values separated by ";"; i and d: a range min..max
       Description: {type: text, required: true}
 
 # Rules that span tables, checked after the links. Each name is implemented in the validator.

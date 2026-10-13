@@ -76,7 +76,7 @@ This is **version 1.0.0** of the schema. [schema.yaml](schema.yaml) is a machine
 
 **Interventions and management.** An intervention is something that differs between units on purpose, such as watered or not watered, inoculated or not, or intercropped with different crops: broadly, anything you would test in an analysis of variance. It is recorded per unit, in ExperimentIntervention. Management is what the whole experiment received, such as fertiliser or herbicide, and is recorded per experiment, in Management.
 
-**Columns and features.** Most information has its own column. Features are for information about a unit or a single score that has no column, such as the tissue a sample came from, the gene a score belongs to, or the NIR wavelength of a reading. Each feature is defined once in the Features table, and then used in the Features column of ExperimentalUnit or Phenotype.
+**Columns and features.** Most information has its own column. Features are for information about a unit or a single score that has no column, such as the tissue a sample came from, the gene a score belongs to, or the NIR wavelength of a reading. They are for information that varies between units or scores; what is the same for all of them goes in the experiment's Description. Each feature is defined once in the Features table, and then used in the Features column of ExperimentalUnit or Phenotype.
 
 ## General conventions
 
@@ -130,6 +130,8 @@ Required columns must have a value in every row. All other columns are optional 
 
 An empty cell means that there is no value, and so do the texts `NULL`, `NA`, `N/A`, `None` and `Not applicable`, in upper or lower case. In a required column, these count as missing.
 
+Leaving the cell empty is the recommended way to write a missing value. The texts are accepted because many programs write them.
+
 > [!IMPORTANT]
 > There is one exception: a missing UNID in [Climate](#climate) means that the row applies to **all** units in the experiment, not to none. See [Climate rows without a unit apply to all units](#climate-rows-without-a-unit-apply-to-all-units).
 
@@ -165,7 +167,35 @@ Coordinates are written as latitude and longitude in decimal degrees[^wgs84], la
 
 ### Free text
 
-Description, DescriptionOfMethod and Comments columns take any text. Most tables have an optional Comments column for anything that does not fit elsewhere.
+Description, DescriptionOfMethod and Comments columns take any text. They are what makes the numbers usable by others, so they are worth writing with care. The validator can only check that a required one is filled in.
+
+**Recommendations:**
+
+- Write for someone who was not there, years later, with only these tables. If they would have to ask you to use the data, something is missing.
+- Say each fact once, in its own column.
+- Define every name you introduce, such as intervention levels, score codes, instruments and abbreviations.
+- Give numbers with their units.
+- When something changes what a number means, make it visible in the data. Depending on the case, that could be a PDID or CDID of its own, or a [feature](#features-cells-hold-several-values) such as the tissue or the days after sowing.
+- Leave a cell empty rather than writing "none", "-" or "NA". An empty Comments cell is normal.
+- Avoid special symbols where a word does the job: write "percent", not "%".
+- Descriptions in PhenotypeDescription, ClimateDescription and Features are general, because they, ideally, will be reused across experiments.
+
+**What each column covers:**
+
+| Table | Column | Covers |
+|---|---|---|
+| Germplasm | Comments | What is known about the material that no column holds, such as its pedigree, breeding history or notable traits. |
+| SeedLot | Comments | Seed quality and handling, such as germination, seed treatment or deviations from expected phenotype. |
+| Experiment | Description | The site (address and field) or facility, growing conditions, trial size, plot layout, design and number of replicates, what the blocks are, any irrigation, which traits were tested, which factors are tested, and any other information relevant to this experiment. The levels of the factors are defined in ExperimentIntervention. |
+| Experiment | Comments | Events that affected the whole experiment. |
+| ExperimentalUnit | Comments | Something that happened to this unit. |
+| ExperimentIntervention | Description | Every level, defined concretely: what was done, how much and when. Also which level is the control, if applicable. |
+| Management | Description | The product or active ingredient, how it was applied, and why. The concentration and amount goes in Dosage. |
+| Management | Comments | Deviations from the plan. |
+| PhenotypeDescription | DescriptionOfMethod | What is measured, on which part of the plant, at which growth stage, with what, on how many plants and how they are chosen, how the score is calculated, and what every code means. |
+| ClimateDescription | DescriptionOfMethod | What is measured, at which height or depth, how often it is read, and how the value is calculated. |
+| Features | Description | What the feature is and what its values mean. |
+| Phenotype, Climate | Comments | Something about this one value that a reader should know. |
 
 ## Special rules
 
@@ -255,21 +285,21 @@ A feature's Type sets what kind of value it takes, and its optional Vocabulary n
 | Type | Values | Vocabulary |
 |---|---|---|
 | `c` | Any text | A list of allowed values separated by `;`, with no spaces around it: `value1;value2;value3` |
-| `I` | Whole numbers | A range written `min..max` |
+| `i` | Whole numbers | A range written `min..max` |
 | `d` | Any real number, with `.` as the decimal mark | A range written `min..max` |
 
-- An empty Type is treated as `c`.
+- Types are written in lower case. An empty Type is treated as `c`.
 - For `c`, a value must match one of the listed values exactly. Any other value is invalid.
-- For `I` and `d`, the range includes both ends (min ≤ value ≤ max), and both ends must be given.
+- For `i` and `d`, the range includes both ends (min ≤ value ≤ max), and both ends must be given.
 - An empty Vocabulary allows any value of the feature's type.
-- Unit gives the unit of the values, mostly for `I` and `d`.
+- Unit gives the unit of the values, mostly for `i` and `d`.
 
 **Example:** one feature of each type.
 
 | FTID | Type | Unit | Vocabulary | Description |
 |---|---|---|---|---|
 | TODO | `c` | TODO | TODO | TODO |
-| TODO | `I` | TODO | TODO | TODO |
+| TODO | `i` | TODO | TODO | TODO |
 | TODO | `d` | TODO | TODO | TODO |
 
 <details>
@@ -278,7 +308,7 @@ A feature's Type sets what kind of value it takes, and its optional Vocabulary n
 ```ebnf
 vocabulary = list | range ;
 list       = term , { ";" , term } ;    (* Type c *)
-range      = number , ".." , number ;   (* Type I or d; both ends included *)
+range      = number , ".." , number ;   (* Type i or d; both ends included *)
 term       = ? any text without ";" or "=" ? ;
 number     = ? a number, with "." as the decimal mark ? ;
 (* no spaces directly before or after ";" *)
@@ -291,7 +321,7 @@ number     = ? a number, with "." as the decimal mark ? ;
 In an experiment with interventions, every unit has exactly one row in [ExperimentIntervention](#experimentintervention). Control units are included, with a level of their own.
 
 - **Intervention** holds the level the unit received. When the experiment has more than one factor, each combination of factor levels is a level of its own. A design with two water regimes and inoculation, for example, has four levels: `HighWaterInoculated`, `HighWaterNotInoculated`, `LowWaterInoculated` and `LowWaterNotInoculated`.
-- **Description** describes the whole intervention system in the experiment, including all levels, so it is usually the same for every unit in the experiment.
+- **Description** describes the whole intervention system in the experiment, including all levels, so it is usually the same for every unit in the experiment. Define each level concretely: what was done, how much and when.
 - Because each unit has only one row, UNID is unique in this table, just like IID.
 - Experiments without interventions have no rows in this table.
 
@@ -312,7 +342,7 @@ Genetically distinct plant material, such as a variety or line. **One row per ge
 | Donor | Text | No | | Donor or parent of the variety. | TODO |
 | GeographicOrigin | Text | No | | Geographic origin of the variety. | TODO |
 | Maintaining | Text | No | | Who maintains the variety, such as a breeder or genebank. | TODO |
-| Comments | Long text | No | | Any comments. | TODO |
+| Comments | Long text | No | | Anything about this row that no other column holds. See [Free text](#free-text). | TODO |
 
 > [!IMPORTANT]
 > GPID is what links phenotype data to other data on the same plant material, such as genomic data. Make sure it is correct, and use the same GPID for the same germplasm in every dataset.
@@ -330,7 +360,7 @@ A physical batch of seed of one germplasm, from one harvest. **One row per seed 
 | HarvestDate | Date | No | | Date the seed lot was harvested. | TODO |
 | HarvestLocation | Text | No | | Where the seed lot was harvested. | TODO |
 | ParentSLID | ID | No | [SeedLot](#seedlot) | Seed lot this one was grown from. | TODO |
-| Comments | Long text | No | | Any comments. | TODO |
+| Comments | Long text | No | | Anything about this row that no other column holds. See [Free text](#free-text). | TODO |
 
 - ParentSLID points to another row in this same table, so a seed lot can be traced back through earlier generations. When it is filled in, it must be an SLID that exists in SeedLot. If the parent seed lot is not in the dataset, either add it as a row of its own or leave ParentSLID empty.
 - Experimental units point to seed lots, not to germplasm. To find the germplasm of a unit, go through its seed lot.
@@ -349,15 +379,12 @@ One trial or experiment: where and when it ran, and how it was set up. **One row
 | PlotSizeIncludingPath | Text | No | | Size of each plot, including paths. | TODO |
 | StartDate | Date | No | | Start of the growing period. | TODO |
 | EndDate | Date | No | | End of the growing period. | TODO |
-| Description | Long text | No | | Description of the trial in plain text. | TODO |
+| Description | Long text | No | | Description of the trial in plain text. See [Free text](#free-text). | TODO |
 | Manager | Text | No | | Name of the person who managed the trial. | TODO |
 | Distance | Text | No | | Distance to the weather station that the [Climate](#climate) data comes from. | TODO |
-| Comments | Long text | No | | Any comments. | TODO |
+| Comments | Long text | No | | Anything about this row that no other column holds. See [Free text](#free-text). | TODO |
 
 - PlotSize, PlotSizeIncludingPath and Distance are text, so write the unit with the number.
-
-> [!TIP]
-> A useful Description covers the site (address and field), the trial size, the plot layout, the experimental design and number of replicates, what the blocks are, and any irrigation.
 
 <sub>[↑ Back to contents](#contents)</sub>
 
@@ -375,7 +402,7 @@ A unit in an experiment that phenotypes are recorded on: a field plot, a plant p
 | Block | Integer | No | | Block or batch the unit belongs to. | TODO |
 | Column | Integer | No | | Column the unit is in. | TODO |
 | Row | Integer | No | | Row the unit is in. | TODO |
-| Comments | Long text | No | | Any comments. | TODO |
+| Comments | Long text | No | | Anything about this row that no other column holds. See [Free text](#free-text). | TODO |
 
 - Block, Column and Row are whole numbers, not text or IDs. Explain what the blocks are in the experiment's Description.
 - In experiments with interventions, the level each unit received is in [ExperimentIntervention](#experimentintervention).
@@ -391,7 +418,7 @@ The intervention level each unit received, in experiments where units are treate
 | IID | ID | Yes, unique | | Intervention ID. | TODO |
 | UNID | ID | Yes, unique | [ExperimentalUnit](#experimentalunit) | Unit that received the intervention. | TODO |
 | Intervention | Text | Yes | | Level the unit received. With several factors, the combination of levels, such as `HighWaterInoculated`. | TODO |
-| Description | Long text | Yes | | Description of the intervention system in the experiment, including all levels. | TODO |
+| Description | Long text | Yes | | Description of the intervention system in the experiment, including all levels, each defined concretely. See [Free text](#free-text). | TODO |
 
 See [One intervention level per unit](#one-intervention-level-per-unit) for how designs with more than one factor are coded.
 
@@ -406,10 +433,10 @@ Treatments given to an experiment as a whole, such as fertiliser or herbicide. *
 | MMID | ID | Yes, unique | | Management ID. | TODO |
 | EXPID | ID | Yes | [Experiment](#experiment) | Experiment that received the treatment. | TODO |
 | Treatment | Text | No | | Treatment the plants got. | TODO |
-| Description | Long text | No | | Longer description of the treatment. | TODO |
+| Description | Long text | No | | Longer description of the treatment. See [Free text](#free-text). | TODO |
 | Dosage | Text | No | | Dosage of the treatment. | TODO |
 | Date | Date | No | | Date of the treatment. | TODO |
-| Comments | Long text | No | | Any comments. | TODO |
+| Comments | Long text | No | | Anything about this row that no other column holds. See [Free text](#free-text). | TODO |
 
 - Dosage is text, so write the unit with the number.
 - Treatments that differ between units belong in [ExperimentIntervention](#experimentintervention), not here.
@@ -426,7 +453,7 @@ Defines a trait: what is measured, in which unit and how. **One row per trait.**
 | PhenotypeDescription | Text | Yes | | Name of the trait. | TODO |
 | Unit | Text | Yes | | Unit the trait is scored in. | TODO |
 | Grouping | Text | No | | Trait class the trait belongs to, from Crop Ontology; see below. | TODO |
-| DescriptionOfMethod | Long text | Yes | | Description of the trait and how it is scored. For categorical traits, what each code means. | TODO |
+| DescriptionOfMethod | Long text | Yes | | Description of the trait and how it is scored. For categorical traits, what each code means. See [Free text](#free-text). | TODO |
 
 - The PhenotypeDescription column holds the name of the trait. The full description of the trait and its method goes in DescriptionOfMethod.
 - A PDID fixes the trait, its method and its unit. This is what [Crop Ontology](https://cropontology.org) calls a variable: a trait, a method and a scale. The same trait measured in another unit or by another method needs a PDID of its own. The level a trait is scored at is part of the method, so the height of single plants, the mean height of 5 plants in a plot and a visual estimate for the whole plot are three PDIDs.
@@ -449,7 +476,7 @@ The phenotype scores. **One row per score:** one value of one trait on one unit.
 | Date | Date | No | | Date of scoring. | TODO |
 | Score | Number | Yes | | The score, as a number. | TODO |
 | ScoredBy | Text | No | | Name of the person who did the scoring. | TODO |
-| Comments | Long text | No | | Any comments. | TODO |
+| Comments | Long text | No | | Anything about this row that no other column holds. See [Free text](#free-text). | TODO |
 
 - Different traits, dates and repeated measurements on the same unit each get a row of their own.
 - What Score means, and its unit, come from the PDID.
@@ -469,7 +496,7 @@ Defines a climate variable: what is measured, in which unit and how. **One row p
 | Name | Text | Yes | | Name of the climate variable. | TODO |
 | Unit | Text | Yes | | Unit the variable is measured in. | TODO |
 | Grouping | Text | No | | Group the variable belongs to. | TODO |
-| DescriptionOfMethod | Long text | Yes | | Description of the variable and how it is scored or measured. For categorical variables, what each code means. | TODO |
+| DescriptionOfMethod | Long text | Yes | | Description of the variable and how it is scored or measured. For categorical variables, what each code means. See [Free text](#free-text). | TODO |
 
 - As with traits, a CDID fixes the variable, its unit and its method. Reuse the same CDID for the same variable, measured the same way, across experiments and datasets.
 - Name a CDID the same way as a PDID: `air_temperature_daily_mean_2m_c`, or shorter, `air_temp_day_mean_c`.
@@ -488,7 +515,7 @@ Climate measurements for an experiment, or for one unit in it. **One row per mea
 | CDID | ID | Yes | [ClimateDescription](#climatedescription) | Climate variable that was measured. | TODO |
 | Date | Date | No | | Date of the measurement. | TODO |
 | Score | Number | Yes | | The measured value, as a number. | TODO |
-| Comments | Long text | No | | Any comments. | TODO |
+| Comments | Long text | No | | Anything about this row that no other column holds. See [Free text](#free-text). | TODO |
 
 > [!IMPORTANT]
 > An empty UNID does not mean "no unit": the value applies to every unit in the experiment. A UNID that is filled in must belong to the experiment given by EXPID. See [Climate rows without a unit apply to all units](#climate-rows-without-a-unit-apply-to-all-units).
@@ -505,10 +532,10 @@ Defines the extra annotations that can be attached to units and phenotype scores
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
 | FTID | ID | Yes, unique | | Feature ID, used as the key in Features cells. | TODO |
-| Type | Text | No | | Kind of value: `c` for text, `I` for whole numbers, `d` for real numbers. Empty means `c`. | TODO |
+| Type | Text | No | | Kind of value, in lower case: `c` for text, `i` for whole numbers, `d` for real numbers. Empty means `c`. | TODO |
 | Unit | Text | No | | Unit of the values, mostly for numbers. | TODO |
-| Vocabulary | Text | No | | Allowed values: a `;`-separated list for `c`, or a `min..max` range for `I` and `d`. | TODO |
-| Description | Text | Yes | | Short description of what the feature is. | TODO |
+| Vocabulary | Text | No | | Allowed values: a `;`-separated list for `c`, or a `min..max` range for `i` and `d`. | TODO |
+| Description | Text | Yes | | What the feature is and what its values mean. See [Free text](#free-text). | TODO |
 
 - Features are used in the Features columns of [ExperimentalUnit](#experimentalunit) and [Phenotype](#phenotype). See [Features cells hold several values](#features-cells-hold-several-values) and [Feature types and vocabularies](#feature-types-and-vocabularies).
 
@@ -597,8 +624,8 @@ A dataset follows the schema when all of the following hold.
 
 **Features**
 
-- [ ] Type is `c`, `I`, `d` or empty.
-- [ ] Vocabulary is a `;`-separated list for `c`, and a `min..max` range for `I` and `d`.
+- [ ] Type is `c`, `i`, `d` or empty.
+- [ ] Vocabulary is a `;`-separated list for `c`, and a `min..max` range for `i` and `d`.
 - [ ] Features cells are written `FTID1=value1;FTID2=value2`, with no spaces around `=` or `;`.
 - [ ] Every FTID in a Features cell exists in Features, and appears at most once in the cell.
 - [ ] Every feature value fits its feature's Type and, if given, its Vocabulary.

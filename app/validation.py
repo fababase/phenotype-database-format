@@ -27,8 +27,8 @@ import yaml
 HERE = Path(__file__).resolve().parent
 
 COLUMN_TYPES = {"id", "text", "long_text", "integer", "number", "date", "coordinates", "features"}
-# Feature types: c = text, I = whole number, d = real number. An empty Type means c.
-FEATURE_TYPES = ("c", "I", "d")
+# Feature types, in lower case: c = text, i = whole number, d = real number. An empty Type means c.
+FEATURE_TYPES = ("c", "i", "d")
 
 DECIMAL = r"-?\d+(?:\.\d+)?"
 INTEGER = re.compile(r"-?\d+")
@@ -437,8 +437,8 @@ def check_links(table: Table, column: Column, tables: dict[str, Table], schema: 
 
 def check_feature_definitions(table: Table | None) -> dict[str, tuple[str, str | None]]:
     """
-    Checks the Features table: Type has to be c, I, d or empty, and Vocabulary has to be a ';'-separated
-    list for Type c and a min..max range for I and d. FTIDs are checked as IDs by `check_cells`.
+    Checks the Features table: Type has to be c, i, d or empty, and Vocabulary has to be a ';'-separated
+    list for Type c and a min..max range for i and d. FTIDs are checked as IDs by `check_cells`.
     Returns:
         dict: FTID -> (Type, Vocabulary), with an empty Type given as "c" and an empty Vocabulary as None.
     """
@@ -451,8 +451,9 @@ def check_feature_definitions(table: Table | None) -> dict[str, tuple[str, str |
         ftid = row["FTID"]
         ftype = "c" if missing["Type"] else row["Type"]
         if ftype not in FEATURE_TYPES:
-            raise ValidationError(f"{table.where(i, 'Type')}: '{ftype}' is not a feature type. Use c (text), "
-                                  "I (whole number) or d (real number), or leave it empty for text.")
+            hint = (f" Types are written in lower case: {ftype.lower()}." if ftype.lower() in FEATURE_TYPES
+                    else " Use c (text), i (whole number) or d (real number), or leave it empty for text.")
+            raise ValidationError(f"{table.where(i, 'Type')}: '{ftype}' is not a feature type.{hint}")
 
         vocabulary = None if missing["Vocabulary"] else row["Vocabulary"]
         if vocabulary is not None:
@@ -506,8 +507,8 @@ def feature_value_problem(value: str, ftid: str, ftype: str, vocabulary: str | N
     Returns what is wrong with a value of a feature, or None if it fits the feature's Type and Vocabulary.
     The Vocabulary is assumed to have passed `check_feature_definitions`.
     """
-    if ftype == "I" and not INTEGER.fullmatch(value):
-        return f"'{value}' is not a whole number, as feature {ftid} (Type I) needs."
+    if ftype == "i" and not INTEGER.fullmatch(value):
+        return f"'{value}' is not a whole number, as feature {ftid} (Type i) needs."
     if ftype == "d" and not NUMBER.fullmatch(value):
         return f"'{value}' is not a number with '.' as the decimal mark, as feature {ftid} (Type d) needs."
     if vocabulary is None:
