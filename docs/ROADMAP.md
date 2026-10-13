@@ -150,3 +150,12 @@ To be explored later: instead of each contributor setting up an AI themselves, a
 
 - **IDs that start with a digit.** The schema doc recommends against them. Decide whether to make it a rule the validator checks.
 - **Special symbols.** We may restrict special symbols in values where possible, so that each one has a single defined meaning, and any other use is an error.
+- **Dates that make sense.** The validator only checks that a date is real and written YYYY-MM-DD. Possible additions:
+  - No dates in the future.
+  - A warning, not an error, for very early dates.
+  - One warning per table, not per row, when Phenotype, Management or Climate dates fall outside their experiment's StartDate–EndDate.
+  - When a date falls outside its experiment but swapping day and month would bring it inside, say so.
+  - A parent seed lot (ParentSLID) is harvested before its child.
+  - A seed lot is harvested before the phenotype dates of the units sown from it.
+  - A Phase 4 plot of the Phenotype, Management and Climate dates against each experiment's StartDate–EndDate.
+- **ParentSLID loops.** Check that ParentSLID chains never loop back on themselves (A → B → A).
