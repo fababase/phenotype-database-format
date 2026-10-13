@@ -165,3 +165,5 @@ To be explored later: instead of each contributor setting up an AI themselves, a
 - **Infinite numbers.** `1e999` passes as a number, though it is read as infinity.
 - **Digits other than 0–9.** Digits such as `１２` (full-width) and `٣` (Arabic-Indic) pass as numbers.
 - **Hidden sheets.** A hidden sheet in the collection sheet, such as one holding dropdown lists, is an error. Decide whether to skip hidden sheets.
+- **Case in column names.** `species` gets "Did you mean 'Species'?", but `gpid` gets no suggestion for `GPID`. Decide whether to ignore case when suggesting, or when matching column names.
+- **Blank lines in CSV files.** They are dropped. Decide whether they should be an error.
