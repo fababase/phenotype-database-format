@@ -92,12 +92,6 @@ Each contribution is kept privately as:
 
 Only the tables go to Zenodo.
 
-## Phase 0: Clean up and restructure
-
-- [ ] Decide on a new repository name, and rename the repo **before** setting up GitHub Pages, because the app's address includes the repo name.
-  - Rename on GitHub: Settings → General → Repository name. GitHub redirects the old address.
-  - In GitHub Desktop: Repository → Repository settings → Remote, and update the URL.
-
 ## Phase 1: Validator and app
 
 - [ ] Tests in `tests/`: one valid dataset, and one broken dataset per rule, each expected to fail with the right message.
