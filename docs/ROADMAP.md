@@ -96,7 +96,7 @@ Only the tables go to Zenodo.
 ## Phase 1: Validator and app
 
 - [ ] Tests in `tests/`: one valid dataset, and one broken dataset per rule, each expected to fail with the right message.
-- [ ] GitHub Action that runs the tests on every push.
+- [x] GitHub Action that runs the tests on every push. See `.github/workflows/tests.yml`.
 - [ ] Deploy with Shinylive on GitHub Pages: a GitHub Action exports the app with Shinylive and publishes it to Pages on every push to `main`, once the tests pass.
   - The export has to include `schema.yaml`: copy it into `app/` first. The validator looks for it there before `../schema/`.
   - The pinned versions in `app/requirements.txt` may have to change to the versions Shinylive's browser Python provides.
