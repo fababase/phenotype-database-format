@@ -148,10 +148,5 @@ To be explored later: instead of each contributor setting up an AI themselves, a
 
 ## Open questions
 
-- **New repository name.** Needed before Phase 1, since the app's address depends on it.
-- ~~**The hand-filled collection sheet.**~~ Decided: the validator reads a filled-in sheet directly, both in the app and from the command line, and offers the tables as CSV files (`--out` on the command line).
-- **Merged tables or one folder per contribution** in the Zenodo record. Merged tables make one database that is easy to use, and each contribution can still be traced through its experiments (EXPID). This is the recommendation.
-- **Confidential germplasm.** If some breeding lines cannot be public, they cannot be in `reference/` either. Decide how to handle them.
 - **IDs that start with a digit.** The schema doc recommends against them. Decide whether to make it a rule the validator checks.
-- **Checking the EXPID prefix.** Experiment-level IDs are recommended to start with their EXPID. Decide whether the validator should check it.
 - **Special symbols.** We may restrict special symbols in values where possible, so that each one has a single defined meaning, and any other use is an error.
