@@ -61,6 +61,10 @@ class Dataset:
         """The row number in the file of the row with this ID. The header is row 1."""
         return self.ids(table).index(rid) + 2
 
+    def where(self, table: str, rid: str, column: str) -> str:
+        """Where a cell is, as the validator's messages say it, e.g. "Phenotype.csv, row 2, column Score"."""
+        return f"{table}.csv, row {self.row(table, rid)}, column {column}"
+
     def get(self, table: str, rid: str, column: str) -> str:
         rows = self.read(table)
         return rows[self.row(table, rid) - 1][rows[0].index(column)]

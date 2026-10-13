@@ -26,7 +26,7 @@ The validator checks a set of tables against [schema version 1.0.0](schema/schem
 It stops at the first problem it finds and says where it is and how to fix it, for example:
 
 ```
-Climate.csv, row 2, column Score: '11,7167' has ',' as the decimal mark. Use '.' instead: 11.7167
+Climate.csv, row 2, column Score: '11,7167' has ','. Numbers have '.' as the decimal mark and no thousands separator, so write 11.7167
 ```
 
 When everything passes, it can hand back the tables as clean CSV files: UTF-8, comma-separated, dates as `YYYY-MM-DD`.

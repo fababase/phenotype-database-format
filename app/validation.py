@@ -66,8 +66,8 @@ class TableDef:
     code: str
     required: bool
     columns: dict[str, Column]
-    sheet: str       # sheet name in the collection sheet
-    descriptor: str  # first cell of the collection sheet's row of column descriptions
+    sheet: str | None       # sheet name in the collection sheet; optional tables may have none
+    descriptor: str | None  # first cell of the collection sheet's row of column descriptions
 
     @property
     def id_column(self) -> str:
@@ -75,6 +75,8 @@ class TableDef:
         return next(iter(self.columns))
 
     def add_hint(self) -> str:
+        if self.sheet is None:
+            return f"Add {self.name}.csv."
         return f"Add {self.name}.csv, or the sheet '{self.sheet}' to the workbook."
 
 
@@ -90,7 +92,7 @@ class Schema:
         """The table that a file stem or sheet name stands for: its table name, code or sheet name, in any case."""
         key = name.strip().lower()
         for table in self.tables.values():
-            if key in (table.name.lower(), table.code.lower(), table.sheet.lower()):
+            if key in (table.name.lower(), table.code.lower(), (table.sheet or table.name).lower()):
                 return table.name
         return None
 
@@ -110,9 +112,12 @@ def load_schema(path: Path | None = None) -> Schema:
     tables = {}
     for name, table in raw["tables"].items():
         columns = {column: Column(column, **spec) for column, spec in table["columns"].items()}
+        sheet = sheets.get(name, {})
         tables[name] = TableDef(name, table["code"], table.get("required", False), columns,
-                                sheets[name]["name"], sheets[name]["descriptor"])
+                                sheet.get("name"), sheet.get("descriptor"))
     for table in tables.values():
+        if table.required and table.sheet is None:
+            raise ValueError(f"schema.yaml: {table.name} is required, so it needs a sheet in collection_sheet")
         for column in table.columns.values():
             if column.type not in COLUMN_TYPES:
                 raise ValueError(f"schema.yaml: unknown type '{column.type}' of {table.name}.{column.name}")
@@ -180,8 +185,14 @@ def cell_text(value) -> str:
 
 
 def read_csv(name: str, path: Path, notice: Callable[[str], None]) -> RawTable:
-    """Reads a CSV file in UTF-8 or Windows encoding, separated by commas, semicolons or tabs."""
+    """
+    Reads a CSV file in UTF-8 or Windows encoding, separated by commas, semicolons or tabs.
+    Every row has as many cells as the header, apart from blank lines.
+    """
     content = path.read_bytes()
+    if b"\0" in content:
+        raise ValidationError(f"{name} contains null characters, so it is not a plain CSV file. "
+                              "Save it as 'CSV UTF-8'.")
     try:
         text = content.decode("utf-8-sig")
     except UnicodeDecodeError:
@@ -200,6 +211,14 @@ def read_csv(name: str, path: Path, notice: Callable[[str], None]) -> RawTable:
         raise ValidationError(f"{name}: could not read the file as CSV ({e}).") from None
     if not rows:
         raise ValidationError(f"{name} is empty. Its first row has to hold the column names.")
+    width = len(rows[0])
+    separator = DELIMITERS[delimiter]
+    for number, row in enumerate(rows[1:], start=2):
+        if row and len(row) != width:
+            hint = (f"Put quotes around any value with {separator} in it, or add the missing column names to row 1."
+                    if len(row) > width else f"Each row needs a cell for every column, with {separator} between "
+                    "the cells even when they are empty.")
+            raise ValidationError(f"{name}, row {number} has {len(row)} cells, but row 1 has {width}. {hint}")
     return RawTable(name, rows[0], rows[1:], list(range(2, len(rows) + 1)))
 
 
@@ -223,8 +242,9 @@ def read_workbook(name: str, path: Path, schema: Schema) -> list[tuple[str, RawT
             if not rows:
                 raise ValidationError(f"{source} is empty. Put the column names in row 1, or delete the sheet.")
             # Skip the row of column descriptions under the header, if the sheet has it
+            descriptor = schema.tables[table].descriptor
             start = 1
-            if len(rows) > 1 and rows[1] and rows[1][0].strip().lower() == schema.tables[table].descriptor.lower():
+            if descriptor and len(rows) > 1 and rows[1] and rows[1][0].strip().lower() == descriptor.lower():
                 start = 2
             found.append((table, RawTable(source, rows[0], rows[start:], list(range(start + 1, len(rows) + 1)))))
         return found
@@ -352,8 +372,10 @@ def number_problem(value: str) -> str | None:
     if NUMBER.fullmatch(value):
         return None
     if NUMBER.fullmatch(value.replace(",", ".")):
-        return f"'{value}' has ',' as the decimal mark. Use '.' instead: {value.replace(',', '.')}"
-    return f"'{value}' is not a number. Write only the number, with '.' as the decimal mark and no units or words, e.g. 3.5."
+        return (f"'{value}' has ','. Numbers have '.' as the decimal mark and no thousands separator, "
+                f"so write {value.replace(',', '.')}")
+    return (f"'{value}' is not a number. Write only the number, with '.' as the decimal mark and no thousands "
+            "separator, units or words, e.g. 3.5.")
 
 
 def date_problem(value: str) -> str | None:
@@ -435,15 +457,16 @@ def check_links(table: Table, column: Column, tables: dict[str, Table], schema: 
     fail_first(table, column.name, filled & ~values.isin(ids), describe)
 
 
-def check_feature_definitions(table: Table | None) -> dict[str, tuple[str, str | None]]:
+def check_feature_definitions(table: Table | None) -> dict[str, tuple[str, str | None]] | None:
     """
     Checks the Features table: Type has to be c, i, d or empty, and Vocabulary has to be a ';'-separated
     list for Type c and a min..max range for i and d. FTIDs are checked as IDs by `check_cells`.
     Returns:
         dict: FTID -> (Type, Vocabulary), with an empty Type given as "c" and an empty Vocabulary as None.
+        None if there is no Features table, and an empty dict if it has no rows.
     """
     if table is None:
-        return {}
+        return None
     features = {}
     for i in range(len(table.data)):
         row = table.data.iloc[i]
@@ -474,12 +497,13 @@ def check_feature_definitions(table: Table | None) -> dict[str, tuple[str, str |
     return features
 
 
-def check_feature_cells(table: Table, column: str, features: dict[str, tuple[str, str | None]],
+def check_feature_cells(table: Table, column: str, features: dict[str, tuple[str, str | None]] | None,
                         schema: Schema) -> None:
     """
     Checks a Features column. A cell is empty, or holds entries FTID1=value1;FTID2=value2 with no spaces
     around '=' or ';'. Each FTID has to be in the Features table and can appear only once per cell,
     and each value has to fit its feature's Type and Vocabulary.
+    features is what `check_feature_definitions` returned: None if there is no Features table.
     """
     for i, (cell, missing) in enumerate(zip(table.data[column], table.missing[column])):
         if missing:
@@ -491,8 +515,8 @@ def check_feature_cells(table: Table, column: str, features: dict[str, tuple[str
             if not sep or not ftid or not value or "=" in value or ftid != ftid.strip() or value != value.strip():
                 raise ValidationError(f"{where}. Write each entry as FTID=value, separated by ';', "
                                       "without spaces around '=' or ';'.")
-            if ftid not in features:
-                hint = "" if features else f" There is no Features table. {schema.tables['Features'].add_hint()}"
+            if ftid not in (features or {}):
+                hint = f" There is no Features table. {schema.tables['Features'].add_hint()}" if features is None else ""
                 raise ValidationError(f"{where}. '{ftid}' is not an FTID in the Features table.{hint}")
             if ftid in seen:
                 raise ValidationError(f"{where}. '{ftid}' appears more than once.")

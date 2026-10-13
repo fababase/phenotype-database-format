@@ -159,17 +159,6 @@ def test_spaces_around_column_names(dataset):
     passes(dataset.files())
 
 
-def test_rows_shorter_than_the_header(dataset):
-    """Spreadsheet programs often leave out empty cells at the end of a row."""
-    for table in SCHEMA.tables:
-        rows = dataset.read(table)
-        for row in rows:
-            while row and row[-1] == "":
-                row.pop()
-        dataset.write(table, rows)
-    passes(dataset.files())
-
-
 def test_empty_columns_without_a_name(dataset):
     """Like the trailing columns in some sheets of the collection sheet."""
     dataset.add_column("Germplasm", "")

@@ -160,4 +160,8 @@ To be explored later: instead of each contributor setting up an AI themselves, a
   - A parent seed lot (ParentSLID) is harvested before its child.
   - A seed lot is harvested before the phenotype dates of the units sown from it.
   - A Phase 4 plot of the Phenotype, Management and Climate dates against each experiment's StartDate–EndDate.
-- **ParentSLID loops.** Check that ParentSLID chains never loop back on themselves (A → B → A).
+- **ParentSLID loops.** Check that ParentSLID chains never loop back on themselves (A → A, or A → B → A).
+- **Coordinates in range.** `91;181` passes. Decide whether to check latitude −90 to 90 and longitude −180 to 180.
+- **Infinite numbers.** `1e999` passes as a number, though it is read as infinity.
+- **Digits other than 0–9.** Digits such as `１２` (full-width) and `٣` (Arabic-Indic) pass as numbers.
+- **Hidden sheets.** A hidden sheet in the collection sheet, such as one holding dropdown lists, is an error. Decide whether to skip hidden sheets.

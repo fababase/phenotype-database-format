@@ -153,6 +153,7 @@ rules:
 
 # The collection sheet (template/collection-sheet.xlsx): the sheet name of each table, and the first
 # cell of the row of column descriptions under the header, which the validator skips.
+# Every required table needs a sheet; optional tables may be left out.
 collection_sheet:
   ignore: ["READ ME 1st"]
   sheets:
