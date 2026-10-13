@@ -36,6 +36,7 @@ NUMBER = re.compile(rf"{DECIMAL}(?:[eE][-+]?\d+)?")
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 COORDINATES = re.compile(rf"{DECIMAL};{DECIMAL}")
 RANGE = re.compile(rf"({NUMBER.pattern})\.\.({NUMBER.pattern})")
+ID = re.compile(r"[A-Za-z0-9_]+")
 
 # CSV separators to recognise, and how to name them in notices
 DELIMITERS = {",": "commas", ";": "semicolons", "\t": "tabs"}
@@ -325,6 +326,22 @@ def fail_first(table: Table, column: str, mask: pd.Series, describe: Callable[[i
     raise ValidationError(f"{table.where(i, column)}: {describe(i)}{more}")
 
 
+def id_problem(value: str) -> str | None:
+    if ID.fullmatch(value):
+        return None
+    if ID.fullmatch(value.strip()):
+        return f"'{value}' has spaces before or after it. Remove them."
+    bad = list(dict.fromkeys(c for c in value.strip() if not ID.fullmatch(c)))
+    names = ["a space" if c.isspace() else f"'{c}'" for c in bad]
+    named = names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+    message = (f"'{value}' contains {named}. IDs can only hold the letters a-z and A-Z without accents, "
+               "the digits 0-9 and '_'.")
+    # Letters such as 'ø' have no obvious replacement, so a fix is only suggested for other characters
+    if any(c.isalpha() for c in bad):
+        return message
+    return f"{message} Use '_' instead: {re.sub(r'[^A-Za-z0-9_]+', '_', value.strip())}"
+
+
 def integer_problem(value: str) -> str | None:
     if INTEGER.fullmatch(value):
         return None
@@ -360,6 +377,7 @@ def coordinates_problem(value: str) -> str | None:
 
 # What is wrong with a value of a type, or None if nothing is. Features cells are checked separately.
 TYPE_PROBLEMS: dict[str, Callable[[str], str | None]] = {
+    "id": id_problem,
     "integer": integer_problem,
     "number": number_problem,
     "date": date_problem,
@@ -368,7 +386,7 @@ TYPE_PROBLEMS: dict[str, Callable[[str], str | None]] = {
 
 
 def check_cells(table: Table) -> None:
-    """Checks each column: required values, types and unique values."""
+    """Checks each column: required values, types and unique values. IDs are unique ignoring case."""
     for column in table.definition.columns.values():
         values = table.data[column.name]
         missing = table.missing[column.name]
@@ -381,10 +399,16 @@ def check_cells(table: Table) -> None:
             problems = pd.Series([None if m else problem(v) for v, m in zip(values, missing)], dtype=object)
             fail_first(table, column.name, problems.notna(), lambda i: problems.iat[i])
         if column.unique:
-            def first_row(i: int) -> int:
-                return table.row_numbers[int((values == values.iat[i]).to_numpy().nonzero()[0][0])]
-            fail_first(table, column.name, values.duplicated() & ~missing, lambda i: (
-                f"'{values.iat[i]}' is also in row {first_row(i)}. Each {column.name} has to be unique."))
+            keys = values.str.lower() if column.type == "id" else values
+
+            def describe(i: int) -> str:
+                first = int((keys == keys.iat[i]).to_numpy().nonzero()[0][0])
+                where = f"'{values.iat[i]}' is also in row {table.row_numbers[first]}"
+                if values.iat[first] == values.iat[i]:
+                    return f"{where}. Each {column.name} has to be unique."
+                return (f"{where}, written '{values.iat[first]}'. Each {column.name} has to be unique, "
+                        "and upper and lower case do not count as different.")
+            fail_first(table, column.name, keys.duplicated() & ~missing, describe)
 
 
 def check_links(table: Table, column: Column, tables: dict[str, Table], schema: Schema) -> None:
@@ -413,8 +437,8 @@ def check_links(table: Table, column: Column, tables: dict[str, Table], schema: 
 
 def check_feature_definitions(table: Table | None) -> dict[str, tuple[str, str | None]]:
     """
-    Checks the Features table: an FTID cannot contain ';' or '=', Type has to be c, I, d or empty, and
-    Vocabulary has to be a ';'-separated list for Type c and a min..max range for I and d.
+    Checks the Features table: Type has to be c, I, d or empty, and Vocabulary has to be a ';'-separated
+    list for Type c and a min..max range for I and d. FTIDs are checked as IDs by `check_cells`.
     Returns:
         dict: FTID -> (Type, Vocabulary), with an empty Type given as "c" and an empty Vocabulary as None.
     """
@@ -425,10 +449,6 @@ def check_feature_definitions(table: Table | None) -> dict[str, tuple[str, str |
         row = table.data.iloc[i]
         missing = table.missing.iloc[i]
         ftid = row["FTID"]
-        if ";" in ftid or "=" in ftid:
-            raise ValidationError(f"{table.where(i, 'FTID')}: '{ftid}' contains ';' or '=', which FTIDs cannot "
-                                  "contain, as they are used in Features cells.")
-
         ftype = "c" if missing["Type"] else row["Type"]
         if ftype not in FEATURE_TYPES:
             raise ValidationError(f"{table.where(i, 'Type')}: '{ftype}' is not a feature type. Use c (text), "

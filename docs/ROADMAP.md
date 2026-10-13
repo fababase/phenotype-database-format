@@ -30,6 +30,7 @@ This roadmap records the decisions made so far, the work in order, and the quest
 | Validator input | A set of **CSV files**, one per table, or a filled-in **collection sheet** (.xlsx). Either way, the tables that pass can be written out as CSV files. |
 | Validator errors | **Stops at the first error.** Later errors are often knock-on effects of the first one, so they are not reported. Each message names the table, row, column and value. |
 | Dates | Written as `YYYY-MM-DD` everywhere, including the validator's output. |
+| IDs | Only `a`–`z`, `A`–`Z`, `0`–`9` and `_`, and unique within their table ignoring case. The validator checks both. Suggested forms for each ID are in the schema doc. |
 | App hosting | **Shinylive on GitHub Pages**: the app runs in the visitor's browser, so data never leaves their computer, and it redeploys automatically. Replaces shinyapps.io. |
 | Python | Updated from 3.9 to a current version, with pinned package versions. |
 | AI conversion | Done by **contributors**, using the AI kit in this repo. A central AI agent may follow later ([Phase 5](#phase-5-a-central-ai-agent)). |
@@ -107,7 +108,7 @@ Only the tables go to Zenodo.
 
 - [ ] Fill in the TODOs in `schema/schema.md` (examples, worked example, diagram link) from the worked example below.
 - [ ] Add a section on the files themselves: one CSV per table, named after the table, UTF-8, comma-separated, `.` as the decimal mark, one header row with the column names.
-- [ ] Add an ID rule for merging: experiment-level IDs (EXPID, UNID, PHID, IID, MMID, CLID) start with a prefix unique to the contribution, so IDs never clash when contributions are merged.
+- [x] Add ID rules: only letters, digits and `_`, and unique ignoring case, both checked by the validator. The schema doc suggests a form for each ID, with experiment-level IDs (UNID, PHID, IID, MMID, CLID) starting with their EXPID, so IDs never clash when contributions are merged. See [Identifiers](../schema/schema.md#identifiers).
 - [ ] Add `schema/diagram.dbml`, the dbdiagram.io source of the diagram.
 - [ ] Build the worked example in `examples/demo/`: a fake but realistically messy raw Excel file (wide format, coloured rows, merged cells), the script that converts it, the resulting tables and the NOTES.md.
 - [ ] Start the shared reference tables in `reference/`, from the N2CROP data.
@@ -151,3 +152,5 @@ To be explored later: instead of each contributor setting up an AI themselves, a
 - ~~**The hand-filled collection sheet.**~~ Decided: the validator reads a filled-in sheet directly, both in the app and from the command line, and offers the tables as CSV files (`--out` on the command line).
 - **Merged tables or one folder per contribution** in the Zenodo record. Merged tables make one database that is easy to use, and each contribution can still be traced through its experiments (EXPID). This is the recommendation.
 - **Confidential germplasm.** If some breeding lines cannot be public, they cannot be in `reference/` either. Decide how to handle them.
+- **IDs that start with a digit.** The schema doc recommends against them. Decide whether to make it a rule the validator checks.
+- **Checking the EXPID prefix.** Experiment-level IDs are recommended to start with their EXPID. Decide whether the validator should check it.

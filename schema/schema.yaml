@@ -7,7 +7,7 @@ version: "1.0.0"
 missing_values: ["NULL", "NA", "N/A", "None", "Not applicable"]
 
 # Column types:
-#   id           text that identifies a row; no fixed format
+#   id           identifies a row: only the letters A-Z and a-z, the digits 0-9 and _
 #   text         short text
 #   long_text    free text of any length
 #   integer      whole number
@@ -17,6 +17,7 @@ missing_values: ["NULL", "NA", "N/A", "None", "Not applicable"]
 #   features     FTID1=value1;FTID2=value2, with FTIDs from the Features table
 #
 # Each table's first column is its ID column. Columns are optional and not unique unless marked.
+# Unique IDs are compared ignoring case, so hedin_2 and Hedin_2 count as the same ID.
 # A table marked required must be present with at least one row; the others may be left out.
 
 tables:
@@ -138,7 +139,7 @@ tables:
   Features:
     code: FT
     columns:
-      FTID:        {type: id, required: true, unique: true}  # cannot contain ";" or "="
+      FTID:        {type: id, required: true, unique: true}
       Type:        {type: text}  # c (text), I (whole number), d (real number); empty means c
       Unit:        {type: text}
       Vocabulary:  {type: text}  # c: allowed values separated by ";"; I and d: a range min..max

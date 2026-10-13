@@ -86,10 +86,41 @@ Table and column names are written exactly as in this document. The [table refer
 
 ### Identifiers
 
-- Every table has an ID column, which is its first column. Every row must have an ID, and IDs must be unique within their table.
-- A column that refers to another table holds that table's ID. The ID must exist in the other table, written exactly the same way, character for character.
-- IDs are text and have no fixed format. Feature IDs (FTID) must not contain `;` or `=`, because they are used inside [Features cells](#features-cells-hold-several-values).
-- The shared reference tables work best when the same thing keeps the same ID in every dataset. This matters most for GPID, which links phenotypes to other data about the same plant material, such as genomic data.
+Every table has an ID column, which is its first column, and every row must have an ID. A column that refers to another table holds that table's ID.
+
+**Rules.** The validator checks these:
+
+- IDs hold only the letters `a`–`z` and `A`–`Z`, the digits `0`–`9` and `_`. No spaces, no `-`, and no other letters, such as `á`, `ñ` or `ø`.
+- IDs are unique within their table, ignoring case: `hedin_2` and `Hedin_2` count as the same ID.
+- An ID in a column that refers to another table must exist in that table, written exactly the same way, character for character.
+
+These rules keep IDs safe wherever the data goes: `;`, `=` and `|` have meanings inside cells, `,` separates the values in CSV files, `-` and spaces break column names in R and many other tools, and some databases do not tell upper and lower case apart.
+
+**Recommendations:**
+
+- Start IDs with a letter. This may become a rule.
+- Write IDs in snake_case: lower-case words joined by `_`, such as `plant_height_cm`.
+- Pad numbers with zeros, so that IDs sort in order: `plot007`, not `plot7`.
+- In the shared reference tables (Germplasm, SeedLot, PhenotypeDescription, ClimateDescription and Features), use the same ID for the same thing in every dataset. This matters most for GPID, which links phenotypes to other data about the same plant material, such as genomic data.
+- In the tables that belong to one experiment (Experiment, ExperimentalUnit, ExperimentIntervention, Management, Phenotype and Climate), IDs should never repeat across datasets, or the datasets cannot be merged. Give each experiment an EXPID that no one else would choose, and start the other IDs of the experiment with it.
+- Within an experiment, do not build IDs from information that is in other columns, such as the germplasm, treatment or date. Use the label a unit already has, or a counter. If an ID and a column disagree, the column is what counts.
+
+#### Naming IDs
+
+Suggested forms for each ID. Leave out the parts that do not apply.
+
+| ID | Form | Examples |
+|---|---|---|
+| GPID | The name or accession the material is known by elsewhere, with other characters replaced by `_`. The original goes in Name. | `hedin_2` (Name: `Hedin/2`), `ilb_938_2` (Name: `ILB 938/2`) |
+| SLID | Germplasm, then place and year of harvest | `hedin_2_flakkebjerg_2028` |
+| PDID | Trait, method and scale; see [PhenotypeDescription](#phenotypedescription) | `plt_ht_mean5_cm`, `plant_height_mean_of_5_plants_cm` |
+| CDID | Variable, method and unit | `air_temp_day_mean_c`, `air_temperature_daily_mean_2m_c` |
+| FTID | What the feature is | `soil_type`, `plant_no`, `gene_id` |
+| EXPID | Who ran it (group, institution or project), what it is about, where, and when (start year, or first and last year) | `n2crop_pot_drought_2029`, `au_mbg_n2crop_field_protein_flakkebjerg_2027_2029` |
+| UNID | EXPID, then the label the unit already has: plot number, pot label or sample barcode | `n2crop_pot_drought_2029_pot017` |
+| IID, MMID, PHID, CLID | EXPID, then a counter | `n2crop_pot_drought_2029_000123` |
+
+The who and when of an EXPID are what keep it from clashing with other experiments. The what and where are for the people reading it.
 
 ### Required and optional columns
 
@@ -106,7 +137,7 @@ An empty cell means that there is no value, and so do the texts `NULL`, `NA`, `N
 
 | Type | Meaning | How it is written |
 |---|---|---|
-| ID | Identifier of a row | Text; see [Identifiers](#identifiers) |
+| ID | Identifier of a row | Letters, digits and `_`; see [Identifiers](#identifiers) |
 | Text | Short text | Any text |
 | Long text | Free text of any length | Any text |
 | Integer | Whole number | Digits, without a decimal mark |
@@ -208,8 +239,9 @@ Features on a unit describe the whole unit: the plot, pot or sample. Features on
 ```ebnf
 features = entry , { ";" , entry } ;
 entry    = ftid , "=" , value ;
-ftid     = char , { char } ;   (* an FTID from the Features table *)
-value    = char , { char } ;   (* valid for the feature's Type and Vocabulary *)
+ftid     = idchar , { idchar } ;   (* an FTID from the Features table *)
+value    = char , { char } ;       (* valid for the feature's Type and Vocabulary *)
+idchar   = ? a letter a-z or A-Z, a digit 0-9 or "_" ? ;
 char     = ? any character except ";" and "=" ? ;
 (* no spaces directly before or after ";" or "=" *)
 ```
@@ -393,11 +425,13 @@ Defines a trait: what is measured, in which unit and how. **One row per trait.**
 | PDID | ID | Yes, unique | | Phenotype description ID. | TODO |
 | PhenotypeDescription | Text | Yes | | Name of the trait. | TODO |
 | Unit | Text | Yes | | Unit the trait is scored in. | TODO |
-| Grouping | Text | No | | Group the trait belongs to. | TODO |
+| Grouping | Text | No | | Trait class the trait belongs to, from Crop Ontology; see below. | TODO |
 | DescriptionOfMethod | Long text | Yes | | Description of the trait and how it is scored. For categorical traits, what each code means. | TODO |
 
 - The PhenotypeDescription column holds the name of the trait. The full description of the trait and its method goes in DescriptionOfMethod.
-- A PDID fixes the trait, its unit and its method. The same trait measured in another unit or by another method needs a PDID of its own.
+- A PDID fixes the trait, its method and its unit. This is what [Crop Ontology](https://cropontology.org) calls a variable: a trait, a method and a scale. The same trait measured in another unit or by another method needs a PDID of its own. The level a trait is scored at is part of the method, so the height of single plants, the mean height of 5 plants in a plot and a visual estimate for the whole plot are three PDIDs.
+- Name a PDID after its trait, method and scale, in that order: `plant_height_mean_of_5_plants_cm`, or shorter, `plt_ht_mean5_cm`.
+- For Grouping, use one of Crop Ontology's trait classes: Morphological, Phenological, Agronomical, Physiological, Abiotic stress, Biotic stress, Biochemical, Quality or Fertility.
 - Reuse the same PDID for the same trait, measured the same way, across experiments and datasets.
 
 <sub>[↑ Back to contents](#contents)</sub>
@@ -438,6 +472,7 @@ Defines a climate variable: what is measured, in which unit and how. **One row p
 | DescriptionOfMethod | Long text | Yes | | Description of the variable and how it is scored or measured. For categorical variables, what each code means. | TODO |
 
 - As with traits, a CDID fixes the variable, its unit and its method. Reuse the same CDID for the same variable, measured the same way, across experiments and datasets.
+- Name a CDID the same way as a PDID: `air_temperature_daily_mean_2m_c`, or shorter, `air_temp_day_mean_c`.
 
 <sub>[↑ Back to contents](#contents)</sub>
 
@@ -469,7 +504,7 @@ Defines the extra annotations that can be attached to units and phenotype scores
 
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
-| FTID | ID | Yes, unique | | Feature ID, used as the key in Features cells. Cannot contain `;` or `=`. | TODO |
+| FTID | ID | Yes, unique | | Feature ID, used as the key in Features cells. | TODO |
 | Type | Text | No | | Kind of value: `c` for text, `I` for whole numbers, `d` for real numbers. Empty means `c`. | TODO |
 | Unit | Text | No | | Unit of the values, mostly for numbers. | TODO |
 | Vocabulary | Text | No | | Allowed values: a `;`-separated list for `c`, or a `min..max` range for `I` and `d`. | TODO |
@@ -548,7 +583,8 @@ A dataset follows the schema when all of the following hold.
 **All tables**
 
 - [ ] Every required column has a value in every row (`NULL`, `NA`, `N/A`, `None` and `Not applicable` count as empty).
-- [ ] Every ID is unique within its table.
+- [ ] Every ID holds only the letters a–z and A–Z, the digits 0–9 and `_`.
+- [ ] Every ID is unique within its table, ignoring case.
 - [ ] Every ID that refers to another table exists in that table, written exactly the same way.
 
 **Values**
@@ -580,6 +616,7 @@ A dataset follows the schema when all of the following hold.
 |---|---|
 | Block | A group of units in an experiment, as part of the experimental design. Can also be a batch. |
 | Climate variable | Something about the growing environment that is measured during an experiment. Also called a climate covariate. Defined in ClimateDescription. |
+| Crop Ontology | A shared vocabulary of crop traits, at [cropontology.org](https://cropontology.org). It defines each trait by what is observed, how it is scored and on what scale. |
 | Experiment | One trial, with its own location, dates and set-up. |
 | Experimental unit | A unit in an experiment that is scored, such as a field plot, a pot or a sample. |
 | Factor | Something varied on purpose in an experiment, such as watering. |
@@ -592,6 +629,7 @@ A dataset follows the schema when all of the following hold.
 | Phenotype | An observable trait of a plant. In this schema, also a single score of a trait. |
 | Score | One measured value of a trait or climate variable. |
 | Seed lot | A physical batch of seed of one germplasm, from one harvest. |
+| Snake case | Writing an ID as lower-case words joined by `_`, such as `plant_height_cm`. |
 | Trait | Something about a plant that is measured or scored. Defined in PhenotypeDescription. |
 | Vocabulary | The values a feature is allowed to take. |
 
