@@ -1,0 +1,5 @@
+SLID,GPID,HarvestDate,HarvestLocation,ParentSLID,Comments
+vandrel_northfield_2023,vandrel,2023-08-24,Northfield research farm,,
+vandrel_northfield_2024,vandrel,2024-08-29,Northfield research farm,vandrel_northfield_2023,Germination 91 percent in a test in February 2025.
+ostrin_greenhouse_2024,ostrin,2024-07-02,Greenhouse at the Northfield research farm,,Treated with a fungicide against seed-borne fungi before storage.
+belkar_genebank,belkar,,,,Received from the Nordbean genebank in 2024. The genebank did not record when or where the seed was harvested.

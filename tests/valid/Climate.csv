@@ -1,0 +1,7 @@
+CLID,EXPID,UNID,CDID,Date,Score,Comments
+nordbean_irrigation_northfield_2025_001,nordbean_irrigation_northfield_2025,,air_temperature_daily_mean_2m_c,2025-06-14,14.2,
+nordbean_irrigation_northfield_2025_002,nordbean_irrigation_northfield_2025,,precipitation_daily_sum_mm,2025-06-14,23.5,"Includes the hail that fell in the afternoon, measured as melted water."
+nordbean_irrigation_northfield_2025_003,nordbean_irrigation_northfield_2025,nordbean_irrigation_northfield_2025_plot101,soil_water_content_20cm_percent,2025-06-10,27.8,
+nordbean_irrigation_northfield_2025_004,nordbean_irrigation_northfield_2025,nordbean_irrigation_northfield_2025_plot103,soil_water_content_20cm_percent,2025-06-10,18.1,"Sensor readings are missing from 02:00 to 06:00, so the value is the mean of the other 20 hours."
+nordbean_leaf_spectra_greenhouse_2025_001,nordbean_leaf_spectra_greenhouse_2025,,air_temperature_daily_mean_plant_height_c,2025-03-18,13.9,"The heating failed during the night, and the temperature fell to 6 degrees Celsius for about 8 hours."
+nordbean_leaf_spectra_greenhouse_2025_002,nordbean_leaf_spectra_greenhouse_2025,,air_temperature_daily_mean_plant_height_c,2025-03-19,19.6,

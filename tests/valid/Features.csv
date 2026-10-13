@@ -1,0 +1,6 @@
+FTID,Type,Unit,Vocabulary,Description
+soil_type,c,,clay;loam;sandy loam,"Texture class of the topsoil, from a soil map."
+soil_ph,d,,,"pH of the topsoil from 0 to 20 cm depth, measured in a suspension of soil in water."
+tissue,,,,"Part of the plant a sample was taken from, such as young leaf, mature leaf, stem or root."
+plant_count,i,plants,,Number of plants that grew to maturity.
+wavelength,d,nm,400..2500,Wavelength of the light that an absorbance or reflectance value was measured at.

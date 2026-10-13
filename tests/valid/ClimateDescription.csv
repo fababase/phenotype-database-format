@@ -1,0 +1,5 @@
+CDID,Name,Unit,Grouping,DescriptionOfMethod
+air_temperature_daily_mean_2m_c,Mean air temperature at 2 m,degrees Celsius,Temperature,"Air temperature measured 2 m above the ground in a ventilated radiation shield, read every 10 minutes. The value is the mean of the readings from 00:00 to 24:00 local time."
+precipitation_daily_sum_mm,Precipitation,mm,Water,"Rain and other precipitation, collected in a tipping-bucket rain gauge with its opening 1 m above the ground. The value is the sum from 00:00 to 24:00 local time."
+soil_water_content_20cm_percent,Soil water content at 20 cm,percent by volume,Water,"Volumetric water content of the soil at 20 cm depth, measured with a capacitance sensor buried at that depth in the middle of the plot or pot, read every hour. The value is the mean of the readings from 00:00 to 24:00 local time."
+air_temperature_daily_mean_plant_height_c,Mean air temperature at plant height,degrees Celsius,Temperature,"Air temperature at the height of the plant tops, measured by a sensor in a ventilated box, read every 5 minutes. The value is the mean of the readings from 00:00 to 24:00 local time."
