@@ -16,9 +16,7 @@ import pytest
 from validation import DATE, Table, ValidationError, cell_text, load_schema, validate_files
 
 ROOT = Path(__file__).resolve().parent.parent
-SCHEMA_FILE = ROOT / "schema" / "schema.yaml"
-# Read from the repository's schema folder, so a stale copy in app/ cannot hide a change
-SCHEMA = load_schema(SCHEMA_FILE)
+SCHEMA = load_schema()
 VALID = Path(__file__).resolve().parent / "valid"
 TEMPLATE = ROOT / "template" / "collection-sheet.xlsx"
 

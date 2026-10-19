@@ -25,6 +25,8 @@ import pandas as pd
 import yaml
 
 HERE = Path(__file__).resolve().parent
+# The only copy of the schema. It is never copied anywhere else, so nothing can be checked against a stale one.
+SCHEMA_FILE = HERE.parent / "schema" / "schema.yaml"
 
 COLUMN_TYPES = {"id", "text", "long_text", "integer", "number", "date", "coordinates", "features"}
 # Feature types, in lower case: c = text, i = whole number, d = real number. An empty Type means c.
@@ -97,17 +99,9 @@ class Schema:
         return None
 
 
-def default_schema_file() -> Path:
-    """schema.yaml next to this file (as when deployed), or else in the repository's schema folder."""
-    for path in (HERE / "schema.yaml", HERE.parent / "schema" / "schema.yaml"):
-        if path.exists():
-            return path
-    raise FileNotFoundError("Could not find schema.yaml next to validation.py or in ../schema/")
-
-
-def load_schema(path: Path | None = None) -> Schema:
+def load_schema(path: Path = SCHEMA_FILE) -> Schema:
     """Reads the schema from schema.yaml. Raises ValueError if the file itself is inconsistent."""
-    raw = yaml.safe_load((path or default_schema_file()).read_text(encoding="utf-8"))
+    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     sheets = raw["collection_sheet"]["sheets"]
     tables = {}
     for name, table in raw["tables"].items():

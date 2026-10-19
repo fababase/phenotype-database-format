@@ -26,7 +26,8 @@ This roadmap records the decisions made so far, the work in order, and the quest
 | Data in git | **Never.** Contributions are kept in a private folder until published. |
 | Zenodo | **One record** for the whole database. New contributions and corrections become new versions of that record. |
 | What is published | **Only the formatted tables**, plus the README and the schema doc. Raw files and conversion scripts are kept privately, not published. |
-| Source of truth | `schema/schema.yaml`. The validator reads it, and tests check the doc and the collection sheet against it. |
+| Source of truth | `schema/schema.yaml`. The validator reads it, and tests check the collection sheet against it. `schema.md` is for people to read, so it is kept in step by hand, not by tests. |
+| One schema.yaml | There is only ever **one** `schema.yaml`, in `schema/`. It is never copied into `app/` or anywhere else in the repository, and a test fails if a second one appears. |
 | Validator input | A set of **CSV files**, one per table, or a filled-in **collection sheet** (.xlsx). Either way, the tables that pass can be written out as CSV files. |
 | Validator errors | **Stops at the first error.** Later errors are often knock-on effects of the first one, so they are not reported. Each message names the table, row, column and value. |
 | Dates | Written as `YYYY-MM-DD` everywhere, including the validator's output. |
@@ -98,7 +99,7 @@ Only the tables go to Zenodo.
 - [ ] Tests in `tests/`: one valid dataset, and one broken dataset per rule, each expected to fail with the right message.
 - [x] GitHub Action that runs the tests on every push. See `.github/workflows/tests.yml`.
 - [ ] Deploy with Shinylive on GitHub Pages: a GitHub Action exports the app with Shinylive and publishes it to Pages on every push to `main`, once the tests pass.
-  - The export has to include `schema.yaml`: copy it into `app/` first. The validator looks for it there before `../schema/`.
+  - The browser app can only read files that are published with it, and `schema.yaml` is outside `app/`. How it reaches the browser without a second copy in the repository is still to be decided.
   - The pinned versions in `app/requirements.txt` may have to change to the versions Shinylive's browser Python provides.
 - [ ] Check that file upload works in the browser version.
 - [ ] Once the new app works, retire the old shinyapps.io app (`n2crop-validation`), or replace it with a page pointing to the new address.
