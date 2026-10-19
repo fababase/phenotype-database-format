@@ -32,8 +32,8 @@ This roadmap records the decisions made so far, the work in order, and the quest
 | Validator errors | **Stops at the first error.** Later errors are often knock-on effects of the first one, so they are not reported. Each message names the table, row, column and value. |
 | Dates | Written as `YYYY-MM-DD` everywhere, including the validator's output. |
 | IDs | Only `a`–`z`, `A`–`Z`, `0`–`9` and `_`, and unique within their table ignoring case. The validator checks both. Suggested forms for each ID are in the schema doc. |
-| App hosting | **Shinylive on GitHub Pages**: the app runs in the visitor's browser, so data never leaves their computer, and it redeploys automatically. Replaces shinyapps.io. |
-| Python | Updated from 3.9 to a current version, with pinned package versions. |
+| App hosting | **Shinylive on GitHub Pages**: the app runs in the visitor's browser, so data never leaves their computer, and it redeploys automatically. Replaces shinyapps.io. `schema.yaml` is bundled into the app when it is built, not copied into the repository, and not offered for download on the site. See [deploy-app.md](deploy-app.md). |
+| Python | 3.12, with the package versions pinned to those of the browser app, so the tests, the command line and the app run the same ones. The app and the command line say when another version is installed. |
 | AI conversion | Done by **contributors**, using the AI kit in this repo. A central AI agent may follow later ([Phase 5](#phase-5-a-central-ai-agent)). |
 | Shared reference tables | Curated master lists of Germplasm, PhenotypeDescription, ClimateDescription and Features live in this repo, under `reference/`. |
 | Licences | Code: GPL-3.0. Schema doc, collection sheet, reference tables and published data: CC-BY-4.0. |
@@ -98,12 +98,12 @@ Only the tables go to Zenodo.
 
 - [x] Tests in `tests/`: one valid dataset, and one broken dataset per rule, each expected to fail with the right message.
 - [x] GitHub Action that runs the tests on every push. See `.github/workflows/tests.yml`.
-- [ ] Deploy with Shinylive on GitHub Pages: a GitHub Action exports the app with Shinylive and publishes it to Pages on every push to `main`, once the tests pass.
-  - The browser app can only read files that are published with it, and `schema.yaml` is outside `app/`. How it reaches the browser without a second copy in the repository is still to be decided.
-  - The pinned versions in `app/requirements.txt` may have to change to the versions Shinylive's browser Python provides.
-- [ ] Check that file upload works in the browser version.
+- [ ] Deploy with Shinylive on GitHub Pages: a GitHub Action exports the app with Shinylive and publishes it to Pages on every push to `main`, once the tests pass. See `.github/workflows/deploy-app.yml`. Tick once the first run has published the app.
+  - [x] `schema.yaml` reaches the browser without a second copy in the repository: the Action builds the app from a folder outside the repository, holding `app/` and `schema.yaml`.
+  - [x] The pinned versions in `app/requirements.txt` are now those of Shinylive's browser Python (pandas 2.2.3, numpy 2.0.2, PyYAML 6.0.2), as the app does not start with others. All tests pass with them.
+- [x] Check that file upload works in the browser version. The Action checks it in a browser before every deploy: `tests/check_browser_app.py`.
 - [ ] Once the new app works, retire the old shinyapps.io app (`n2crop-validation`), or replace it with a page pointing to the new address.
-- [ ] Write `docs/deploy-app.md`. Refreshing the app should be: commit and push to `main` in GitHub Desktop, then wait for the Action to finish. Include where to see whether the Action failed.
+- [x] Write `docs/deploy-app.md`. Refreshing the app should be: commit and push to `main` in GitHub Desktop, then wait for the Action to finish. Include where to see whether the Action failed.
 
 ## Phase 2: Schema doc, example and AI kit
 

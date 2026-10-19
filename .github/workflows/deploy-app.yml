@@ -1,0 +1,68 @@
+# Builds the browser app with Shinylive and publishes it on GitHub Pages, on every push to main once the tests
+# pass. Can also be started by hand from the Actions tab. See docs/deploy-app.md.
+name: Deploy app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time; a deploy that has started is never cancelled halfway
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  build:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: app/requirements.txt
+
+      # The shinylive version decides the browser's package versions, which app/requirements.txt has to match.
+      # The browser check below fails if they don't. See docs/deploy-app.md before changing it.
+      - name: Install packages
+        run: pip install -r app/requirements.txt shinylive==0.8.12 playwright==1.63.0
+
+      # The app is built from a folder outside the repository, holding app/ and the schema, so schema.yaml is
+      # never copied into the repository. The edit/ page, which would show the app's files, is left out.
+      - name: Build the app
+        run: |
+          mkdir "$RUNNER_TEMP/app"
+          cp -r app/. schema/schema.yaml "$RUNNER_TEMP/app/"
+          shinylive export "$RUNNER_TEMP/app" site
+          rm -r site/edit
+
+      - name: Check the app in a browser
+        run: |
+          playwright install --with-deps --only-shell chromium
+          python tests/check_browser_app.py site
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

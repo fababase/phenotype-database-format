@@ -4,12 +4,15 @@ matches it.
 """
 import io
 import os
+import shutil
+import subprocess
+import sys
 
 import openpyxl
 import pytest
 import yaml
 
-from helpers import ROOT, SCHEMA, TEMPLATE_BYTES
+from helpers import ROOT, SCHEMA, TEMPLATE_BYTES, VALID
 from validation import SCHEMA_FILE, cell_text, load_schema
 
 
@@ -22,6 +25,15 @@ def test_schema_yaml_has_only_one_copy():
                    if name.lower() in ("schema.yaml", "schema.yml")]
     assert copies == [("schema", "schema.yaml")]
     assert SCHEMA_FILE == ROOT / "schema" / "schema.yaml"
+
+
+def test_schema_yaml_next_to_the_validator(tmp_path):
+    """The browser app has schema.yaml next to validation.py, outside the repository: the deploy Action puts it there."""
+    for path in (ROOT / "app" / "validation.py", ROOT / "app" / "requirements.txt", SCHEMA_FILE):
+        shutil.copy(path, tmp_path)
+    result = subprocess.run([sys.executable, str(tmp_path / "validation.py"), str(VALID)],
+                            capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.mark.parametrize("change, message", [

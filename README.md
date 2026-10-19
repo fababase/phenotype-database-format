@@ -14,6 +14,7 @@ This repository describes and checks the format of the FabaBase phenotype databa
 | [schema/diagram.png](schema/diagram.png) | How the tables link together. |
 | [template/collection-sheet.xlsx](template/collection-sheet.xlsx) | Blank collection sheet, one sheet per table, for filling in by hand. |
 | [app/](app/) | The validator. `validation.py` holds the checks and runs from the command line; `app.py` is the app around it. |
+| [docs/deploy-app.md](docs/deploy-app.md) | How the app is published, and how to refresh it. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Decisions, planned work and open questions. |
 
 ## Checking your data
@@ -38,7 +39,7 @@ python app/validation.py path/to/folder-of-csv-files
 python app/validation.py collection-sheet.xlsx --out path/to/new-folder
 ```
 
-**In the app**: run it locally as below. It is moving to GitHub Pages, where it will run in your browser so your data never leaves your computer; the address will be added here. The old app at <https://troelsmou.shinyapps.io/n2crop-validation/> still runs the previous version, which only takes a collection sheet.
+**In the app**: <https://fababase.github.io/phenotype-database-format/>. It runs in your browser, so your data never leaves your computer. The first visit takes a while, as your browser downloads what the app needs. The old app at <https://troelsmou.shinyapps.io/n2crop-validation/> still runs the previous version, which only takes a collection sheet.
 
 ## Contributing data
 

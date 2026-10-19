@@ -18,6 +18,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from importlib import metadata
 from pathlib import Path
 
 import openpyxl
@@ -25,8 +26,13 @@ import pandas as pd
 import yaml
 
 HERE = Path(__file__).resolve().parent
-# The only copy of the schema. It is never copied anywhere else, so nothing can be checked against a stale one.
+# The only copy of the schema. It is never copied anywhere else in the repository, so nothing can be checked
+# against a stale one. Only the browser app has it next to this file, where the deploy Action puts it.
 SCHEMA_FILE = HERE.parent / "schema" / "schema.yaml"
+if not SCHEMA_FILE.exists():
+    SCHEMA_FILE = HERE / "schema.yaml"
+# The package versions that the tests and the browser app run with
+REQUIREMENTS_FILE = HERE / "requirements.txt"
 
 COLUMN_TYPES = {"id", "text", "long_text", "integer", "number", "date", "coordinates", "features"}
 # Feature types, in lower case: c = text, i = whole number, d = real number. An empty Type means c.
@@ -668,6 +674,33 @@ def write_tables(tables: dict[str, Table], folder: Path) -> None:
         (folder / f"{name}.csv").write_text(table.to_csv(), encoding="utf-8", newline="")
 
 
+def tested_versions(path: Path = REQUIREMENTS_FILE) -> dict[str, str]:
+    """Package -> version, from requirements.txt: the versions that the tests and the browser app run with."""
+    versions = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip() and not line.startswith("#"):
+            package, _, version = line.strip().partition("==")
+            versions[package] = version
+    return versions
+
+
+def version_notices(path: Path = REQUIREMENTS_FILE) -> list[str]:
+    """
+    One line for each package installed in another version than the one in requirements.txt, as results may then
+    differ from the tests'. Packages that are not installed are not used, so they are left out.
+    """
+    notices = []
+    for package, tested in tested_versions(path).items():
+        try:
+            installed = metadata.version(package)
+        except metadata.PackageNotFoundError:
+            continue
+        if installed != tested:
+            notices.append(f"This validator is tested with {package} {tested}, but {package} {installed} "
+                           "is installed, so results may differ.")
+    return notices
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Check phenotype database tables against the schema. "
                                                  "Stops at the first error.")
@@ -692,6 +725,8 @@ def main(argv: list[str] | None = None) -> int:
 
     schema = load_schema()
     print(f"Checking against schema version {schema.version}")
+    for notice in version_notices():
+        print(f"Notice: {notice}")
     try:
         tables = validate_files(files, schema, notice=lambda message: print(f"Notice: {message}"))
     except ValidationError as e:

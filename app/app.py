@@ -4,7 +4,7 @@ from pathlib import Path
 
 from shiny import App, reactive, render, ui
 
-from validation import Table, ValidationError, load_schema, summary, validate_files
+from validation import Table, ValidationError, load_schema, summary, validate_files, version_notices
 
 SCHEMA = load_schema()
 
@@ -16,6 +16,7 @@ app_ui = ui.page_fluid(
             ui.p("Upload one CSV file per table, named after the table (Germplasm.csv, SeedLot.csv, …), "
                  "or a filled-in collection sheet (.xlsx)."),
             ui.p(f"Checks against schema version {SCHEMA.version}. Stops at the first error."),
+            *(ui.p(f"Notice: {notice}") for notice in version_notices()),
             ui.hr(),
             ui.input_file("files", "Choose files", multiple=True, accept=[".csv", ".xlsx"]),
             ui.hr(),
