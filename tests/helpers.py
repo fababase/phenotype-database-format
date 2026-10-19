@@ -20,6 +20,16 @@ SCHEMA = load_schema()
 VALID = Path(__file__).resolve().parent / "valid"
 TEMPLATE = ROOT / "template" / "collection-sheet.xlsx"
 
+OPTIONAL_TABLES = ["ExperimentIntervention", "Management", "ClimateDescription", "Climate", "Features"]
+
+# The two experiments in the valid dataset, and rows of them that tests change
+TRIAL = "nordbean_irrigation_northfield_2025"
+UNIT = f"{TRIAL}_plot101"
+SCORE = f"{TRIAL}_000001"
+GREENHOUSE = "nordbean_leaf_spectra_greenhouse_2025"
+POT = f"{GREENHOUSE}_pot01"
+SPECTRUM = f"{GREENHOUSE}_000005"  # a Phenotype row with Features wavelength=1450;tissue=young leaf
+
 # Read once rather than for every test, which is slow when the repository is on a network drive
 VALID_FILES = {path.name: path.read_bytes() for path in VALID.iterdir()}
 TEMPLATE_BYTES = TEMPLATE.read_bytes()
@@ -160,6 +170,15 @@ def edit_workbook(path: Path, change: Callable[[openpyxl.Workbook], None]) -> No
     wb.save(path)
 
 
+def set_sheet_cell(path: Path, table: str, row: int, column: str, value) -> None:
+    """Sets a cell in the sheet of a table in a workbook. row is the row number in the sheet."""
+    def change(wb: openpyxl.Workbook) -> None:
+        ws = wb[SCHEMA.tables[table].sheet]
+        header = [cell_text(cell.value) for cell in ws[1]]
+        ws.cell(row, header.index(column) + 1, value)
+    edit_workbook(path, change)
+
+
 def rename_sheet(path: Path, old: str, new: str) -> None:
     """Renames a sheet of a workbook. Goes through a temporary title, as openpyxl ignores case when comparing titles."""
     def rename(wb: openpyxl.Workbook) -> None:
@@ -175,11 +194,16 @@ def passes(files: list[tuple[str, Path]]) -> tuple[dict[str, Table], list[str]]:
     return tables, notices
 
 
+def error(files: list[tuple[str, Path]]) -> str:
+    """Validates the files, which have to fail. Returns the message."""
+    with pytest.raises(ValidationError) as raised:
+        validate_files(files, SCHEMA)
+    return str(raised.value)
+
+
 def fails(files: list[tuple[str, Path]], message: str) -> None:
     """Checks that validating the files fails with exactly this message."""
-    with pytest.raises(ValidationError) as error:
-        validate_files(files, SCHEMA)
-    assert str(error.value) == message
+    assert error(files) == message
 
 
 def as_csv(tables: dict[str, Table]) -> dict[str, str]:

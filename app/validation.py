@@ -38,6 +38,8 @@ NUMBER = re.compile(rf"{DECIMAL}(?:[eE][-+]?\d+)?")
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 COORDINATES = re.compile(rf"{DECIMAL};{DECIMAL}")
 RANGE = re.compile(rf"({NUMBER.pattern})\.\.({NUMBER.pattern})")
+# A number with one ',' that could be a decimal mark or separate thousands, such as 1,234
+THOUSANDS = re.compile(r"-?[1-9]\d{0,2},\d{3}")
 ID = re.compile(r"[A-Za-z0-9_]+")
 
 # CSV separators to recognise, and how to name them in notices
@@ -199,10 +201,14 @@ def read_csv(name: str, path: Path, notice: Callable[[str], None]) -> RawTable:
     delimiter = max(DELIMITERS, key=first_line.count)
     if delimiter != ",":
         notice(f"{name} is separated by {DELIMITERS[delimiter]}.")
+    # Strict, so that a quote mark that is never closed is an error, rather than swallowing the rows after it
+    rows = []
     try:
-        rows = list(csv.reader(io.StringIO(text, newline=""), delimiter=delimiter))
+        for row in csv.reader(io.StringIO(text, newline=""), delimiter=delimiter, strict=True):
+            rows.append(row)
     except csv.Error as e:
-        raise ValidationError(f"{name}: could not read the file as CSV ({e}).") from None
+        raise ValidationError(f"{name}, row {len(rows) + 1}: could not read the row as CSV ({e}). Check its quote "
+                              "marks: a value that starts with \" has to end with \" too.") from None
     if not rows:
         raise ValidationError(f"{name} is empty. Its first row has to hold the column names.")
     width = len(rows[0])
@@ -363,8 +369,13 @@ def integer_problem(value: str) -> str | None:
 
 
 def number_problem(value: str) -> str | None:
+    """A fix is only suggested when it is the one way to read the value."""
     if NUMBER.fullmatch(value):
         return None
+    if THOUSANDS.fullmatch(value):
+        return (f"'{value}' has ','. Numbers have '.' as the decimal mark and no separator between thousands. "
+                f"Write {value.replace(',', '.')} if ',' is the decimal mark, or {value.replace(',', '')} if it "
+                "separates thousands. These are different numbers, so check which one is meant.")
     if NUMBER.fullmatch(value.replace(",", ".")):
         return (f"'{value}' has ','. Numbers have '.' as the decimal mark and no thousands separator, "
                 f"so write {value.replace(',', '.')}")

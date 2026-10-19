@@ -6,15 +6,8 @@ from datetime import date, datetime
 
 import pytest
 
-from helpers import SCHEMA, as_csv, make_workbook, passes, rename_sheet
+from helpers import OPTIONAL_TABLES, SCHEMA, SCORE, TRIAL, UNIT, as_csv, make_workbook, passes, rename_sheet
 from validation import cell_text, summary
-
-OPTIONAL_TABLES = ["ExperimentIntervention", "Management", "ClimateDescription", "Climate", "Features"]
-
-# The field trial in the valid dataset, and rows of it that tests change
-TRIAL = "nordbean_irrigation_northfield_2025"
-UNIT = f"{TRIAL}_plot101"
-SCORE = f"{TRIAL}_000001"
 
 
 def test_csv_files_pass(dataset):
@@ -176,6 +169,13 @@ def test_optional_tables_left_out(dataset):
     assert notices == [f"There is no {table} table. It is optional, so it was skipped." for table in OPTIONAL_TABLES]
 
 
+def test_empty_table_that_refers_to_a_table_left_out(dataset):
+    """Climate refers to ClimateDescription, but an empty Climate table does not need one."""
+    dataset.write("Climate", dataset.read("Climate")[:1])
+    dataset.drop_table("ClimateDescription")
+    passes(dataset.files())
+
+
 @pytest.mark.parametrize("delimiter, word", [(";", "semicolons"), ("\t", "tabs")])
 def test_semicolon_and_tab_separated_files(dataset, delimiter, word):
     original, _ = passes(dataset.files())
@@ -192,6 +192,15 @@ def test_windows_encoded_file(dataset):
     tables, notices = passes(dataset.files())
     assert notices == ["Germplasm.csv is not UTF-8, so it was read as Windows text."]
     assert tables["Germplasm"].data["Donor"].iat[1] == "Søren Højgård"
+
+
+def test_quote_mark_inside_a_value(dataset):
+    """A quote mark that does not start a value is part of it, as in 1" for an inch."""
+    path = dataset.path("Germplasm")
+    path.write_text(path.read_text(encoding="utf-8").replace("Large flat seeds.", 'Seeds about 1" long.'),
+                    encoding="utf-8", newline="")
+    tables, _ = passes(dataset.files())
+    assert tables["Germplasm"].data["Comments"].iat[1].endswith('Seeds about 1" long.')
 
 
 def test_utf8_file_with_byte_order_mark(dataset):
