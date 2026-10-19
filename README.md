@@ -1,6 +1,6 @@
 # FabaBase phenotype database: format and validation
 
-This repository describes and checks the format of the FabaBase phenotype database: a set of 11 linked tables for phenotype data from plant experiments. It holds the schema, a collection sheet for filling in by hand, and an app that checks data against the schema. The data itself is not stored here; it will be published on Zenodo.
+This repository describes and checks the format of the FabaBase phenotype database: a set of linked tables for phenotype data from plant experiments. It holds the schema, a collection sheet for filling in by hand, and an app that checks data against the schema. The data itself is not stored here; it will be published on Zenodo.
 
 > [!NOTE]
 > This repository is being restructured. See the [roadmap](docs/ROADMAP.md) for what is planned and what is done.
@@ -18,7 +18,7 @@ This repository describes and checks the format of the FabaBase phenotype databa
 
 ## Checking your data
 
-The validator checks a set of tables against [schema version 1.0.0](schema/schema.yaml). Give it either:
+The validator checks a set of tables against the [schema](schema/schema.yaml). Give it either:
 
 - one CSV file per table, named after the table: `Germplasm.csv`, `SeedLot.csv`, … Columns can be in any order, and optional columns can be left out. Comma-, semicolon- and tab-separated files all work.
 - or one filled-in [collection sheet](template/collection-sheet.xlsx).
