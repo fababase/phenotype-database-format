@@ -15,7 +15,6 @@ app_ui = ui.page_fluid(
             ui.h2("Phenotype data validator"),
             ui.p("Upload one CSV file per table, named after the table (Germplasm.csv, SeedLot.csv, …), "
                  "or a filled-in collection sheet (.xlsx)."),
-            ui.p(f"Checks against schema version {SCHEMA.version}. Stops at the first error."),
             *(ui.p(f"Notice: {notice}") for notice in version_notices()),
             ui.hr(),
             ui.input_file("files", "Choose files", multiple=True, accept=[".csv", ".xlsx"]),
