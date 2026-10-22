@@ -16,7 +16,7 @@ This is **version 1.0.0** of the schema. [schema.yaml](schema.yaml) is a machine
   - [How the tables fit together](#how-the-tables-fit-together)
   - [Key distinctions](#key-distinctions)
 - [General conventions](#general-conventions)
-  - [Names](#names) · [Identifiers](#identifiers) · [Required and optional columns](#required-and-optional-columns) · [Missing values](#missing-values) · [Data types](#data-types) · [Dates](#dates) · [Numbers and scores](#numbers-and-scores) · [GPS coordinates](#gps-coordinates) · [Free text](#free-text)
+  - [Files](#files) · [Names](#names) · [Identifiers](#identifiers) · [Required and optional columns](#required-and-optional-columns) · [Missing values](#missing-values) · [Data types](#data-types) · [Dates](#dates) · [Numbers and scores](#numbers-and-scores) · [GPS coordinates](#gps-coordinates) · [Free text](#free-text)
 - [Special rules](#special-rules)
   - [Climate rows without a unit apply to all units](#climate-rows-without-a-unit-apply-to-all-units)
   - [Features cells hold several values](#features-cells-hold-several-values)
@@ -84,6 +84,26 @@ In the [interactive diagram](https://fababase.github.io/phenotype-database-forma
 
 ## General conventions
 
+### Files
+
+The tables are published, and written by the validator, as files like this:
+
+- One CSV file per table, named after the table: `Germplasm.csv`, `SeedLot.csv`, …
+- UTF-8 text, with the values separated by commas.
+- The first row holds the column names: every column of the table, in the order of the [table reference](#table-reference). Each row after it is one row of the table.
+- A value with a comma, a double quote or a line break in it is put in double quotes, and a double quote in it is written twice.
+- A missing value is an empty cell.
+- A table that is not used is left out, or is a file with only the first row.
+
+**Example:** `Germplasm.csv` of the dataset in the [worked example](#worked-example). Ostrin has no AlternativeName or Donor, and Belkar's Comments has a comma in it.
+
+```text
+GPID,Name,AlternativeName,Species,Donor,GeographicOrigin,Maintaining,Comments
+vandrel,Vandrel,NB 117,Vicia faba,Nordbean breeding programme,Denmark,Nordbean breeding programme,Small-seeded field bean line selected for early flowering. The seeds are round and buff coloured.
+ostrin,Ostrin,,Vicia faba,,Egypt,Nordbean genebank,Landrace collected in the Nile delta in 1987. Large flat seeds.
+belkar,Belkar,,Vicia faba,Nordbean breeding programme,Denmark,Nordbean genebank,"Line low in vicine and convicine, selected from a cross between Vandrel and Ostrin."
+```
+
 ### Names
 
 Table and column names are written exactly as in this document. The [table reference](#table-reference) lists the columns of each table in their standard order.
@@ -105,7 +125,7 @@ These rules keep IDs safe wherever the data goes: `;` and `=` have occasional me
 - Start IDs with a letter. This may become a rule.
 - Write IDs in snake_case: lower-case words joined by `_`, such as `plant_height_cm`.
 - Pad numbers with zeros, so that IDs sort in order: `plot007`, not `plot7`.
-- In the shared reference tables (Germplasm, SeedLot, PhenotypeDescription, ClimateDescription and Features), use the same ID for the same thing in every dataset. This matters most for GPID, which links phenotypes to other data about the same plant material, such as genomic data.
+- In the shared reference tables (Germplasm, SeedLot, PhenotypeDescription, ClimateDescription and Features), use the same ID for the same thing in every dataset. This matters most for GPID, which links phenotypes to other data about the same plant material, such as genomic data. The known datasets, to look up IDs in, are listed in [datasets.md](https://github.com/fababase/phenotype-database-format/blob/main/docs/datasets.md).
 - In the tables that belong to one experiment (Experiment, ExperimentalUnit, ExperimentIntervention, Management, Phenotype and Climate), IDs should never repeat across datasets, or the datasets cannot be merged. Give each experiment an EXPID that no one else would choose, and start the other IDs of the experiment with it.
 - Within an experiment, do not build IDs from information that is in other columns, such as the germplasm, treatment or date. Use the label a unit already has, or a counter. If an ID and a column disagree, the column is what counts.
 

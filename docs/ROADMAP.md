@@ -1,6 +1,6 @@
 # Roadmap
 
-This repository holds everything that describes and checks the phenotype database format: the schema, the collection sheet, the validation app, the shared reference tables and the guide for converting messy data with an AI. The data itself is published on Zenodo.
+This repository holds everything that describes and checks the phenotype database format: the schema, the collection sheet, the validation app, the list of datasets in the format and the guide for converting messy data with an AI. The data itself is published on Zenodo.
 
 This roadmap records the decisions made so far, the work in order, and the questions still open. Tick items off as they are done.
 
@@ -21,7 +21,7 @@ This roadmap records the decisions made so far, the work in order, and the quest
 
 | Topic | Decision |
 |---|---|
-| Repository | One **public** GitHub repo for the schema, collection sheet, validator, app, shared reference tables and AI guide. They change together, so they are versioned together. |
+| Repository | One **public** GitHub repo for the schema, collection sheet, validator, app, list of datasets and AI guide. They change together, so they are versioned together. |
 | Repository name | May be renamed, since it holds more than the app. Name to be decided; see [Phase 0](#phase-0-clean-up-and-restructure). |
 | Data in git | **Never.** Contributions are kept in a private folder until published. |
 | Zenodo | **One record** for the whole database. New contributions and corrections become new versions of that record. |
@@ -37,8 +37,8 @@ This roadmap records the decisions made so far, the work in order, and the quest
 | App hosting | **Shinylive on GitHub Pages**: the app runs in the visitor's browser, so data never leaves their computer, and it redeploys automatically. Replaces shinyapps.io. `schema.yaml` is bundled into the app when it is built, not copied into the repository, and not offered for download on the site. See [deploy-app.md](deploy-app.md). |
 | Python | 3.12, with the package versions pinned to those of the browser app, so the tests, the command line and the app run the same ones. The app and the command line say when another version is installed. |
 | AI conversion | Done by **contributors**, using the AI kit in this repo. A central AI agent may follow later ([Phase 5](#phase-5-a-central-ai-agent)). |
-| Shared reference tables | Curated master lists of Germplasm, PhenotypeDescription, ClimateDescription and Features live in this repo, under `reference/`. |
-| Licences | Code: GPL-3.0. Schema doc, collection sheet, reference tables and published data: CC-BY-4.0. |
+| Existing data | **No copies in this repo**, not even of the shared reference tables (Germplasm, SeedLot, PhenotypeDescription, ClimateDescription, Features). The IDs to reuse are in the datasets themselves, on Zenodo. [docs/datasets.md](datasets.md) lists every known dataset in the format by DOI: the published FabaBase record, and the records of ongoing projects, which may be restricted. A restricted record's page is public, so people and AIs are pointed to it, and those with access can get the files. |
+| Licences | Code: GPL-3.0. Schema doc, collection sheet and published data: CC-BY-4.0. |
 | Committing | Through GitHub Desktop. |
 
 ## Target layout
@@ -46,7 +46,7 @@ This roadmap records the decisions made so far, the work in order, and the quest
 ```
 README.md             start here: what this is, links to schema, app, how to contribute data
 LICENSE               GPL-3.0 (code)
-LICENSE-CONTENT       CC-BY-4.0 (schema doc, collection sheet, reference tables)
+LICENSE-CONTENT       CC-BY-4.0 (schema doc, collection sheet)
 CITATION.cff          how to cite
 CHANGELOG.md          what changed in each schema version
 .gitignore
@@ -56,7 +56,6 @@ schema/
   schema_md.py        writes the tables in schema.md that list the tables and columns, from schema.yaml
   diagram.py          draws the diagram of how the tables link from schema.yaml, for publishing with the app
   diagram.html        the interactive diagram page that diagram.py fills in
-reference/            shared master lists: Germplasm, PhenotypeDescription, ClimateDescription, Features
 app/                  exactly what gets deployed
   app.py              UI only
   validation.py       all checks; also runs from the command line
@@ -68,6 +67,7 @@ zenodo/
   README_TEMPLATE.md  README for the Zenodo record
 docs/
   ROADMAP.md          this file
+  datasets.md         every known dataset in the format, by DOI, to reuse IDs from
   deploy-app.md       how the app is deployed and how to refresh it
   submit-data.md      raw data → AI → script → validate → hand over
   release.md          how to release a new schema version and a new Zenodo version
@@ -77,7 +77,7 @@ tests/                one valid dataset plus deliberately broken ones; run on ev
 
 ## How data flows
 
-1. A contributor gives an AI the AI kit (the schema doc, `schema.yaml`, `AI_INSTRUCTIONS.md`, the reference tables and the example dataset in `tests/valid/`) and a trimmed copy of their raw data.
+1. A contributor gives an AI the AI kit (the schema doc, `schema.yaml`, `AI_INSTRUCTIONS.md`, the datasets in `docs/datasets.md` and the example dataset in `tests/valid/`) and a trimmed copy of their raw data.
 2. The AI asks what it needs to know, then writes a script that converts the raw data into one CSV per table. As it goes, it reports what it sees in the data (traits, number of scores, units, ranges), so the contributor can confirm it or catch mistakes early.
 3. The contributor runs the script on the full data and checks the CSVs with the validator, fixing the script until they pass.
 4. The contributor hands over the bundle below. It is kept privately.
@@ -110,20 +110,21 @@ Only the tables go to Zenodo.
 
 - [x] Fill in the TODOs in `schema/schema.md` (examples, worked example) from the valid test dataset, `tests/valid/`, instead of building a separate worked example with a fake messy Excel file and a script to convert it. The example of each column is copied into `schema.yaml` (`example:`), from where it reaches `schema.md` and row 2 of the collection sheet; a test checks that each is a valid value.
 - [x] One description per column, in `schema.yaml`, replacing the separate descriptions in `schema.md`, its "What each column covers" table and the collection sheet. The tables in `schema.md` that list the tables and columns are written from it by an Action (`.github/workflows/schema-md.yml`), and the app builds the collection sheet from it.
-- [ ] Add a section on the files themselves: one CSV per table, named after the table, UTF-8, comma-separated, `.` as the decimal mark, one header row with the column names.
+- [x] Add a section on the files themselves to `schema.md`: one CSV per table, named after the table, UTF-8, comma-separated, one header row with the column names. See [Files](../schema/schema.md#files).
 - [x] Add ID rules: only letters, digits and `_`, and unique ignoring case, both checked by the validator. The schema doc suggests a form for each ID, with experiment-level IDs (UNID, PHID, IID, MMID, CLID) starting with their EXPID, so IDs never clash when contributions are merged. See [Identifiers](../schema/schema.md#identifiers).
 - [x] Draw the diagram from `schema.yaml` on every deploy, instead of keeping a dbdiagram.io copy: `schema/diagram.py` and `schema/diagram.html`, published at <https://fababase.github.io/phenotype-database-format/diagram/>. The README and `schema.md` link to it. Tick once the first run has published it.
-- [ ] Start the shared reference tables in `reference/`, from the N2CROP data.
+- [x] Write `docs/datasets.md`, the list of every known dataset in the format, by DOI, instead of keeping shared reference tables in `reference/`.
+- [ ] Add each project's Zenodo record to `docs/datasets.md` as it gets a DOI, starting with N2CROP.
 - [ ] Write `conversion/AI_INSTRUCTIONS.md`, telling the AI to:
   - **Inspect before coding:** every sheet, hidden rows and columns, merged cells, multi-row headers, cell colours, comments, notes below tables, decimal commas and home-made "NA" markers. Use openpyxl, since pandas cannot see colours or merged cells.
   - **Ask, don't guess:** what a unit is, what colours and formatting mean, the unit and method of each trait, what categorical codes mean, which rows to leave out. Never invent metadata; leave it empty and list it in NOTES.md.
-  - **Reuse IDs:** map germplasm, traits, climate variables and features to the reference tables, and list any new ones it proposes so they can be approved.
+  - **Reuse IDs:** map germplasm, seed lots, traits, climate variables and features to the tables of the datasets in `docs/datasets.md`, restricted ones too if the person has access, and list any new IDs in NOTES.md.
   - **Deliver a script, not just tables:** the AI writes `convert.py`, a script that turns the messy raw Excel file into the correct CSV files, one per table. The script is saved with the contribution, so the conversion can be rerun and checked later. Raw files are read-only, every decision is in the code, and nothing is edited by hand afterwards.
   - **Report what it sees** while it writes and runs the script, so the contributor can say "yes, that's right" or spot at once that something is badly wrong. For example: which traits were scored and how many scores each has, how many units, experiments and germplasm there are, the date range, the value range of each trait, and which rows were left out and why.
   - **Run the validator** and fix the script until the tables pass.
   - **Write NOTES.md:** the questions asked and the answers, the assumptions made, and row counts in the raw data vs. in the tables.
   - Work from a trimmed copy of the raw data (headers and some rows) where possible, so the full data does not have to be uploaded to an AI service.
-- [ ] Write `docs/submit-data.md` for contributors: the steps in [How data flows](#how-data-flows), what to hand over, and a short list of checks to do by hand, such as tracing about 10 random values back to the raw file.
+- [ ] Write `docs/submit-data.md` for contributors: the steps in [How data flows](#how-data-flows), what to hand over, best practices etc.
 - [ ] Pilot the kit on 2–3 real messy datasets, and improve the instructions based on what the AI gets wrong.
 
 ## Phase 3: Publish on Zenodo
@@ -132,7 +133,7 @@ Only the tables go to Zenodo.
 - [ ] Write a merge script that combines the tables of all contributions into one set of tables, and validate the merged set.
 - [ ] Decide what goes into each version of the record: the merged tables, the README, and `schema.md`, `schema.yaml` and the diagram for the schema version used, so the record makes sense without GitHub.
 - [ ] Before publishing, check for personal names (ScoredBy, Manager) and confidential breeding lines. Zenodo records are effectively permanent.
-- [ ] Do a first upload on [sandbox.zenodo.org](https://sandbox.zenodo.org), then publish the real record.
+- [ ] Do a first upload on [sandbox.zenodo.org](https://sandbox.zenodo.org), then publish the real record, and add it to `docs/datasets.md`.
 - [ ] Add `CITATION.cff`.
 - [ ] Write `docs/release.md`: how to release a new schema version (update `schema.yaml`, the hand-written parts of `schema.md` and `CHANGELOG.md`, run the tests, tag a release once the Action has written the tables in `schema.md`) and how to publish a new version of the Zenodo record.
 

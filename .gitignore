@@ -2,7 +2,6 @@
 *.xlsx
 *.xls
 *.csv
-!reference/*.csv
 !tests/**
 data/
 

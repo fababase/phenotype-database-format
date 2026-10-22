@@ -14,6 +14,7 @@ This repository describes and checks the format of the FabaBase phenotype databa
 | [Schema diagram](https://fababase.github.io/phenotype-database-format/diagram/) | How the tables link together. Drag the tables around, and click one to highlight its links. Also as a picture: [PNG](https://fababase.github.io/phenotype-database-format/diagram/diagram.png), [SVG](https://fababase.github.io/phenotype-database-format/diagram/diagram.svg). |
 | Collection sheet | A workbook with one sheet per table, for filling in by hand. Download a blank one from the [app](https://fababase.github.io/phenotype-database-format/). |
 | [app/](app/) | The validator. `validation.py` holds the checks and runs from the command line; `app.py` is the app around it; `collection_sheet.py` builds the blank collection sheet. |
+| [docs/datasets.md](docs/datasets.md) | Every known dataset in the format, by DOI. Look here for IDs to reuse. |
 | [docs/deploy-app.md](docs/deploy-app.md) | How the app is published, and how to refresh it. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Decisions, planned work and open questions. |
 
@@ -21,16 +22,16 @@ This repository describes and checks the format of the FabaBase phenotype databa
 
 The validator checks a set of tables against the [schema](schema/schema.yaml). Give it either:
 
-- one CSV file per table, named after the table: `Germplasm.csv`, `SeedLot.csv`, … Columns can be in any order, and optional columns can be left out. Comma-, semicolon- and tab-separated files all work.
+- one CSV file per table, named after the table: `Germplasm.csv`, `SeedLot.csv`.
 - or one filled-in collection sheet.
 
-It stops at the first problem it finds and says where it is and how to fix it, for example:
+It stops at the first problem it finds and says where it is and sometimes how to fix it, for example:
 
 ```
 Climate.csv, row 2, column Score: '11,7167' has ','. Numbers have '.' as the decimal mark and no thousands separator, so write 11.7167
 ```
 
-When everything passes, it can hand back the tables as clean CSV files: UTF-8, comma-separated, dates as `YYYY-MM-DD`.
+When everything passes, it can hand back the tables as clean CSV files, (hopefully) ready for upload to the database.
 
 **From the command line** (see [Running locally](#running-locally) for the setup):
 
@@ -39,13 +40,14 @@ python app/validation.py path/to/folder-of-csv-files
 python app/validation.py collection-sheet.xlsx --out path/to/new-folder
 ```
 
-**In the app**: <https://fababase.github.io/phenotype-database-format/>. It runs in your browser, so your data never leaves your computer. The first visit takes a while, as your browser downloads what the app needs. The old app at <https://troelsmou.shinyapps.io/n2crop-validation/> still runs the previous version, which only takes a collection sheet.
+**In the app**: <https://fababase.github.io/phenotype-database-format/>. It runs in your browser, so your data never leaves your computer. The first visit takes a while, as your browser downloads what the app needs to run.
 
 ## Contributing data
 
 1. Read the [schema](schema/schema.md).
-2. Fill in a collection sheet, which you can download from the [app](https://fababase.github.io/phenotype-database-format/), or convert your data into the same tables. The sheet's *READ ME 1st* explains how to fill it in.
-3. Check it with the [validation app](#checking-your-data) and fix what it reports.
+2. Look up the IDs already used for your germplasm, seed lots, traits, climate variables and features in the [known datasets](docs/datasets.md) that you have access to, and reuse them.
+3. Fill in a collection sheet, which you can download from the [app](https://fababase.github.io/phenotype-database-format/), or convert your data into the same tables. The sheet's *READ ME 1st* explains how to fill it in.
+4. Check it with the [validation app](#checking-your-data) and fix what it reports.
 
 A step-by-step guide, including how to convert messy raw data with the help of an AI, is planned (see the [roadmap](docs/ROADMAP.md#phase-2-schema-doc-example-and-ai-kit)).
 
@@ -66,4 +68,4 @@ After you push a change to `schema/schema.yaml`, the *Update schema.md* Action w
 ## Licences
 
 - **Code** (everything in `app/`, and future scripts and tests): GPL-3.0, see [LICENSE](LICENSE).
-- **Content** (the schema documentation and diagram, the collection sheet, the reference tables and the published data): CC-BY-4.0, see [LICENSE-CONTENT](LICENSE-CONTENT).
+- **Content** (the schema documentation and diagram, the collection sheet and the published data): CC-BY-4.0, see [LICENSE-CONTENT](LICENSE-CONTENT).
