@@ -10,8 +10,9 @@ Commit and push to `main` in GitHub Desktop. The *Deploy app* Action ([.github/w
 
 1. runs the tests;
 2. builds the app from `app/` and `schema/schema.yaml`;
-3. opens the built app in a browser and checks it ([tests/check_browser_app.py](../tests/check_browser_app.py));
-4. publishes it.
+3. draws the [schema diagram](#the-schema-diagram) from `schema/schema.yaml`;
+4. opens the built app in a browser and checks it ([tests/check_browser_app.py](../tests/check_browser_app.py));
+5. publishes both.
 
 This takes a few minutes. If any step fails, nothing is published and the previous app stays up.
 
@@ -22,6 +23,7 @@ To publish again without changing anything, go to **Actions → Deploy app → R
 ## What is checked before publishing
 
 - All tests pass.
+- The schema diagram is drawn without errors.
 - The packages bundled with the app are the versions in `app/requirements.txt`.
 - The app starts in a browser and shows no notices, so it runs the package versions in `app/requirements.txt`.
 - The app gives the same messages as the command line for the valid test dataset and for the blank collection sheet, and the tables it hands back are the same.
@@ -49,6 +51,20 @@ Only upgrade when there is a reason to, such as a fix in Shiny that the app need
 ## The schema
 
 `schema.yaml` stays in `schema/`. The Action copies it next to `validation.py` in a folder outside the repository and builds the app from there, so the repository never holds a second copy; a test checks this. The schema is bundled into the app, which reads it from there. The site has no page or link to download it.
+
+## The schema diagram
+
+The diagram of how the tables link is at **<https://fababase.github.io/phenotype-database-format/diagram/>**, with pictures of it at `diagram/diagram.png` and `diagram/diagram.svg`. [schema/diagram.py](../schema/diagram.py) draws it from `schema.yaml` each time the app is published.
+
+To see a change before pushing it, draw the diagram on your own computer:
+
+```
+pip install playwright==1.63.0
+playwright install chromium
+python schema/diagram.py site/diagram
+```
+
+and open `site/diagram/index.html`. The `site/` folder is not committed.
 
 ## Setup, done once
 

@@ -34,7 +34,9 @@ jobs:
       # The shinylive version decides the browser's package versions, which app/requirements.txt has to match.
       # The browser check below fails if they don't. See docs/deploy-app.md before changing it.
       - name: Install packages
-        run: pip install -r app/requirements.txt shinylive==0.8.12 playwright==1.63.0
+        run: |
+          pip install -r app/requirements.txt shinylive==0.8.12 playwright==1.63.0
+          playwright install --with-deps --only-shell chromium
 
       # The app is built from a folder outside the repository, holding app/ and the schema, so schema.yaml is
       # never copied into the repository. The edit/ page, which would show the app's files, is left out.
@@ -45,10 +47,12 @@ jobs:
           shinylive export "$RUNNER_TEMP/app" site
           rm -r site/edit
 
+      # Drawn from schema.yaml: the interactive diagram and its pictures, at diagram/ on the site
+      - name: Draw the schema diagram
+        run: python schema/diagram.py site/diagram
+
       - name: Check the app in a browser
-        run: |
-          playwright install --with-deps --only-shell chromium
-          python tests/check_browser_app.py site
+        run: python tests/check_browser_app.py site
 
       - uses: actions/upload-pages-artifact@v5
         with:

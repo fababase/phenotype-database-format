@@ -32,6 +32,7 @@ This roadmap records the decisions made so far, the work in order, and the quest
 | Validator errors | **Stops at the first error.** Later errors are often knock-on effects of the first one, so they are not reported. Each message names the table, row, column and value. |
 | Dates | Written as `YYYY-MM-DD` everywhere, including the validator's output. |
 | IDs | Only `a`–`z`, `A`–`Z`, `0`–`9` and `_`, and unique within their table ignoring case. The validator checks both. Suggested forms for each ID are in the schema doc. |
+| Schema diagram | **Drawn from `schema.yaml`** by `schema/diagram.py` each time the app is published, so it never goes out of date: an interactive page next to the app, where tables can be dragged around and clicking a table highlights its links, plus a PNG and an SVG picture. No hand-drawn copy (dbdiagram.io) is kept. See [deploy-app.md](deploy-app.md#the-schema-diagram). |
 | App hosting | **Shinylive on GitHub Pages**: the app runs in the visitor's browser, so data never leaves their computer, and it redeploys automatically. Replaces shinyapps.io. `schema.yaml` is bundled into the app when it is built, not copied into the repository, and not offered for download on the site. See [deploy-app.md](deploy-app.md). |
 | Python | 3.12, with the package versions pinned to those of the browser app, so the tests, the command line and the app run the same ones. The app and the command line say when another version is installed. |
 | AI conversion | Done by **contributors**, using the AI kit in this repo. A central AI agent may follow later ([Phase 5](#phase-5-a-central-ai-agent)). |
@@ -51,8 +52,8 @@ CHANGELOG.md          what changed in each schema version
 schema/
   schema.md           the schema description (was phenotype-database-schema.md)
   schema.yaml         machine-readable copy: tables, columns, types, required, unique, links
-  diagram.png         relationships between the tables
-  diagram.dbml        dbdiagram.io source of the diagram, so it can be redrawn
+  diagram.py          draws the diagram of how the tables link from schema.yaml, for publishing with the app
+  diagram.html        the interactive diagram page that diagram.py fills in
 template/
   collection-sheet.xlsx   blank collection sheet for filling in by hand
 reference/            shared master lists: Germplasm, PhenotypeDescription, ClimateDescription, Features
@@ -107,10 +108,10 @@ Only the tables go to Zenodo.
 
 ## Phase 2: Schema doc, example and AI kit
 
-- [ ] Fill in the TODOs in `schema/schema.md` (examples, worked example, diagram link) from the worked example below.
+- [ ] Fill in the TODOs in `schema/schema.md` (examples, worked example) from the worked example below.
 - [ ] Add a section on the files themselves: one CSV per table, named after the table, UTF-8, comma-separated, `.` as the decimal mark, one header row with the column names.
 - [x] Add ID rules: only letters, digits and `_`, and unique ignoring case, both checked by the validator. The schema doc suggests a form for each ID, with experiment-level IDs (UNID, PHID, IID, MMID, CLID) starting with their EXPID, so IDs never clash when contributions are merged. See [Identifiers](../schema/schema.md#identifiers).
-- [ ] Add `schema/diagram.dbml`, the dbdiagram.io source of the diagram.
+- [ ] Draw the diagram from `schema.yaml` on every deploy, instead of keeping a dbdiagram.io copy: `schema/diagram.py` and `schema/diagram.html`, published at <https://fababase.github.io/phenotype-database-format/diagram/>. The README and `schema.md` link to it. Tick once the first run has published it.
 - [ ] Build the worked example in `examples/demo/`: a fake but realistically messy raw Excel file (wide format, coloured rows, merged cells), the script that converts it, the resulting tables and the NOTES.md.
 - [ ] Start the shared reference tables in `reference/`, from the N2CROP data.
 - [ ] Write `conversion/AI_INSTRUCTIONS.md`, telling the AI to:

@@ -11,7 +11,7 @@ This repository describes and checks the format of the FabaBase phenotype databa
 |---|---|
 | [schema/schema.md](schema/schema.md) | The schema: every table and column, the conventions and the special rules. **Start here.** |
 | [schema/schema.yaml](schema/schema.yaml) | The same schema in machine-readable form, with its version number. The validator reads it. |
-| [schema/diagram.png](schema/diagram.png) | How the tables link together. |
+| [Schema diagram](https://fababase.github.io/phenotype-database-format/diagram/) | How the tables link together. Drag the tables around, and click one to highlight its links. Also as a picture: [PNG](https://fababase.github.io/phenotype-database-format/diagram/diagram.png), [SVG](https://fababase.github.io/phenotype-database-format/diagram/diagram.svg). |
 | [template/collection-sheet.xlsx](template/collection-sheet.xlsx) | Blank collection sheet, one sheet per table, for filling in by hand. |
 | [app/](app/) | The validator. `validation.py` holds the checks and runs from the command line; `app.py` is the app around it. |
 | [docs/deploy-app.md](docs/deploy-app.md) | How the app is published, and how to refresh it. |

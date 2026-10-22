@@ -1,0 +1,616 @@
+<!doctype html>
+<!--
+  The interactive diagram of how the tables link. schema/diagram.py fills in the schema and publishes it with the
+  app, so open the published page, not this file. The tables are laid out by ELK; the links are routed here, around
+  the tables, and routed again whenever a table is moved.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FabaBase schema diagram</title>
+<!-- Pinned, as another version could lay out the tables differently -->
+<script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js"></script>
+<style>
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex; flex-direction: column; background: #eef1f5; color: #1f2933;
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; padding: 10px 16px;
+    background: #fff; border-bottom: 1px solid #d5dbe3;
+  }
+  h1 { font-size: 17px; margin: 0; }
+  header p { margin: 0; color: #5f6b7a; }
+  header a { color: #2f6690; }
+  #legend { max-width: 100%; height: auto; }
+  .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+  button {
+    font: inherit; padding: 4px 10px; color: inherit; background: #fff;
+    border: 1px solid #c3cbd6; border-radius: 6px; cursor: pointer;
+  }
+  button:hover { background: #f1f4f8; }
+  #canvas { flex: 1; min-height: 0; width: 100%; display: block; touch-action: none; user-select: none; cursor: grab; }
+  #canvas.panning { cursor: grabbing; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>How the tables link</h1>
+    <p id="about"></p>
+    <p>Drag a table to move it. Click a table or a link to highlight it; click empty space to clear.
+      See also the <a href="https://github.com/fababase/phenotype-database-format/blob/main/schema/schema.md">schema
+      description</a> and the <a href="../">validation app</a>.</p>
+  </div>
+  <svg id="legend" aria-label="Legend"></svg>
+  <div class="tools">
+    <button id="zoom-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
+    <button id="zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+    <button id="fit" title="Show the whole diagram">Fit</button>
+    <button id="reset" title="Put the tables back where they started">Reset layout</button>
+    <button id="save" title="Save the diagram as it is now, as an SVG picture">Save picture</button>
+  </div>
+</header>
+<svg id="canvas" role="img" aria-label="Diagram of the tables and their links">
+  <!-- The diagram's own styles, kept inside it so that saved pictures look the same -->
+  <style>
+    text { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+           font-size: 13px; fill: #1f2933; }
+    .paper { fill: #fff; }
+    .box { fill: #fff; stroke: #b9c3cf; }
+    .head { fill: #2f6690; }
+    .head-text { fill: #fff; font-size: 14px; font-weight: 600; }
+    .optional { fill: #cfe0ee; font-size: 11px; }
+    .id { font-weight: 600; }
+    .req { fill: #c2410c; }
+    .type { fill: #6b7785; font-size: 12px; }
+    .row-bg { fill: transparent; }
+    .caption { font-size: 14px; font-weight: 600; }
+    .legend { font-size: 12px; }
+    .line, .ends { fill: none; stroke: #7d8a9a; stroke-width: 1.5; }
+    .maybe { stroke-dasharray: 5 4; }
+    .hit { fill: none; stroke: transparent; stroke-width: 12; }
+    .table { cursor: move; }
+    .link { cursor: pointer; }
+    .focus .table:not(.on) { opacity: .35; }
+    .focus .link:not(.on) { opacity: .15; }
+    .table.focused .box { stroke: #d9480f; stroke-width: 2; }
+    .row.on .row-bg { fill: #fde4d3; }
+    .link.on .line, .link.on .ends { stroke: #d9480f; stroke-width: 2.5; }
+  </style>
+  <g id="view"><g id="links"></g><g id="tables"></g></g>
+</svg>
+<script>
+const DATA = /* schema */ null;
+
+const NS = "http://www.w3.org/2000/svg";
+const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+const TYPE_NAMES = {id: "ID", text: "Text", long_text: "Long text", integer: "Integer", number: "Number",
+                    date: "Date", coordinates: "Coordinates", features: "Features"};
+// Table sizes, in pixels
+const HEAD = 34, ROW = 26, PAD = 12, GAP = 28, MIN_WIDTH = 160;
+// A link leaves a table straight for STUB pixels, keeps CLEAR pixels from tables, and each turn costs as much as
+// BEND pixels of length. Running along a stretch used by a link to another column costs SHARED times its length
+// extra, so that links keep apart where they can.
+const STUB = 20, CLEAR = 10, BEND = 40, SHARED = 1.5;
+const ALL_SIDES = [["R", "L"], ["L", "R"], ["R", "R"], ["L", "L"]];
+
+const svg = document.getElementById("canvas");
+const view = {x: 0, y: 0, k: 1, el: document.getElementById("view")};
+const linkLayer = document.getElementById("links"), tableLayer = document.getElementById("tables");
+const tables = new Map(), links = [], linkOf = new Map();
+let initial;                         // where the layout put each table
+let picked = null, hovered = null;   // what is highlighted, if no table is held: {table: name} or {link}
+let press = null;  // the pointer held down: on a table (drag it), a link, or empty space (pan)
+
+function make(name, attributes, parent) {
+  const element = document.createElementNS(NS, name);
+  for (const [key, value] of Object.entries(attributes || {})) element.setAttribute(key, value);
+  if (parent) parent.appendChild(element);
+  return element;
+}
+
+const measure = document.createElement("canvas").getContext("2d");
+function textWidth(text, font) {
+  measure.font = `${font} ${FONT}`;
+  return measure.measureText(text).width;
+}
+
+// ---------------------------------------------------------------- Tables and links
+
+const typeName = column => TYPE_NAMES[column.type] || column.type;
+
+function describe(table, column, i) {
+  const facts = [typeName(column), column.required ? "required" : "optional"].concat(column.unique ? ["unique"] : []);
+  let text = `${table.name}.${column.name}: ${facts.join(", ")}.`;
+  if (i === 0) text += " The table's ID.";
+  for (const link of links) {
+    if (link.from.table === table.name && link.from.column === column.name) {
+      text += column.type === "features" ? ` Holds FTID=value entries, with FTIDs from ${link.to.table}.`
+                                         : ` Links to ${link.to.table}.${link.to.column}.`;
+    }
+  }
+  const from = links.filter(link => link.to.table === table.name && link.to.column === column.name);
+  if (from.length) text += ` Linked from ${from.map(link => `${link.from.table}.${link.from.column}`).join(", ")}.`;
+  return text;
+}
+
+function addTable(spec) {
+  const table = {name: spec.name, columns: spec.columns, x: 0, y: 0, rows: new Map(),
+                 index: new Map(spec.columns.map((column, i) => [column.name, i]))};
+  const nameWidth = Math.max(...spec.columns.map((column, i) =>
+    textWidth(column.name + (column.required ? " *" : ""), i === 0 ? "600 13px" : "13px")));
+  const typeWidth = Math.max(...spec.columns.map(column => textWidth(typeName(column), "12px")));
+  const headWidth = textWidth(spec.name, "600 14px") + (spec.required ? 0 : 12 + textWidth("optional", "11px"));
+  table.w = Math.ceil(Math.max(MIN_WIDTH, nameWidth + GAP + typeWidth, headWidth) + 2 * PAD);
+  table.h = HEAD + ROW * spec.columns.length;
+
+  table.el = make("g", {class: "table", "data-name": spec.name}, tableLayer);
+  make("rect", {class: "box", width: table.w, height: table.h, rx: 6}, table.el);
+  make("path", {class: "head", d: `M0,${HEAD}V6a6,6 0 0 1 6,-6H${table.w - 6}a6,6 0 0 1 6,6V${HEAD}Z`}, table.el);
+  make("text", {class: "head-text", x: PAD, y: HEAD / 2, dy: ".35em"}, table.el).textContent = spec.name;
+  if (!spec.required) {
+    make("text", {class: "optional", x: table.w - PAD, y: HEAD / 2, dy: ".35em", "text-anchor": "end"},
+         table.el).textContent = "optional";
+  }
+  spec.columns.forEach((column, i) => {
+    const row = make("g", {class: "row", transform: `translate(0,${HEAD + i * ROW})`}, table.el);
+    make("rect", {class: "row-bg", x: 1, width: table.w - 2, height: ROW}, row);
+    const name = make("text", {class: i === 0 ? "id" : "", x: PAD, y: ROW / 2, dy: ".35em"}, row);
+    name.textContent = column.name;
+    if (column.required) make("tspan", {class: "req"}, name).textContent = " *";
+    make("text", {class: "type", x: table.w - PAD, y: ROW / 2, dy: ".35em", "text-anchor": "end"},
+         row).textContent = typeName(column);
+    make("title", {}, row).textContent = describe(table, column, i);
+    table.rows.set(column.name, row);
+  });
+  tables.set(spec.name, table);
+}
+
+function addLink(spec) {
+  const link = {from: {table: spec.from[0], column: spec.from[1]}, to: {table: spec.to[0], column: spec.to[1]},
+                unique: spec.unique, group: spec.to.join("."), points: []};
+  link.el = make("g", {class: "link"}, linkLayer);
+  link.hit = make("path", {class: "hit"}, link.el);
+  link.line = make("path", {class: spec.required ? "line" : "line maybe"}, link.el);
+  link.ends = make("path", {class: "ends"}, link.el);
+  make("title", {}, link.el).textContent = `${spec.from.join(".")} links to ${spec.to.join(".")}`
+                                           + (spec.required ? "." : ", and may be empty.");
+  links.push(link);
+  linkOf.set(link.el, link);
+}
+
+const rowY = end => {
+  const table = tables.get(end.table);
+  return table.y + HEAD + table.index.get(end.column) * ROW + ROW / 2;
+};
+const portX = (table, side) => side === "L" ? table.x : table.x + table.w;
+const stubX = (table, side) => side === "L" ? table.x - STUB : table.x + table.w + STUB;
+const placeTable = table => table.el.setAttribute("transform", `translate(${table.x},${table.y})`);
+
+// Lays out the tables left to right, each table to the left of the tables that link to it, with the linked rows
+// lined up where possible.
+async function layout() {
+  const port = (end, side) => `${end.table}.${end.column}.${side}`;
+  const ports = new Map([...tables.keys()].map(name => [name, new Map()]));
+  const edges = [];
+  for (const link of links.filter(link => link.from.table !== link.to.table)) {
+    for (const [end, side] of [[link.to, "EAST"], [link.from, "WEST"]]) {
+      const table = tables.get(end.table);
+      ports.get(end.table).set(port(end, side), {
+        id: port(end, side), width: 0, height: 0, layoutOptions: {"elk.port.side": side},
+        x: side === "EAST" ? table.w : 0, y: HEAD + table.index.get(end.column) * ROW + ROW / 2,
+      });
+    }
+    edges.push({id: `e${edges.length}`, sources: [port(link.to, "EAST")], targets: [port(link.from, "WEST")]});
+  }
+  const graph = await new ELK().layout({
+    id: "root",
+    layoutOptions: {
+      "elk.algorithm": "layered",
+      "elk.direction": "RIGHT",
+      "elk.edgeRouting": "ORTHOGONAL",
+      "elk.spacing.nodeNode": "50",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "110",
+      "elk.spacing.edgeNode": "30",
+      "elk.layered.spacing.edgeNodeBetweenLayers": "30",
+    },
+    children: [...tables.values()].map(table => ({
+      id: table.name, width: table.w, height: table.h, layoutOptions: {"elk.portConstraints": "FIXED_POS"},
+      ports: [...ports.get(table.name).values()],
+    })),
+    edges,
+  });
+  for (const node of graph.children) Object.assign(tables.get(node.id), {x: node.x, y: node.y});
+}
+
+// ---------------------------------------------------------------- Routing links around the tables
+//
+// Each link is the cheapest path on a grid of lines running between the tables: their sides, the middle of the
+// gaps between them, and the rows the links start and end at. Grid points and stretches inside a table, or within
+// CLEAR of it, are left out, so a link never runs behind a table.
+
+class Heap {
+  constructor() { this.keys = []; this.values = []; }
+  get size() { return this.keys.length; }
+  push(key, value) {
+    const keys = this.keys, values = this.values;
+    let i = keys.length;
+    keys.push(key); values.push(value);
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (keys[parent] <= key) break;
+      keys[i] = keys[parent]; values[i] = values[parent]; i = parent;
+    }
+    keys[i] = key; values[i] = value;
+  }
+  pop() {
+    const keys = this.keys, values = this.values, top = values[0];
+    const key = keys.pop(), value = values.pop();
+    if (keys.length) {
+      let i = 0;
+      for (;;) {
+        let child = 2 * i + 1;
+        if (child >= keys.length) break;
+        if (child + 1 < keys.length && keys[child + 1] < keys[child]) child++;
+        if (keys[child] >= key) break;
+        keys[i] = keys[child]; values[i] = values[child]; i = child;
+      }
+      keys[i] = key; values[i] = value;
+    }
+    return top;
+  }
+}
+
+// Grid lines at the given table sides, the middle of each wide gap between them, and the extra lines
+function gridLines(sides, extra) {
+  const sorted = [...new Set(sides)].sort((a, b) => a - b);
+  const middles = sorted.slice(1).map((value, i) => (value + sorted[i]) / 2)
+                        .filter((value, i) => sorted[i + 1] - sorted[i] > 2 * STUB);
+  return [...new Set([...sorted, ...middles, ...extra])].sort((a, b) => a - b);
+}
+
+function makeGrid() {
+  const all = [...tables.values()];
+  const boxes = all.map(t => [t.x - CLEAR, t.y - CLEAR, t.x + t.w + CLEAR, t.y + t.h + CLEAR]);
+  const X = gridLines(all.flatMap(t => [t.x - STUB, t.x + t.w + STUB]), []);
+  const Y = gridLines(all.flatMap(t => [t.y - STUB, t.y + t.h + STUB]),
+                      links.flatMap(link => [rowY(link.from), rowY(link.to)]));
+  const nx = X.length, ny = Y.length;
+  const blocked = (x1, y1, x2, y2) => boxes.some(([left, top, right, bottom]) =>
+    x2 > left && x1 < right && y2 > top && y1 < bottom);
+  const free = new Uint8Array(nx * ny), right = new Uint8Array(nx * ny), down = new Uint8Array(nx * ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) free[j * nx + i] = !blocked(X[i], Y[j], X[i], Y[j]);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const n = j * nx + i;
+    if (i + 1 < nx) right[n] = free[n] && free[n + 1] && !blocked(X[i], Y[j], X[i + 1], Y[j]);
+    if (j + 1 < ny) down[n] = free[n] && free[n + nx] && !blocked(X[i], Y[j], X[i], Y[j + 1]);
+  }
+  return {X, Y, nx, free, right, down,
+          xi: new Map(X.map((x, i) => [x, i])), yi: new Map(Y.map((y, j) => [y, j]))};
+}
+
+// Directions: 0 right, 1 left, 2 down, 3 up; d ^ 1 is the opposite of d. Returns the next grid point, or -1.
+function neighbour(grid, n, d) {
+  const nx = grid.nx;
+  if (d === 0) return grid.right[n] ? n + 1 : -1;
+  if (d === 1) return n % nx > 0 && grid.right[n - 1] ? n - 1 : -1;
+  if (d === 2) return grid.down[n] ? n + nx : -1;
+  return n >= nx && grid.down[n - nx] ? n - nx : -1;
+}
+
+const stretch = (n, m) => Math.min(n, m) * 2 + (Math.abs(n - m) === 1 ? 0 : 1);
+
+// Corners only: drops points in the middle of a straight stretch
+const corners = points => points.filter((p, k) => k === 0 || k === points.length - 1 ||
+  !(p[0] === points[k - 1][0] && p[0] === points[k + 1][0]) && !(p[1] === points[k - 1][1] && p[1] === points[k + 1][1]));
+
+// The cheapest path for a link leaving its column on fromSide and arriving at the ID on toSide, or null
+function search(grid, link, fromSide, toSide, used) {
+  const a = tables.get(link.from.table), b = tables.get(link.to.table);
+  const ay = rowY(link.from), by = rowY(link.to);
+  const start = grid.yi.get(ay) * grid.nx + grid.xi.get(stubX(a, fromSide));
+  const goal = grid.yi.get(by) * grid.nx + grid.xi.get(stubX(b, toSide));
+  if (!grid.free[start] || !grid.free[goal]) return null;
+  const startDir = fromSide === "L" ? 1 : 0, goalDir = toSide === "L" ? 0 : 1;
+  const x = n => grid.X[n % grid.nx], y = n => grid.Y[Math.floor(n / grid.nx)];
+  const guess = n => Math.abs(x(n) - x(goal)) + Math.abs(y(n) - y(goal));
+  const states = grid.free.length * 4;
+  const cost = new Float64Array(states).fill(Infinity), previous = new Int32Array(states).fill(-1);
+  const done = new Uint8Array(states), heap = new Heap();
+  cost[start * 4 + startDir] = 0;
+  heap.push(guess(start), start * 4 + startDir);
+  while (heap.size) {
+    const state = heap.pop();
+    if (done[state]) continue;
+    done[state] = 1;
+    const n = state >> 2, dir = state & 3;
+    if (n === goal) {
+      const nodes = [];
+      for (let s = state; s >= 0; s = previous[s]) nodes.unshift(s >> 2);
+      return {cost: cost[state], stretches: nodes.slice(1).map((m, k) => stretch(nodes[k], m)),
+              points: corners([[portX(a, fromSide), ay], ...nodes.map(m => [x(m), y(m)]), [portX(b, toSide), by]])};
+    }
+    for (let d = 0; d < 4; d++) {
+      const m = d === (dir ^ 1) ? -1 : neighbour(grid, n, d);
+      if (m < 0) continue;
+      const length = Math.abs(x(m) - x(n)) + Math.abs(y(m) - y(n));
+      const owner = used.get(stretch(n, m));
+      let c = cost[state] + length + (d !== dir ? BEND : 0) + (owner && owner !== link.group ? SHARED * length : 0);
+      if (m === goal && d !== goalDir) c += BEND;
+      const next = m * 4 + d;
+      if (c < cost[next]) {
+        cost[next] = c; previous[next] = state;
+        heap.push(c + guess(m), next);
+      }
+    }
+  }
+  return null;
+}
+
+// Sides to try: towards the other table, or the same side of both when they are above each other
+function sideChoices(link) {
+  const a = tables.get(link.from.table), b = tables.get(link.to.table);
+  if (a === b) return [["R", "R"]];
+  if (b.x - (a.x + a.w) > 2 * STUB) return [["R", "L"]];
+  if (a.x - (b.x + b.w) > 2 * STUB) return [["L", "R"]];
+  return [["R", "R"], ["L", "L"]];
+}
+
+// If there is no way around the tables, e.g. as one was dropped on another: straight across
+function elbow(link) {
+  const a = tables.get(link.from.table), b = tables.get(link.to.table), [fromSide, toSide] = sideChoices(link)[0];
+  const x1 = stubX(a, fromSide), x2 = stubX(b, toSide), y1 = rowY(link.from), y2 = rowY(link.to);
+  return corners([[portX(a, fromSide), y1], [x1, y1], [(x1 + x2) / 2, y1], [(x1 + x2) / 2, y2], [x2, y2],
+                  [portX(b, toSide), y2]]);
+}
+
+function routeLinks() {
+  const grid = makeGrid(), used = new Map();
+  const span = link => Math.abs(tables.get(link.from.table).x - tables.get(link.to.table).x)
+                       + Math.abs(rowY(link.from) - rowY(link.to));
+  const cheapest = (link, choices) => choices.map(([fromSide, toSide]) => search(grid, link, fromSide, toSide, used))
+    .filter(Boolean).sort((p, q) => p.cost - q.cost)[0];
+  // Short links first, as they have the fewest ways to go
+  for (const link of [...links].sort((p, q) => span(p) - span(q))) {
+    const best = cheapest(link, sideChoices(link)) || cheapest(link, ALL_SIDES);
+    link.points = best ? best.points : elbow(link);
+    for (const key of best ? best.stretches : []) {
+      used.set(key, used.has(key) && used.get(key) !== link.group ? "*" : link.group);
+    }
+  }
+}
+
+function rounded(points, radius = 8) {
+  let d = `M${points[0]}`;
+  for (let k = 1; k < points.length - 1; k++) {
+    const [x0, y0] = points[k - 1], [x, y] = points[k], [x1, y1] = points[k + 1];
+    const r = Math.min(radius, (Math.abs(x - x0) + Math.abs(y - y0)) / 2, (Math.abs(x1 - x) + Math.abs(y1 - y)) / 2);
+    d += `L${x - Math.sign(x - x0) * r},${y - Math.sign(y - y0) * r}`
+       + `Q${x},${y} ${x + Math.sign(x1 - x) * r},${y + Math.sign(y1 - y) * r}`;
+  }
+  return d + `L${points[points.length - 1]}`;
+}
+
+// A bar at the ID end (one), and a crow's foot at the column end (many), or a bar if the column is unique
+function endMarks(points, unique) {
+  const [[fx, fy], [nextX]] = points, [tx, ty] = points[points.length - 1], previousX = points[points.length - 2][0];
+  const f = Math.sign(nextX - fx), t = Math.sign(previousX - tx);
+  const bar = (x, y) => `M${x},${y - 6}V${y + 6}`;
+  return bar(tx + t * 9, ty) + (unique ? bar(fx + f * 9, fy) : `M${fx},${fy - 6}L${fx + f * 12},${fy}L${fx},${fy + 6}`);
+}
+
+function drawLinks() {
+  for (const link of links) {
+    const d = rounded(link.points);
+    link.line.setAttribute("d", d);
+    link.hit.setAttribute("d", d);
+    link.ends.setAttribute("d", endMarks(link.points, link.unique));
+  }
+}
+
+let routing = false;
+function reroute() {
+  if (routing) return;
+  routing = true;
+  requestAnimationFrame(() => { routing = false; routeLinks(); drawLinks(); });
+}
+
+// ---------------------------------------------------------------- Highlighting
+
+const same = (p, q) => Boolean(p && q && p.table === q.table && p.link === q.link);
+
+function applyFocus() {
+  const focus = (press && press.table ? {table: press.table.name} : null) || picked || hovered;
+  const on = !focus ? [] : focus.link ? [focus.link]
+           : links.filter(link => link.from.table === focus.table || link.to.table === focus.table);
+  const onTables = new Set(focus && focus.table ? [focus.table] : []), onRows = new Set();
+  for (const link of on) {
+    for (const end of [link.from, link.to]) { onTables.add(end.table); onRows.add(`${end.table}.${end.column}`); }
+  }
+  svg.classList.toggle("focus", Boolean(focus));
+  for (const table of tables.values()) {
+    table.el.classList.toggle("on", onTables.has(table.name));
+    table.el.classList.toggle("focused", Boolean(focus && focus.table === table.name));
+    for (const [column, row] of table.rows) row.classList.toggle("on", onRows.has(`${table.name}.${column}`));
+  }
+  for (const link of links) link.el.classList.toggle("on", on.includes(link));
+  for (const link of on) linkLayer.appendChild(link.el);  // on top of the other links
+}
+
+function under(target) {
+  const tableEl = target.closest && target.closest(".table"), linkEl = target.closest && target.closest(".link");
+  return tableEl ? {table: tableEl.dataset.name} : linkEl ? {link: linkOf.get(linkEl)} : null;
+}
+
+// ---------------------------------------------------------------- Dragging, panning and zooming
+
+const applyView = () => view.el.setAttribute("transform", `translate(${view.x},${view.y}) scale(${view.k})`);
+
+function bounds() {
+  const xs = [], ys = [];
+  for (const t of tables.values()) { xs.push(t.x, t.x + t.w); ys.push(t.y, t.y + t.h); }
+  for (const link of links) for (const [x, y] of link.points) { xs.push(x); ys.push(y); }
+  const x = Math.min(...xs), y = Math.min(...ys);
+  return {x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y};
+}
+
+function fit() {
+  const b = bounds(), box = svg.getBoundingClientRect(), margin = 24;
+  view.k = Math.min((box.width - 2 * margin) / b.w, (box.height - 2 * margin) / b.h, 1.25);
+  view.x = (box.width - b.w * view.k) / 2 - b.x * view.k;
+  view.y = (box.height - b.h * view.k) / 2 - b.y * view.k;
+  applyView();
+}
+
+function zoom(factor, clientX, clientY) {
+  const box = svg.getBoundingClientRect();
+  const px = (clientX === undefined ? box.left + box.width / 2 : clientX) - box.left;
+  const py = (clientY === undefined ? box.top + box.height / 2 : clientY) - box.top;
+  const k = Math.min(3, Math.max(0.2, view.k * factor));
+  view.x = px - (px - view.x) * k / view.k;
+  view.y = py - (py - view.y) * k / view.k;
+  view.k = k;
+  applyView();
+}
+
+svg.addEventListener("pointerdown", event => {
+  if (event.button > 0 || press) return;
+  const target = under(event.target);
+  press = {id: event.pointerId, x: event.clientX, y: event.clientY, lastX: event.clientX, lastY: event.clientY,
+           moved: false, target, table: target && target.table ? tables.get(target.table) : null};
+  svg.setPointerCapture(event.pointerId);
+  if (press.table) {
+    tableLayer.appendChild(press.table.el);  // in front of the other tables
+    applyFocus();
+  }
+});
+
+svg.addEventListener("pointermove", event => {
+  if (!press) {
+    const target = under(event.target);
+    if (!same(target, hovered) && (target || hovered)) { hovered = target; applyFocus(); }
+    return;
+  }
+  if (event.pointerId !== press.id) return;
+  if (!press.moved && Math.hypot(event.clientX - press.x, event.clientY - press.y) < 4) return;
+  const dx = event.clientX - press.lastX, dy = event.clientY - press.lastY;
+  press.moved = true; press.lastX = event.clientX; press.lastY = event.clientY;
+  if (press.table) {
+    press.table.x += dx / view.k; press.table.y += dy / view.k;
+    placeTable(press.table);
+    reroute();
+  } else {
+    view.x += dx; view.y += dy;
+    applyView();
+    svg.classList.add("panning");
+  }
+});
+
+function release(event) {
+  if (!press || event.pointerId !== press.id) return;
+  // A click picks what is under it, or clears the highlight; clicking it again clears it too
+  if (!press.moved && event.type === "pointerup") picked = press.target && !same(press.target, picked) ? press.target : null;
+  if (event.pointerType !== "mouse") hovered = null;
+  press = null;
+  svg.classList.remove("panning");
+  applyFocus();
+}
+svg.addEventListener("pointerup", release);
+svg.addEventListener("pointercancel", release);
+svg.addEventListener("pointerleave", () => { if (!press && hovered) { hovered = null; applyFocus(); } });
+svg.addEventListener("wheel", event => {
+  event.preventDefault();
+  zoom(Math.exp(-event.deltaY * (event.deltaMode === 1 ? 16 : 1) * 0.002), event.clientX, event.clientY);
+}, {passive: false});
+
+document.getElementById("zoom-in").onclick = () => zoom(1.25);
+document.getElementById("zoom-out").onclick = () => zoom(0.8);
+document.getElementById("fit").onclick = fit;
+document.getElementById("reset").onclick = () => {
+  for (const table of tables.values()) { Object.assign(table, initial.get(table.name)); placeTable(table); }
+  picked = null;
+  routeLinks(); drawLinks(); applyFocus(); fit();
+};
+document.getElementById("save").onclick = () => {
+  const url = URL.createObjectURL(new Blob([diagramSvg()], {type: "image/svg+xml"}));
+  const a = document.createElement("a");
+  a.href = url; a.download = "fababase-schema.svg"; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+// ---------------------------------------------------------------- Legend and picture
+
+// Draws the legend in one row, from (0, 0) to the right, and returns its width
+function drawLegend(g) {
+  let x = 0;
+  const text = (content, className = "legend", font = "12px") => {
+    make("text", {class: className, x, dy: ".35em"}, g).textContent = content;
+    x += textWidth(content, font);
+  };
+  const sample = (lineClass, end) => {
+    make("path", {class: lineClass, d: `M${x},0H${x + 40}`}, g);
+    make("path", {class: "ends", d: `M${x + 9},-6V6${end(x + 40)}`}, g);
+    x += 48;
+  };
+  const many = x => `M${x},-6L${x - 12},0L${x},6`, one = x => `M${x - 9},-6V6`;
+  text("Bold", "legend id", "600 12px"); text(": the table's ID"); x += 24;
+  text("*", "legend req"); text(": required"); x += 24;
+  sample("line", many); text("one to many"); x += 24;
+  sample("line", one); text("one to one"); x += 24;
+  sample("line maybe", many); text("link may be empty");
+  return x;
+}
+
+// The diagram as it is now, without highlights, as a standalone SVG picture with a caption and the legend
+function diagramSvg() {
+  const focus = [picked, hovered];
+  picked = hovered = null;
+  applyFocus();
+  const b = bounds(), margin = 24;
+  const caption = `FabaBase phenotype database: how the tables link. Schema version ${DATA.version}.`;
+  const footer = make("g", {transform: `translate(${b.x},${b.y + b.h + 32})`});
+  make("text", {class: "caption", dy: ".35em"}, footer).textContent = caption;
+  const legendWidth = drawLegend(make("g", {transform: "translate(0,28)"}, footer));
+  const width = Math.ceil(Math.max(b.w, legendWidth, textWidth(caption, "600 14px")) + 2 * margin);
+  const height = Math.ceil(b.h + 32 + 28 + 8 + 2 * margin);
+  const picture = make("svg", {width, height, viewBox: `${b.x - margin} ${b.y - margin} ${width} ${height}`});
+  picture.appendChild(svg.querySelector("style").cloneNode(true));
+  make("rect", {class: "paper", x: b.x - margin, y: b.y - margin, width, height}, picture);
+  const content = view.el.cloneNode(true);
+  content.removeAttribute("transform");
+  picture.append(content, footer);
+  [picked, hovered] = focus;
+  applyFocus();
+  return new XMLSerializer().serializeToString(picture);
+}
+
+// ---------------------------------------------------------------- Start
+
+async function start() {
+  document.getElementById("about").textContent = `FabaBase phenotype database, schema version ${DATA.version}.`;
+  const legend = document.getElementById("legend");
+  const legendWidth = Math.ceil(drawLegend(make("g", {transform: "translate(1,10)"}, legend))) + 2;
+  for (const [key, value] of Object.entries({width: legendWidth, height: 20, viewBox: `0 0 ${legendWidth} 20`})) {
+    legend.setAttribute(key, value);
+  }
+  DATA.links.forEach(addLink);
+  DATA.tables.forEach(addTable);
+  await layout();
+  initial = new Map([...tables.values()].map(table => [table.name, {x: table.x, y: table.y}]));
+  tables.forEach(placeTable);
+  routeLinks();
+  drawLinks();
+  fit();
+  window.diagramSvg = diagramSvg;  // also tells schema/diagram.py that the diagram is ready
+}
+
+start().catch(error => {
+  window.diagramError = String(error);
+  make("text", {x: 20, y: 40}, view.el).textContent = `The diagram could not be drawn: ${error}`;
+});
+</script>
+</body>
+</html>
