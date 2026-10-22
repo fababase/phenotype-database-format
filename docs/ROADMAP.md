@@ -99,11 +99,11 @@ Only the tables go to Zenodo.
 
 - [x] Tests in `tests/`: one valid dataset, and one broken dataset per rule, each expected to fail with the right message.
 - [x] GitHub Action that runs the tests on every push. See `.github/workflows/tests.yml`.
-- [ ] Deploy with Shinylive on GitHub Pages: a GitHub Action exports the app with Shinylive and publishes it to Pages on every push to `main`, once the tests pass. See `.github/workflows/deploy-app.yml`. Tick once the first run has published the app.
+- [x] Deploy with Shinylive on GitHub Pages: a GitHub Action exports the app with Shinylive and publishes it to Pages on every push to `main`, once the tests pass. See `.github/workflows/deploy-app.yml`. Tick once the first run has published the app.
   - [x] `schema.yaml` reaches the browser without a second copy in the repository: the Action builds the app from a folder outside the repository, holding `app/` and `schema.yaml`.
   - [x] The pinned versions in `app/requirements.txt` are now those of Shinylive's browser Python (pandas 2.2.3, numpy 2.0.2, PyYAML 6.0.2), as the app does not start with others. All tests pass with them.
 - [x] Check that file upload works in the browser version. The Action checks it in a browser before every deploy: `tests/check_browser_app.py`.
-- [ ] Once the new app works, retire the old shinyapps.io app (`n2crop-validation`), or replace it with a page pointing to the new address.
+- [x] Once the new app works, retire the old shinyapps.io app (`n2crop-validation`), or replace it with a page pointing to the new address.
 - [x] Write `docs/deploy-app.md`. Refreshing the app should be: commit and push to `main` in GitHub Desktop, then wait for the Action to finish. Include where to see whether the Action failed.
 
 ## Phase 2: Schema doc, example and AI kit
@@ -111,7 +111,7 @@ Only the tables go to Zenodo.
 - [ ] Fill in the TODOs in `schema/schema.md` (examples, worked example) from the worked example below.
 - [ ] Add a section on the files themselves: one CSV per table, named after the table, UTF-8, comma-separated, `.` as the decimal mark, one header row with the column names.
 - [x] Add ID rules: only letters, digits and `_`, and unique ignoring case, both checked by the validator. The schema doc suggests a form for each ID, with experiment-level IDs (UNID, PHID, IID, MMID, CLID) starting with their EXPID, so IDs never clash when contributions are merged. See [Identifiers](../schema/schema.md#identifiers).
-- [ ] Draw the diagram from `schema.yaml` on every deploy, instead of keeping a dbdiagram.io copy: `schema/diagram.py` and `schema/diagram.html`, published at <https://fababase.github.io/phenotype-database-format/diagram/>. The README and `schema.md` link to it. Tick once the first run has published it.
+- [x] Draw the diagram from `schema.yaml` on every deploy, instead of keeping a dbdiagram.io copy: `schema/diagram.py` and `schema/diagram.html`, published at <https://fababase.github.io/phenotype-database-format/diagram/>. The README and `schema.md` link to it. Tick once the first run has published it.
 - [ ] Build the worked example in `examples/demo/`: a fake but realistically messy raw Excel file (wide format, coloured rows, merged cells), the script that converts it, the resulting tables and the NOTES.md.
 - [ ] Start the shared reference tables in `reference/`, from the N2CROP data.
 - [ ] Write `conversion/AI_INSTRUCTIONS.md`, telling the AI to:
