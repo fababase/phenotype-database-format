@@ -6,6 +6,7 @@ import json
 
 from diagram import PLACEHOLDER, diagram_data, page_html
 from helpers import SCHEMA
+from validation import help_text
 
 
 def test_diagram_has_every_table_column_and_link():
@@ -18,6 +19,21 @@ def test_diagram_has_every_table_column_and_link():
                 if column.links_to or column.type == "features"}
     assert {(*link["from"], link["to"][0]) for link in data["links"]} == expected
     assert all(link["to"][1] == SCHEMA.tables[link["to"][0]].id_column for link in data["links"])
+
+
+def test_diagram_says_what_each_table_and_column_is():
+    """
+    What the tooltips say. A table's: what one row is, when it is needed and filled in. A column's: its help and its
+    example, which together are what row 2 of the collection sheet says about it.
+    """
+    for spec in diagram_data(SCHEMA)["tables"]:
+        table = SCHEMA.tables[spec["name"]]
+        assert [spec["one_row_is"], spec["needed"], spec["filled_in"]] == [table.one_row_is, table.needed, table.filled_in]
+        for column in spec["columns"]:
+            definition = table.columns[column["name"]]
+            assert column["example"] == definition.example
+            example = f"Example: {column['example']}" if column["example"] else ""
+            assert " ".join(filter(None, [column["help"], example])) == help_text(definition, SCHEMA)
 
 
 def test_diagram_page_has_the_schema():

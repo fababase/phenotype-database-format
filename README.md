@@ -11,7 +11,7 @@ This repository describes and checks the format of the FabaBase phenotype databa
 |---|---|
 | [schema/schema.md](schema/schema.md) | The schema: every table and column, the conventions and the special rules. **Start here.** |
 | [schema/schema.yaml](schema/schema.yaml) | The same schema in machine-readable form, with its version number and a description of every column. The validator reads it, and the collection sheet, the diagram and the tables in `schema.md` that list the tables and columns are made from it. |
-| [Schema diagram](https://fababase.github.io/phenotype-database-format/diagram/) | How the tables link together. Drag the tables around, and click one to highlight its links. Also as a picture: [PNG](https://fababase.github.io/phenotype-database-format/diagram/diagram.png), [SVG](https://fababase.github.io/phenotype-database-format/diagram/diagram.svg). |
+| [Schema diagram](https://fababase.github.io/phenotype-database-format/diagram/) | How the tables link together. Point at a column to see its description, drag the tables around, and click one to highlight its links. Also as a picture: [PNG](https://fababase.github.io/phenotype-database-format/diagram/diagram.png), [SVG](https://fababase.github.io/phenotype-database-format/diagram/diagram.svg). |
 | Collection sheet | A workbook with one sheet per table, for filling in by hand. Download a blank one from the [app](https://fababase.github.io/phenotype-database-format/). |
 | [app/](app/) | The validator. `validation.py` holds the checks and runs from the command line; `app.py` is the app around it; `collection_sheet.py` builds the blank collection sheet. |
 | [docs/datasets.md](docs/datasets.md) | Every known dataset in the format, by DOI. Look here for IDs to reuse. |

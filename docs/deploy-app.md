@@ -23,7 +23,7 @@ To publish again without changing anything, go to **Actions → Deploy app → R
 ## What is checked before publishing
 
 - All tests pass.
-- The schema diagram is drawn without errors.
+- The schema diagram is drawn without errors, and pointing at a column shows its description.
 - The packages bundled with the app are the versions in `app/requirements.txt`.
 - The app starts in a browser and shows no notices, so it runs the package versions in `app/requirements.txt`.
 - The app hands out a blank collection sheet with the same contents as one built on the command line.

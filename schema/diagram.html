@@ -33,6 +33,12 @@
   button:hover { background: #f1f4f8; }
   #canvas { flex: 1; min-height: 0; width: 100%; display: block; touch-action: none; user-select: none; cursor: grab; }
   #canvas.panning { cursor: grabbing; }
+  #tip {
+    position: fixed; display: none; max-width: 360px; padding: 8px 10px; pointer-events: none;
+    background: #1f2933; color: #fff; border-radius: 6px; box-shadow: 0 2px 10px rgba(0, 0, 0, .25); font-size: 13px;
+  }
+  #tip b { display: block; }
+  #tip div { margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -40,7 +46,8 @@
   <div>
     <h1>How the tables link</h1>
     <p id="about"></p>
-    <p>Drag a table to move it. Click a table or a link to highlight it; click empty space to clear.
+    <p>Point at a column, a table's name or a link to see what it is. Drag a table to move it. Click a table or a
+      link to highlight it; click empty space to clear.
       See also the <a href="https://github.com/fababase/phenotype-database-format/blob/main/schema/schema.md">schema
       description</a> and the <a href="../">validation app</a>.</p>
   </div>
@@ -82,6 +89,7 @@
   </style>
   <g id="view"><g id="links"></g><g id="tables"></g></g>
 </svg>
+<div id="tip" role="tooltip"></div>
 <script>
 const DATA = /* schema */ null;
 
@@ -122,19 +130,15 @@ function textWidth(text, font) {
 
 const typeName = column => TYPE_NAMES[column.type] || column.type;
 
-function describe(table, column, i) {
-  const facts = [typeName(column), column.required ? "required" : "optional"].concat(column.unique ? ["unique"] : []);
-  let text = `${table.name}.${column.name}: ${facts.join(", ")}.`;
-  if (i === 0) text += " The table's ID.";
-  for (const link of links) {
-    if (link.from.table === table.name && link.from.column === column.name) {
-      text += column.type === "features" ? ` Holds FTID=value entries, with FTIDs from ${link.to.table}.`
-                                         : ` Links to ${link.to.table}.${link.to.column}.`;
-    }
-  }
+// What the tooltip of an element says: a title, and lines under it. Empty lines are left out.
+function setTip(element, title, lines) {
+  element.dataset.tipTitle = title;
+  element.dataset.tip = lines.filter(Boolean).join("\n");
+}
+
+function linkedFrom(table, column) {
   const from = links.filter(link => link.to.table === table.name && link.to.column === column.name);
-  if (from.length) text += ` Linked from ${from.map(link => `${link.from.table}.${link.from.column}`).join(", ")}.`;
-  return text;
+  return from.length ? `Linked from ${from.map(link => `${link.from.table}.${link.from.column}`).join(", ")}.` : "";
 }
 
 function addTable(spec) {
@@ -149,12 +153,15 @@ function addTable(spec) {
 
   table.el = make("g", {class: "table", "data-name": spec.name}, tableLayer);
   make("rect", {class: "box", width: table.w, height: table.h, rx: 6}, table.el);
-  make("path", {class: "head", d: `M0,${HEAD}V6a6,6 0 0 1 6,-6H${table.w - 6}a6,6 0 0 1 6,6V${HEAD}Z`}, table.el);
-  make("text", {class: "head-text", x: PAD, y: HEAD / 2, dy: ".35em"}, table.el).textContent = spec.name;
+  const head = make("g", {}, table.el);
+  make("path", {class: "head", d: `M0,${HEAD}V6a6,6 0 0 1 6,-6H${table.w - 6}a6,6 0 0 1 6,6V${HEAD}Z`}, head);
+  make("text", {class: "head-text", x: PAD, y: HEAD / 2, dy: ".35em"}, head).textContent = spec.name;
   if (!spec.required) {
     make("text", {class: "optional", x: table.w - PAD, y: HEAD / 2, dy: ".35em", "text-anchor": "end"},
-         table.el).textContent = "optional";
+         head).textContent = "optional";
   }
+  setTip(head, spec.required ? spec.name : `${spec.name} (optional)`, [
+    `One row is ${spec.one_row_is}.`, `Needed: ${spec.needed}.`, `Filled in: ${spec.filled_in} the experiment.`]);
   spec.columns.forEach((column, i) => {
     const row = make("g", {class: "row", transform: `translate(0,${HEAD + i * ROW})`}, table.el);
     make("rect", {class: "row-bg", x: 1, width: table.w - 2, height: ROW}, row);
@@ -163,7 +170,8 @@ function addTable(spec) {
     if (column.required) make("tspan", {class: "req"}, name).textContent = " *";
     make("text", {class: "type", x: table.w - PAD, y: ROW / 2, dy: ".35em", "text-anchor": "end"},
          row).textContent = typeName(column);
-    make("title", {}, row).textContent = describe(table, column, i);
+    setTip(row, `${table.name}.${column.name} · ${typeName(column)}`,
+           [column.help, column.example && `Example: ${column.example}`, linkedFrom(table, column)]);
     table.rows.set(column.name, row);
   });
   tables.set(spec.name, table);
@@ -176,8 +184,9 @@ function addLink(spec) {
   link.hit = make("path", {class: "hit"}, link.el);
   link.line = make("path", {class: spec.required ? "line" : "line maybe"}, link.el);
   link.ends = make("path", {class: "ends"}, link.el);
-  make("title", {}, link.el).textContent = `${spec.from.join(".")} links to ${spec.to.join(".")}`
-                                           + (spec.required ? "." : ", and may be empty.");
+  setTip(link.el, `${spec.from[0]} → ${spec.to[0]}`, [
+    `${spec.from.join(".")} links to ${spec.to.join(".")}` + (spec.required ? "." : ", and may be empty."),
+    spec.unique ? "One to one." : "One to many."]);
   links.push(link);
   linkOf.set(link.el, link);
 }
@@ -445,6 +454,51 @@ function under(target) {
   return tableEl ? {table: tableEl.dataset.name} : linkEl ? {link: linkOf.get(linkEl)} : null;
 }
 
+// ---------------------------------------------------------------- Tooltips
+//
+// Pointing at a column, a table's name or a link shows what it is at once; on a touch screen, tapping it does.
+// Saved pictures keep the same text as <title> elements, which browsers show as tooltips of their own.
+
+const tip = document.getElementById("tip");
+let tipOwner = null;  // the element whose tooltip is shown
+
+function showTip(target, clientX, clientY) {
+  const owner = target && target.closest ? target.closest("[data-tip]") : null;
+  if (!owner) return hideTip();
+  if (owner !== tipOwner) {
+    const title = document.createElement("b");
+    title.textContent = owner.dataset.tipTitle;
+    const lines = owner.dataset.tip.split("\n").map(line => {
+      const div = document.createElement("div");
+      div.textContent = line;
+      return div;
+    });
+    tip.replaceChildren(title, ...lines);
+    tipOwner = owner;
+  }
+  tip.style.display = "block";
+  // Below and to the right of the pointer, or on its other side near the edge of the window
+  const gap = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = `${Math.max(0, clientX + gap + w > innerWidth ? clientX - gap - w : clientX + gap)}px`;
+  tip.style.top = `${Math.max(0, clientY + gap + h > innerHeight ? clientY - gap - h : clientY + gap)}px`;
+}
+
+function hideTip() {
+  tip.style.display = "none";
+  tipOwner = null;
+}
+
+// Gives a copy of the diagram <title> elements in place of its tooltip attributes
+function addTitles(content) {
+  for (const element of content.querySelectorAll("[data-tip]")) {
+    const title = document.createElementNS(NS, "title");
+    title.textContent = `${element.dataset.tipTitle}\n${element.dataset.tip}`;
+    element.prepend(title);
+    element.removeAttribute("data-tip");
+    element.removeAttribute("data-tip-title");
+  }
+}
+
 // ---------------------------------------------------------------- Dragging, panning and zooming
 
 const applyView = () => view.el.setAttribute("transform", `translate(${view.x},${view.y}) scale(${view.k})`);
@@ -480,8 +534,9 @@ svg.addEventListener("pointerdown", event => {
   if (event.button > 0 || press) return;
   const target = under(event.target);
   press = {id: event.pointerId, x: event.clientX, y: event.clientY, lastX: event.clientX, lastY: event.clientY,
-           moved: false, target, table: target && target.table ? tables.get(target.table) : null};
+           moved: false, target, element: event.target, table: target && target.table ? tables.get(target.table) : null};
   svg.setPointerCapture(event.pointerId);
+  hideTip();
   if (press.table) {
     tableLayer.appendChild(press.table.el);  // in front of the other tables
     applyFocus();
@@ -492,6 +547,7 @@ svg.addEventListener("pointermove", event => {
   if (!press) {
     const target = under(event.target);
     if (!same(target, hovered) && (target || hovered)) { hovered = target; applyFocus(); }
+    showTip(event.target, event.clientX, event.clientY);
     return;
   }
   if (event.pointerId !== press.id) return;
@@ -513,6 +569,10 @@ function release(event) {
   if (!press || event.pointerId !== press.id) return;
   // A click picks what is under it, or clears the highlight; clicking it again clears it too
   if (!press.moved && event.type === "pointerup") picked = press.target && !same(press.target, picked) ? press.target : null;
+  // A touch screen has no pointing without pressing, so a tap shows the tooltip of what was tapped
+  if (!press.moved && event.type === "pointerup" && event.pointerType !== "mouse") {
+    showTip(press.element, event.clientX, event.clientY);
+  }
   if (event.pointerType !== "mouse") hovered = null;
   press = null;
   svg.classList.remove("panning");
@@ -520,9 +580,13 @@ function release(event) {
 }
 svg.addEventListener("pointerup", release);
 svg.addEventListener("pointercancel", release);
-svg.addEventListener("pointerleave", () => { if (!press && hovered) { hovered = null; applyFocus(); } });
+svg.addEventListener("pointerleave", event => {
+  if (event.pointerType === "mouse") hideTip();
+  if (!press && hovered) { hovered = null; applyFocus(); }
+});
 svg.addEventListener("wheel", event => {
   event.preventDefault();
+  hideTip();
   zoom(Math.exp(-event.deltaY * (event.deltaMode === 1 ? 16 : 1) * 0.002), event.clientX, event.clientY);
 }, {passive: false});
 
@@ -581,6 +645,7 @@ function diagramSvg() {
   make("rect", {class: "paper", x: b.x - margin, y: b.y - margin, width, height}, picture);
   const content = view.el.cloneNode(true);
   content.removeAttribute("transform");
+  addTitles(content);
   picture.append(content, footer);
   [picked, hovered] = focus;
   applyFocus();
