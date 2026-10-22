@@ -138,9 +138,9 @@ Only the tables go to Zenodo.
 - [ ] Write `docs/review-data.md` for reviewers. Until a person takes on the role, a fresh AI session reviews each finished run with it, relying only on the files, and writes only `review.md`:
   - **Checks:** `conversion.py` reruns to the same tables, the raw files are unchanged, and the validator passes. A sample of values can be traced back to their cells in the raw files, and every fact in the tables is in `raw_data/`. New IDs in the shared reference tables were checked against the known datasets. There are no open questions and no `scratch/`.
   - **FAIR score**, from 1 to 5: how well the dataset meets the [FAIR principles](https://www.go-fair.org/fair-principles/). Findable and Accessible come from publishing on Zenodo, so in practice it scores how richly the data are described, and whether they reuse shared IDs. It counts what exists, or what people reusing the data would want to know, but is not described. Tables and columns that do not apply, or hardly apply, to the experiment do not count against it. A required value that is not known keeps the score at 2 or below. Each point below 5 names the items in Missing, Assumptions or Doubtful that cost it, so the contributor can see what would raise it.
-    - 5: everything people reusing the data would want to know is described.
-    - 4: small gaps, which matter only for some uses, such as the harvest dates of seed lots.
-    - 3: some things people would want to know are not described, such as the growth stage at scoring, or parts of the design.
+    - 5: everything people reusing the data would want to know is described, with only minor faults.
+    - 4: small but noticeable gaps, which matter only for some uses.
+    - 3: significant gaps in data or metadata people would want to know are not described.
     - 2: something needed to read part of the data is not known, such as a required value.
     - 1: most of the data cannot be interpreted.
 - [ ] Pilot the kit on 2–3 real messy datasets. Compare the FAIR scores with our own judgement, and improve the guides, the notes template and the score levels based on what goes wrong.
