@@ -247,7 +247,7 @@ Rules:
 
 Features on a unit describe the whole unit: the plot, pot or sample. Features on a phenotype score describe that score only.
 
-**Example:** TODO
+**Example:** the Features cell `soil_type=sandy loam;soil_ph=6.4` of a field plot says that its soil is a sandy loam with pH 6.4. The Features cell `wavelength=1450;tissue=young leaf` of a leaf absorbance score says that it was measured at 1450 nm, on young leaves.
 
 > [!WARNING]
 > Features cells are strict. A space after `;`, a misspelt FTID or a value outside the feature's vocabulary makes the cell invalid.
@@ -287,9 +287,11 @@ A feature's Type sets what kind of value it takes, and its optional Vocabulary n
 
 | FTID | Type | Unit | Vocabulary | Description |
 |---|---|---|---|---|
-| TODO | `c` | TODO | TODO | TODO |
-| TODO | `i` | TODO | TODO | TODO |
-| TODO | `d` | TODO | TODO | TODO |
+| soil_type | `c` | | `clay;loam;sandy loam` | Texture class of the topsoil, from a soil map. |
+| plant_count | `i` | plants | | Number of plants that grew to maturity. |
+| wavelength | `d` | nm | `400..2500` | Wavelength of the light that an absorbance or reflectance value was measured at. |
+
+plant_count has no Vocabulary, so it takes any whole number.
 
 <details>
 <summary>Formal syntax of a Vocabulary</summary>
@@ -325,14 +327,14 @@ Genetically distinct plant material, such as a variety or line. **One row per ge
 <!-- BEGIN columns of Germplasm: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
-| GPID | ID | Yes, unique | | Germplasm ID. | TODO |
-| Name | Text | No | | Name of the variety or line. | TODO |
-| AlternativeName | Text | No | | Other names for the variety. Separate several names with `;`. | TODO |
-| Species | Text | No | | Species of the variety. | TODO |
-| Donor | Text | No | | Donor or parent of the variety. | TODO |
-| GeographicOrigin | Text | No | | Geographic origin of the variety. | TODO |
-| Maintaining | Text | No | | Who maintains the variety, such as a breeder or genebank. | TODO |
-| Comments | Long text | No | | What is known about the material that no column holds, such as its pedigree, breeding history or notable traits. See [Free text](#free-text). | TODO |
+| GPID | ID | Yes, unique | | Germplasm ID. | `vandrel` |
+| Name | Text | No | | Name of the variety or line. | Vandrel |
+| AlternativeName | Text | No | | Other names for the variety. Separate several names with `;`. | NB 117 |
+| Species | Text | No | | Species of the variety. | Vicia faba |
+| Donor | Text | No | | Donor or parent of the variety. | Nordbean breeding programme |
+| GeographicOrigin | Text | No | | Geographic origin of the variety. | Denmark |
+| Maintaining | Text | No | | Who maintains the variety, such as a breeder or genebank. | Nordbean breeding programme |
+| Comments | Long text | No | | What is known about the material that no column holds, such as its pedigree, breeding history or notable traits. See [Free text](#free-text). | Small-seeded field bean line selected for early flowering. The seeds are round and buff coloured. |
 <!-- END columns of Germplasm -->
 
 > [!IMPORTANT]
@@ -347,12 +349,12 @@ A physical batch of seed of one germplasm, from one harvest. **One row per seed 
 <!-- BEGIN columns of SeedLot: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
-| SLID | ID | Yes, unique | | Seed lot ID. | TODO |
-| GPID | ID | Yes | [Germplasm](#germplasm) | Germplasm the seed is of. | TODO |
-| HarvestDate | Date | No | | Date the seed lot was harvested. | TODO |
-| HarvestLocation | Text | No | | Where the seed lot was harvested. | TODO |
-| ParentSLID | ID | No | [SeedLot](#seedlot) | Seed lot this one was grown from. | TODO |
-| Comments | Long text | No | | Seed quality and handling, such as germination, seed treatment or deviations from expected phenotype. See [Free text](#free-text). | TODO |
+| SLID | ID | Yes, unique | | Seed lot ID. | `vandrel_northfield_2024` |
+| GPID | ID | Yes | [Germplasm](#germplasm) | Germplasm the seed is of. | `vandrel` |
+| HarvestDate | Date | No | | Date the seed lot was harvested. | `2024-08-29` |
+| HarvestLocation | Text | No | | Where the seed lot was harvested. | Northfield research farm |
+| ParentSLID | ID | No | [SeedLot](#seedlot) | Seed lot this one was grown from. | `vandrel_northfield_2023` |
+| Comments | Long text | No | | Seed quality and handling, such as germination, seed treatment or deviations from expected phenotype. See [Free text](#free-text). | Germination 91 percent in a test in February 2025. |
 <!-- END columns of SeedLot -->
 
 - ParentSLID points to another row in this same table, so a seed lot can be traced back through earlier generations. When it is filled in, it must be an SLID that exists in SeedLot. If the parent seed lot is not in the dataset, either add it as a row of its own or leave ParentSLID empty.
@@ -367,16 +369,16 @@ One trial or experiment: where and when it ran, and how it was set up. **One row
 <!-- BEGIN columns of Experiment: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
-| EXPID | ID | Yes, unique | | Experiment ID. | TODO |
-| GPSCoordinates | Coordinates | No | | Location of the experiment. | TODO |
-| PlotSize | Text | No | | Size of each plot or pot, with its unit. | TODO |
-| PlotSizeIncludingPath | Text | No | | Size of each plot, including paths, with its unit. | TODO |
-| StartDate | Date | No | | Start of the growing period. | TODO |
-| EndDate | Date | No | | End of the growing period. | TODO |
-| Description | Long text | No | | The site (address and field) or facility, growing conditions, trial size, plot layout, design and number of replicates, what the blocks are, any irrigation, which traits were tested, which factors are tested, and any other information relevant to this experiment. The levels of the factors are defined in ExperimentIntervention. See [Free text](#free-text). | TODO |
-| Manager | Text | No | | Name of the person who managed the trial. | TODO |
-| Distance | Text | No | | Distance to the weather station that the Climate data comes from, with its unit. | TODO |
-| Comments | Long text | No | | Events that affected the whole experiment. See [Free text](#free-text). | TODO |
+| EXPID | ID | Yes, unique | | Experiment ID. | `nordbean_irrigation_northfield_2025` |
+| GPSCoordinates | Coordinates | No | | Location of the experiment. | `56.091250;9.552040` |
+| PlotSize | Text | No | | Size of each plot or pot, with its unit. | 15 square metres |
+| PlotSizeIncludingPath | Text | No | | Size of each plot, including paths, with its unit. | 18 square metres |
+| StartDate | Date | No | | Start of the growing period. | `2025-04-08` |
+| EndDate | Date | No | | End of the growing period. | `2025-08-26` |
+| Description | Long text | No | | The site (address and field) or facility, growing conditions, trial size, plot layout, design and number of replicates, what the blocks are, any irrigation, which traits were tested, which factors are tested, and any other information relevant to this experiment. The levels of the factors are defined in ExperimentIntervention. See [Free text](#free-text). | |
+| Manager | Text | No | | Name of the person who managed the trial. | Rhea Plicate |
+| Distance | Text | No | | Distance to the weather station that the Climate data comes from, with its unit. | 1.2 km |
+| Comments | Long text | No | | Events that affected the whole experiment. See [Free text](#free-text). | A hailstorm on 2025-06-14 damaged leaves and flowers across the whole field. |
 <!-- END columns of Experiment -->
 
 <sub>[↑ Back to contents](#contents)</sub>
@@ -388,15 +390,15 @@ A unit in an experiment that phenotypes are recorded on: a field plot, a plant p
 <!-- BEGIN columns of ExperimentalUnit: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
-| UNID | ID | Yes, unique | | Unit ID. | TODO |
-| EXPID | ID | Yes | [Experiment](#experiment) | Experiment the unit belongs to. | TODO |
-| SLID | ID | Yes | [SeedLot](#seedlot) | Seed lot the plants in the unit come from. | TODO |
-| GPSCoordinates | Coordinates | No | | Location of the unit. | TODO |
-| Features | Feature list | No | [Features](#features), one or more | Features of the whole unit. See [Features cells](#features-cells-hold-several-values). | TODO |
-| Block | Integer | No | | Block or batch the unit belongs to. | TODO |
-| Column | Integer | No | | Column the unit is in. | TODO |
-| Row | Integer | No | | Row the unit is in. | TODO |
-| Comments | Long text | No | | Something that happened to this unit. See [Free text](#free-text). | TODO |
+| UNID | ID | Yes, unique | | Unit ID. | `nordbean_irrigation_northfield_2025_plot101` |
+| EXPID | ID | Yes | [Experiment](#experiment) | Experiment the unit belongs to. | `nordbean_irrigation_northfield_2025` |
+| SLID | ID | Yes | [SeedLot](#seedlot) | Seed lot the plants in the unit come from. | `vandrel_northfield_2024` |
+| GPSCoordinates | Coordinates | No | | Location of the unit. | `56.091200;9.552000` |
+| Features | Feature list | No | [Features](#features), one or more | Features of the whole unit. See [Features cells](#features-cells-hold-several-values). | `soil_type=sandy loam;soil_ph=6.4` |
+| Block | Integer | No | | Block or batch the unit belongs to. | `1` |
+| Column | Integer | No | | Column the unit is in. | `1` |
+| Row | Integer | No | | Row the unit is in. | `1` |
+| Comments | Long text | No | | Something that happened to this unit. See [Free text](#free-text). | Poor emergence: about 22 plants per square metre, against about 40 in the other plots. |
 <!-- END columns of ExperimentalUnit -->
 
 - Block, Column and Row are whole numbers, not text or IDs. Explain what the blocks are in the experiment's Description.
@@ -411,10 +413,10 @@ The intervention level each unit received, in experiments where units are treate
 <!-- BEGIN columns of ExperimentIntervention: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
-| IID | ID | Yes, unique | | Intervention ID. | TODO |
-| UNID | ID | Yes, unique | [ExperimentalUnit](#experimentalunit) | Unit that received the intervention. | TODO |
-| Intervention | Text | Yes | | Level the unit received. With several factors, the combination of levels, such as `HighWaterInoculated`. | TODO |
-| Description | Long text | Yes | | The intervention system in the experiment, with every level defined concretely: what was done, how much and when. Also which level is the control, if there is one. See [Free text](#free-text). | TODO |
+| IID | ID | Yes, unique | | Intervention ID. | `nordbean_irrigation_northfield_2025_001` |
+| UNID | ID | Yes, unique | [ExperimentalUnit](#experimentalunit) | Unit that received the intervention. | `nordbean_irrigation_northfield_2025_plot101` |
+| Intervention | Text | Yes | | Level the unit received. With several factors, the combination of levels, such as `HighWaterInoculated`. | HighWater |
+| Description | Long text | Yes | | The intervention system in the experiment, with every level defined concretely: what was done, how much and when. Also which level is the control, if there is one. See [Free text](#free-text). | |
 <!-- END columns of ExperimentIntervention -->
 
 See [One intervention level per unit](#one-intervention-level-per-unit) for how designs with more than one factor are coded.
@@ -428,13 +430,13 @@ Treatments given to an experiment as a whole, such as fertiliser or herbicide. *
 <!-- BEGIN columns of Management: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
-| MMID | ID | Yes, unique | | Management ID. | TODO |
-| EXPID | ID | Yes | [Experiment](#experiment) | Experiment that received the treatment. | TODO |
-| Treatment | Text | No | | Treatment the plants got. | TODO |
-| Description | Long text | No | | The product or active ingredient, how it was applied, and why. The concentration and amount go in Dosage. See [Free text](#free-text). | TODO |
-| Dosage | Text | No | | Dosage of the treatment, with its unit. | TODO |
-| Date | Date | No | | Date of the treatment. | TODO |
-| Comments | Long text | No | | Deviations from the plan. See [Free text](#free-text). | TODO |
+| MMID | ID | Yes, unique | | Management ID. | `nordbean_irrigation_northfield_2025_001` |
+| EXPID | ID | Yes | [Experiment](#experiment) | Experiment that received the treatment. | `nordbean_irrigation_northfield_2025` |
+| Treatment | Text | No | | Treatment the plants got. | Fertiliser |
+| Description | Long text | No | | The product or active ingredient, how it was applied, and why. The concentration and amount go in Dosage. See [Free text](#free-text). | Phosphorus and potassium fertiliser, spread over the whole field and harrowed in before sowing. No nitrogen was given, as the crop fixes its own. |
+| Dosage | Text | No | | Dosage of the treatment, with its unit. | 300 kg phosphorus and 150 kg potassium per hectare |
+| Date | Date | No | | Date of the treatment. | `2025-04-03` |
+| Comments | Long text | No | | Deviations from the plan. See [Free text](#free-text). | The eastern half of the field was sprayed a day later, on 2025-04-11, because of wind. |
 <!-- END columns of Management -->
 
 - Treatments that differ between units belong in [ExperimentIntervention](#experimentintervention), not here.
@@ -448,11 +450,11 @@ Defines a trait: what is measured, in which unit and how. **One row per trait.**
 <!-- BEGIN columns of PhenotypeDescription: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
-| PDID | ID | Yes, unique | | Phenotype description ID. | TODO |
-| PhenotypeDescription | Text | Yes | | Name of the trait. | TODO |
-| Unit | Text | Yes | | Unit the trait is scored in. | TODO |
-| Grouping | Text | No | | Trait class the trait belongs to, from Crop Ontology: Morphological, Phenological, Agronomical, Physiological, Abiotic stress, Biotic stress, Biochemical, Quality or Fertility. | TODO |
-| DescriptionOfMethod | Long text | Yes | | What is measured, on which part of the plant, at which growth stage, with what, on how many plants and how they are chosen, how the score is calculated, and what every code means. See [Free text](#free-text). | TODO |
+| PDID | ID | Yes, unique | | Phenotype description ID. | `plant_height_mean_of_5_plants_cm` |
+| PhenotypeDescription | Text | Yes | | Name of the trait. | Plant height |
+| Unit | Text | Yes | | Unit the trait is scored in. | cm |
+| Grouping | Text | No | | Trait class the trait belongs to, from Crop Ontology: Morphological, Phenological, Agronomical, Physiological, Abiotic stress, Biotic stress, Biochemical, Quality or Fertility. | Morphological |
+| DescriptionOfMethod | Long text | Yes | | What is measured, on which part of the plant, at which growth stage, with what, on how many plants and how they are chosen, how the score is calculated, and what every code means. See [Free text](#free-text). | |
 <!-- END columns of PhenotypeDescription -->
 
 - The PhenotypeDescription column holds the name of the trait. The full description of the trait and its method goes in DescriptionOfMethod.
@@ -469,14 +471,14 @@ The phenotype scores. **One row per score:** one value of one trait on one unit.
 <!-- BEGIN columns of Phenotype: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
-| PHID | ID | Yes, unique | | Phenotype ID. | TODO |
-| UNID | ID | Yes | [ExperimentalUnit](#experimentalunit) | Unit that was scored. | TODO |
-| PDID | ID | Yes | [PhenotypeDescription](#phenotypedescription) | Trait that was scored. | TODO |
-| Features | Feature list | No | [Features](#features), one or more | Features of this score. See [Features cells](#features-cells-hold-several-values). | TODO |
-| Date | Date | No | | Date of scoring. | TODO |
-| Score | Number | Yes | | The score. | TODO |
-| ScoredBy | Text | No | | Name of the person who did the scoring. | TODO |
-| Comments | Long text | No | | Something about this one value that a reader should know. See [Free text](#free-text). | TODO |
+| PHID | ID | Yes, unique | | Phenotype ID. | `nordbean_irrigation_northfield_2025_000001` |
+| UNID | ID | Yes | [ExperimentalUnit](#experimentalunit) | Unit that was scored. | `nordbean_irrigation_northfield_2025_plot101` |
+| PDID | ID | Yes | [PhenotypeDescription](#phenotypedescription) | Trait that was scored. | `plant_height_mean_of_5_plants_cm` |
+| Features | Feature list | No | [Features](#features), one or more | Features of this score. See [Features cells](#features-cells-hold-several-values). | `wavelength=1450;tissue=young leaf` |
+| Date | Date | No | | Date of scoring. | `2025-06-30` |
+| Score | Number | Yes | | The score. | `94` |
+| ScoredBy | Text | No | | Name of the person who did the scoring. | Rhea Plicate |
+| Comments | Long text | No | | Something about this one value that a reader should know. See [Free text](#free-text). | Scored three days after the other plots, as rain stopped the scoring. |
 <!-- END columns of Phenotype -->
 
 - Different traits, dates and repeated measurements on the same unit each get a row of their own.
@@ -494,11 +496,11 @@ Defines a climate variable: what is measured, in which unit and how. **One row p
 <!-- BEGIN columns of ClimateDescription: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
-| CDID | ID | Yes, unique | | Climate description ID. | TODO |
-| Name | Text | Yes | | Name of the climate variable. | TODO |
-| Unit | Text | Yes | | Unit the variable is measured in. | TODO |
-| Grouping | Text | No | | Group the variable belongs to. | TODO |
-| DescriptionOfMethod | Long text | Yes | | What is measured, at which height or depth, how often it is read, how the value is calculated, and what every code means. See [Free text](#free-text). | TODO |
+| CDID | ID | Yes, unique | | Climate description ID. | `air_temperature_daily_mean_2m_c` |
+| Name | Text | Yes | | Name of the climate variable. | Mean air temperature at 2 m |
+| Unit | Text | Yes | | Unit the variable is measured in. | degrees Celsius |
+| Grouping | Text | No | | Group the variable belongs to. | Temperature |
+| DescriptionOfMethod | Long text | Yes | | What is measured, at which height or depth, how often it is read, how the value is calculated, and what every code means. See [Free text](#free-text). | Air temperature measured 2 m above the ground in a ventilated radiation shield, read every 10 minutes. The value is the mean of the readings from 00:00 to 24:00 local time. |
 <!-- END columns of ClimateDescription -->
 
 - As with traits, a CDID fixes the variable, its unit and its method. Reuse the same CDID for the same variable, measured the same way, across experiments and datasets.
@@ -513,13 +515,13 @@ Climate measurements for an experiment, or for one unit in it. **One row per mea
 <!-- BEGIN columns of Climate: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
-| CLID | ID | Yes, unique | | Climate ID. | TODO |
-| EXPID | ID | Yes | [Experiment](#experiment) | Experiment the measurement belongs to. | TODO |
-| UNID | ID | No | [ExperimentalUnit](#experimentalunit) | Unit the measurement belongs to. **Empty or missing means all units in the experiment.** | TODO |
-| CDID | ID | Yes | [ClimateDescription](#climatedescription) | Climate variable that was measured. | TODO |
-| Date | Date | No | | Date of the measurement. | TODO |
-| Score | Number | Yes | | The measured value. | TODO |
-| Comments | Long text | No | | Something about this one value that a reader should know. See [Free text](#free-text). | TODO |
+| CLID | ID | Yes, unique | | Climate ID. | `nordbean_irrigation_northfield_2025_003` |
+| EXPID | ID | Yes | [Experiment](#experiment) | Experiment the measurement belongs to. | `nordbean_irrigation_northfield_2025` |
+| UNID | ID | No | [ExperimentalUnit](#experimentalunit) | Unit the measurement belongs to. **Empty or missing means all units in the experiment.** | `nordbean_irrigation_northfield_2025_plot101` |
+| CDID | ID | Yes | [ClimateDescription](#climatedescription) | Climate variable that was measured. | `soil_water_content_20cm_percent` |
+| Date | Date | No | | Date of the measurement. | `2025-06-10` |
+| Score | Number | Yes | | The measured value. | `27.8` |
+| Comments | Long text | No | | Something about this one value that a reader should know. See [Free text](#free-text). | Includes the hail that fell in the afternoon, measured as melted water. |
 <!-- END columns of Climate -->
 
 > [!IMPORTANT]
@@ -537,11 +539,11 @@ Defines the extra annotations that can be attached to units and phenotype scores
 <!-- BEGIN columns of Features: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
-| FTID | ID | Yes, unique | | Feature ID, used as the key in Features cells. | TODO |
-| Type | Text | No | | Kind of value, in lower case: `c` for text, `i` for whole numbers, `d` for real numbers. Empty means `c`. | TODO |
-| Unit | Text | No | | Unit of the values, mostly for numbers. | TODO |
-| Vocabulary | Text | No | | Allowed values: a `;`-separated list for `c`, or a `min..max` range for `i` and `d`. | TODO |
-| Description | Long text | Yes | | What the feature is and what its values mean. See [Free text](#free-text). | TODO |
+| FTID | ID | Yes, unique | | Feature ID, used as the key in Features cells. | `soil_type` |
+| Type | Text | No | | Kind of value, in lower case: `c` for text, `i` for whole numbers, `d` for real numbers. Empty means `c`. | c |
+| Unit | Text | No | | Unit of the values, mostly for numbers. | nm |
+| Vocabulary | Text | No | | Allowed values: a `;`-separated list for `c`, or a `min..max` range for `i` and `d`. | clay;loam;sandy loam |
+| Description | Long text | Yes | | What the feature is and what its values mean. See [Free text](#free-text). | Texture class of the topsoil, from a soil map. |
 <!-- END columns of Features -->
 
 - Features are used in the Features columns of [ExperimentalUnit](#experimentalunit) and [Phenotype](#phenotype). See [Features cells hold several values](#features-cells-hold-several-values) and [Feature types and vocabularies](#feature-types-and-vocabularies).
@@ -550,65 +552,68 @@ Defines the extra annotations that can be attached to units and phenotype scores
 
 ## Worked example
 
-This example follows one phenotype score back through the tables to everything needed to interpret it.
+This example follows one phenotype score back through the tables to everything needed to interpret it. It comes from the made-up dataset in [tests/valid](../tests/valid), which the validator's tests check, and which the examples in the table reference come from too.
 
 **1. The score.** A row in [Phenotype](#phenotype):
 
-| PHID | UNID | PDID | Features | Date | Score |
+| PHID | UNID | PDID | Date | Score | ScoredBy |
 |---|---|---|---|---|---|
-| TODO | TODO | TODO | TODO | TODO | TODO |
+| nordbean_irrigation_northfield_2025_000001 | nordbean_irrigation_northfield_2025_plot101 | plant_height_mean_of_5_plants_cm | 2025-06-30 | 94 | Rhea Plicate |
 
 **2. What the score means.** Its PDID leads to [PhenotypeDescription](#phenotypedescription):
 
 | PDID | PhenotypeDescription | Unit | DescriptionOfMethod |
 |---|---|---|---|
-| TODO | TODO | TODO | TODO |
+| plant_height_mean_of_5_plants_cm | Plant height | cm | Height of the main stem from the soil surface to the stem tip, measured with a ruler at the end of flowering, which is growth stage 69 on the BBCH scale. Five plants per plot are measured, taking every fifth plant along one of the middle rows and skipping the outer 0.5 m at each end of the plot. The score is the mean of the five plants, rounded to the nearest cm. |
 
-**3. The annotations on the score.** Each FTID in its Features cell leads to [Features](#features):
+**3. The unit that was scored.** Its UNID leads to [ExperimentalUnit](#experimentalunit):
+
+| UNID | EXPID | SLID | Features | Block | Column | Row |
+|---|---|---|---|---|---|---|
+| nordbean_irrigation_northfield_2025_plot101 | nordbean_irrigation_northfield_2025 | vandrel_northfield_2024 | soil_type=sandy loam;soil_ph=6.4 | 1 | 1 | 1 |
+
+**4. The annotations on the unit.** Each FTID in the unit's Features cell leads to [Features](#features):
 
 | FTID | Type | Unit | Vocabulary | Description |
 |---|---|---|---|---|
-| TODO | TODO | TODO | TODO | TODO |
-
-**4. The unit that was scored.** Its UNID leads to [ExperimentalUnit](#experimentalunit):
-
-| UNID | EXPID | SLID | Block | Column | Row |
-|---|---|---|---|---|---|
-| TODO | TODO | TODO | TODO | TODO | TODO |
+| soil_type | c | | clay;loam;sandy loam | Texture class of the topsoil, from a soil map. |
+| soil_ph | d | | | pH of the topsoil from 0 to 20 cm depth, measured in a suspension of soil in water. |
 
 **5. What the unit received.** The same UNID leads to [ExperimentIntervention](#experimentintervention):
 
 | IID | UNID | Intervention | Description |
 |---|---|---|---|
-| TODO | TODO | TODO | TODO |
+| nordbean_irrigation_northfield_2025_001 | nordbean_irrigation_northfield_2025_plot101 | HighWater | Two water regimes, each applied to whole main plots. HighWater: drip irrigation with 15 mm of water whenever the soil water content at 20 cm depth fell below 25 percent by volume, from emergence until the end of flowering. LowWater: no irrigation, rain-fed only. LowWater is the control. |
 
 **6. The experiment.** The unit's EXPID leads to [Experiment](#experiment):
 
 | EXPID | GPSCoordinates | StartDate | EndDate | Description |
 |---|---|---|---|---|
-| TODO | TODO | TODO | TODO | TODO |
+| nordbean_irrigation_northfield_2025 | 56.091250;9.552040 | 2025-04-08 | 2025-08-26 | Field trial at the Northfield research farm, on a field of mostly sandy loam that grew spring barley the year before. Split-plot design with 2 blocks: water regime is the main-plot factor and line the subplot factor, so each block has one main plot per water regime, with both lines in it. Each block is one row of plots running across the slope of the field. Each plot has 4 rows of plants, sown at 45 seeds per square metre. The levels of the water regime are defined in ExperimentIntervention. Weather data come from the weather station of the farm, and soil water content from sensors in some of the plots. |
 
 **7. The plant material.** The unit's SLID leads to [SeedLot](#seedlot), and the seed lot's GPID to [Germplasm](#germplasm):
 
-| SLID | GPID | HarvestDate | HarvestLocation |
-|---|---|---|---|
-| TODO | TODO | TODO | TODO |
+| SLID | GPID | HarvestDate | HarvestLocation | ParentSLID |
+|---|---|---|---|---|
+| vandrel_northfield_2024 | vandrel | 2024-08-29 | Northfield research farm | vandrel_northfield_2023 |
 
 | GPID | Name | Species |
 |---|---|---|
-| TODO | TODO | TODO |
+| vandrel | Vandrel | Vicia faba |
 
-**8. The climate.** A row in [Climate](#climate) with the same EXPID and no UNID applies to this unit, along with every other unit in the experiment. Its CDID leads to [ClimateDescription](#climatedescription):
+**8. The climate.** Rows in [Climate](#climate) with the same EXPID and no UNID apply to this unit, along with every other unit in the experiment. Rows with the unit's own UNID apply to it alone. Here is one of each. Their CDIDs lead to [ClimateDescription](#climatedescription):
 
 | CLID | EXPID | UNID | CDID | Date | Score |
 |---|---|---|---|---|---|
-| TODO | TODO | *(empty)* | TODO | TODO | TODO |
+| nordbean_irrigation_northfield_2025_001 | nordbean_irrigation_northfield_2025 | *(empty)* | air_temperature_daily_mean_2m_c | 2025-06-14 | 14.2 |
+| nordbean_irrigation_northfield_2025_003 | nordbean_irrigation_northfield_2025 | nordbean_irrigation_northfield_2025_plot101 | soil_water_content_20cm_percent | 2025-06-10 | 27.8 |
 
 | CDID | Name | Unit | DescriptionOfMethod |
 |---|---|---|---|
-| TODO | TODO | TODO | TODO |
+| air_temperature_daily_mean_2m_c | Mean air temperature at 2 m | degrees Celsius | Air temperature measured 2 m above the ground in a ventilated radiation shield, read every 10 minutes. The value is the mean of the readings from 00:00 to 24:00 local time. |
+| soil_water_content_20cm_percent | Soil water content at 20 cm | percent by volume | Volumetric water content of the soil at 20 cm depth, measured with a capacitance sensor buried at that depth in the middle of the plot or pot, read every hour. The value is the mean of the readings from 00:00 to 24:00 local time. |
 
-**In plain words:** TODO
+**In plain words:** plot 101 of the 2025 irrigation trial at the Northfield research farm grew the line Vandrel, from seed harvested there in 2024, on sandy loam with pH 6.4. It was irrigated whenever its soil water content fell below 25 percent (HighWater). On 30 June 2025, the mean height of five of its plants was 94 cm. On 10 June, its soil held 27.8 percent water by volume at 20 cm depth, and on 14 June, the mean air temperature at the trial was 14.2 degrees Celsius.
 
 ## Rules checklist
 

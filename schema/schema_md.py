@@ -28,6 +28,8 @@ TYPE_NAMES = {"id": "ID", "text": "Text", "long_text": "Long text", "integer": "
 # What follows the description of a column of these types
 SEE = {"long_text": "See [Free text](#free-text).",
        "features": "See [Features cells](#features-cells-hold-several-values)."}
+# Types whose examples are shown as code, as they are written exactly so. Examples of text are shown as text.
+CODE_TYPES = {"id", "integer", "number", "date", "coordinates", "features"}
 
 
 def markdown_table(rows: list[list[str]]) -> str:
@@ -59,7 +61,9 @@ def columns_table(table: TableDef) -> str:
         else:
             links = link(column.links_to) if column.links_to else ""
         description = " ".join(part for part in (column.description, SEE.get(column.type)) if part)
-        example = f"`{column.example}`" if column.example else "TODO"
+        example = column.example or ""
+        if example and column.type in CODE_TYPES:
+            example = f"`{example}`"
         rows.append([column.name, TYPE_NAMES[column.type], required, links, description, example])
     return markdown_table(rows)
 

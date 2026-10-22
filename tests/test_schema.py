@@ -2,7 +2,6 @@
 The schema itself: there is exactly one schema.yaml, mistakes in it are reported, and what is made from it, the
 collection sheet and the tables in schema.md, matches it.
 """
-import dataclasses
 import io
 import os
 import shutil
@@ -15,7 +14,7 @@ import yaml
 
 import schema_md
 from helpers import BLANK_SHEET, ROOT, SCHEMA, VALID
-from validation import READ_ME_SHEET, SCHEMA_FILE, cell_text, help_text, load_schema
+from validation import READ_ME_SHEET, SCHEMA_FILE, TYPE_PROBLEMS, cell_text, help_text, load_schema
 
 
 def test_schema_yaml_has_only_one_copy():
@@ -88,23 +87,37 @@ def test_read_me_sheet_lists_the_version_and_the_tables():
 
 
 @pytest.mark.parametrize("table, column, text", [
-    ("Germplasm", "GPID", "Required, unique. Germplasm ID. Only the letters a-z and A-Z, the digits 0-9 and _."),
-    ("Germplasm", "Name", "Optional. Name of the variety or line."),
-    ("SeedLot", "GPID", "Required. Germplasm the seed is of. A GPID from Germplasm."),
+    ("Germplasm", "GPID", "Required, unique. Germplasm ID. Only the letters a-z and A-Z, the digits 0-9 and _. "
+                          "Example: vandrel"),
+    ("Germplasm", "Name", "Optional. Name of the variety or line. Example: Vandrel"),
+    ("SeedLot", "GPID", "Required. Germplasm the seed is of. A GPID from Germplasm. Example: vandrel"),
     ("Climate", "UNID", "Optional. Unit the measurement belongs to. Empty or missing means all units in the "
-                        "experiment. A UNID from ExperimentalUnit."),
-    ("Phenotype", "Score", "Required. The score. A number, with . as the decimal mark."),
+                        "experiment. A UNID from ExperimentalUnit. Example: nordbean_irrigation_northfield_2025_plot101"),
+    ("Phenotype", "Score", "Required. The score. A number, with . as the decimal mark. Example: 94"),
     ("Features", "Type", "Optional. Kind of value, in lower case: c for text, i for whole numbers, d for real "
-                         "numbers. Empty means c."),
-], ids=["ID", "text", "link", "bold", "number", "code"])
+                         "numbers. Empty means c. Example: c"),
+    ("PhenotypeDescription", "DescriptionOfMethod", "Required. What is measured, on which part of the plant, at "
+                                                    "which growth stage, with what, on how many plants and how they are "
+                                                    "chosen, how the score is calculated, and what every code means."),
+], ids=["ID", "text", "link", "bold", "number", "code", "no example"])
 def test_help_text(table, column, text):
-    """Whether the column is required, its description without `code` and **bold** marks, and a hint for its type."""
+    """
+    Whether the column is required, its description without `code` and **bold** marks, a hint for its type, and
+    its example if it has one.
+    """
     assert help_text(SCHEMA.tables[table].columns[column], SCHEMA) == text
 
 
-def test_help_text_with_an_example():
-    column = dataclasses.replace(SCHEMA.tables["Germplasm"].columns["GPID"], example="hedin_2")
-    assert help_text(column, SCHEMA).endswith(" E.g. hedin_2.")
+def test_examples_are_valid_values():
+    """Each example is text, and a valid value for its column's type, so schema.md and the sheet never show a wrong one."""
+    for table in SCHEMA.tables.values():
+        for column in table.columns.values():
+            if column.example is None:
+                continue
+            where = f"{table.name}.{column.name}"
+            assert isinstance(column.example, str), f"{where}: put the example in quotes in schema.yaml"
+            problem = TYPE_PROBLEMS.get(column.type)
+            assert problem is None or problem(column.example) is None, f"{where}: {problem(column.example)}"
 
 
 # ---------------------------------------------------------------- schema.md

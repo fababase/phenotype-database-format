@@ -21,7 +21,7 @@ This roadmap records the decisions made so far, the work in order, and the quest
 
 | Topic | Decision |
 |---|---|
-| Repository | One **public** GitHub repo for the schema, collection sheet, validator, app, shared reference tables, AI guide and worked example. They change together, so they are versioned together. |
+| Repository | One **public** GitHub repo for the schema, collection sheet, validator, app, shared reference tables and AI guide. They change together, so they are versioned together. |
 | Repository name | May be renamed, since it holds more than the app. Name to be decided; see [Phase 0](#phase-0-clean-up-and-restructure). |
 | Data in git | **Never.** Contributions are kept in a private folder until published. |
 | Zenodo | **One record** for the whole database. New contributions and corrections become new versions of that record. |
@@ -64,7 +64,6 @@ app/                  exactly what gets deployed
   requirements.txt    pinned versions
 conversion/
   AI_INSTRUCTIONS.md  the prompt contributors give an AI along with the schema and their raw data
-examples/demo/        fake messy raw file → convert.py → validated tables → NOTES.md
 zenodo/
   README_TEMPLATE.md  README for the Zenodo record
 docs/
@@ -78,7 +77,7 @@ tests/                one valid dataset plus deliberately broken ones; run on ev
 
 ## How data flows
 
-1. A contributor gives an AI the AI kit (the schema doc, `schema.yaml`, `AI_INSTRUCTIONS.md`, the reference tables and the worked example) and a trimmed copy of their raw data.
+1. A contributor gives an AI the AI kit (the schema doc, `schema.yaml`, `AI_INSTRUCTIONS.md`, the reference tables and the example dataset in `tests/valid/`) and a trimmed copy of their raw data.
 2. The AI asks what it needs to know, then writes a script that converts the raw data into one CSV per table. As it goes, it reports what it sees in the data (traits, number of scores, units, ranges), so the contributor can confirm it or catch mistakes early.
 3. The contributor runs the script on the full data and checks the CSVs with the validator, fixing the script until they pass.
 4. The contributor hands over the bundle below. It is kept privately.
@@ -109,12 +108,11 @@ Only the tables go to Zenodo.
 
 ## Phase 2: Schema doc, example and AI kit
 
-- [ ] Fill in the TODOs in `schema/schema.md` (examples, worked example) from the worked example below. The example of each column goes in `schema.yaml` (`example:`), from where it reaches `schema.md` and row 2 of the collection sheet.
+- [x] Fill in the TODOs in `schema/schema.md` (examples, worked example) from the valid test dataset, `tests/valid/`, instead of building a separate worked example with a fake messy Excel file and a script to convert it. The example of each column is copied into `schema.yaml` (`example:`), from where it reaches `schema.md` and row 2 of the collection sheet; a test checks that each is a valid value.
 - [x] One description per column, in `schema.yaml`, replacing the separate descriptions in `schema.md`, its "What each column covers" table and the collection sheet. The tables in `schema.md` that list the tables and columns are written from it by an Action (`.github/workflows/schema-md.yml`), and the app builds the collection sheet from it.
 - [ ] Add a section on the files themselves: one CSV per table, named after the table, UTF-8, comma-separated, `.` as the decimal mark, one header row with the column names.
 - [x] Add ID rules: only letters, digits and `_`, and unique ignoring case, both checked by the validator. The schema doc suggests a form for each ID, with experiment-level IDs (UNID, PHID, IID, MMID, CLID) starting with their EXPID, so IDs never clash when contributions are merged. See [Identifiers](../schema/schema.md#identifiers).
 - [x] Draw the diagram from `schema.yaml` on every deploy, instead of keeping a dbdiagram.io copy: `schema/diagram.py` and `schema/diagram.html`, published at <https://fababase.github.io/phenotype-database-format/diagram/>. The README and `schema.md` link to it. Tick once the first run has published it.
-- [ ] Build the worked example in `examples/demo/`: a fake but realistically messy raw Excel file (wide format, coloured rows, merged cells), the script that converts it, the resulting tables and the NOTES.md.
 - [ ] Start the shared reference tables in `reference/`, from the N2CROP data.
 - [ ] Write `conversion/AI_INSTRUCTIONS.md`, telling the AI to:
   - **Inspect before coding:** every sheet, hidden rows and columns, merged cells, multi-row headers, cell colours, comments, notes below tables, decimal commas and home-made "NA" markers. Use openpyxl, since pandas cannot see colours or merged cells.
@@ -152,6 +150,13 @@ To be explored later: instead of each contributor setting up an AI themselves, a
 
 ## Open questions
 
+- **Documentation by role.** Split the docs by who reads them, with the README as the shared front door and `schema.md` shared by all:
+  - *Contributors*, or their AI: get their data into the format and through the validator.
+  - *Data users*: read and join the published tables.
+  - *Data reviewers and managers*: review contributions, approve new reference IDs, publish on Zenodo, and keep at least two people with access to GitHub and Zenodo.
+  - *Developers*: change the schema, validator, app and Actions; how the pieces fit, and which files are generated.
+
+  Each guide is written once, concisely, for people. AIs read the same files; an `AGENTS.md` only points them to the right guide for their task. The Decisions table above could move to its own file then, so it outlives this roadmap.
 - **IDs that start with a digit.** The schema doc recommends against them. Decide whether to make it a rule the validator checks.
 - **Special symbols.** We may restrict special symbols in values where possible, so that each one has a single defined meaning, and any other use is an error.
 - **Dates that make sense.** The validator only checks that a date is real and written YYYY-MM-DD. Possible additions:

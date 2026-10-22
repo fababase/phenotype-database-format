@@ -149,7 +149,7 @@ TYPE_HINTS = {
     "integer": "A whole number.",
     "number": "A number, with . as the decimal mark.",
     "date": "A date, written YYYY-MM-DD, or a date that Excel recognises as one.",
-    "coordinates": "latitude;longitude in decimal degrees, without spaces, e.g. 56.170308;10.207013.",
+    "coordinates": "latitude;longitude in decimal degrees, without spaces.",
     "features": "FTID1=value1;FTID2=value2, with FTIDs from Features, and no spaces around = or ;.",
 }
 
@@ -171,7 +171,8 @@ def help_text(column: Column, schema: Schema) -> str:
         hint = f"A {schema.tables[column.links_to].id_column} from {column.links_to}."
     else:
         hint = TYPE_HINTS.get(column.type, "")
-    example = f"E.g. {column.example}." if column.example else ""
+    # Without a full stop after it, which could be taken as part of the value
+    example = f"Example: {column.example}" if column.example else ""
     return " ".join(part for part in (help_start(column), hint, example) if part)
 
 

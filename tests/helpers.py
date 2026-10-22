@@ -2,7 +2,8 @@
 Helpers shared by the tests.
 
 valid/ holds one valid dataset, one CSV file per table. Each test works on a copy of it, and a broken dataset
-is that copy with one thing changed, so that it breaks exactly one rule.
+is that copy with one thing changed, so that it breaks exactly one rule. The dataset is also the source of the
+examples in schema.yaml and of the worked example in schema.md, which are copied from it: change them with it.
 """
 import csv
 import io

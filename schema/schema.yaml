@@ -41,28 +41,36 @@ tables:
         required: true
         unique: true
         description: Germplasm ID.
+        example: vandrel
       Name:
         type: text
         description: Name of the variety or line.
+        example: Vandrel
       AlternativeName:
         type: text
         description: Other names for the variety. Separate several names with `;`.
+        example: NB 117
       Species:
         type: text
         description: Species of the variety.
+        example: Vicia faba
       Donor:
         type: text
         description: Donor or parent of the variety.
+        example: Nordbean breeding programme
       GeographicOrigin:
         type: text
         description: Geographic origin of the variety.
+        example: Denmark
       Maintaining:
         type: text
         description: Who maintains the variety, such as a breeder or genebank.
+        example: Nordbean breeding programme
       Comments:
         type: long_text
         description: What is known about the material that no column holds, such as its pedigree, breeding
           history or notable traits.
+        example: Small-seeded field bean line selected for early flowering. The seeds are round and buff coloured.
 
   SeedLot:
     code: SL
@@ -75,25 +83,31 @@ tables:
         required: true
         unique: true
         description: Seed lot ID.
+        example: vandrel_northfield_2024
       GPID:
         type: id
         required: true
         links_to: Germplasm
         description: Germplasm the seed is of.
+        example: vandrel
       HarvestDate:
         type: date
         description: Date the seed lot was harvested.
+        example: "2024-08-29"
       HarvestLocation:
         type: text
         description: Where the seed lot was harvested.
+        example: Northfield research farm
       ParentSLID:
         type: id
         links_to: SeedLot
         description: Seed lot this one was grown from.
+        example: vandrel_northfield_2023
       Comments:
         type: long_text
         description: Seed quality and handling, such as germination, seed treatment or deviations from expected
           phenotype.
+        example: Germination 91 percent in a test in February 2025.
 
   Experiment:
     code: EXP
@@ -106,21 +120,27 @@ tables:
         required: true
         unique: true
         description: Experiment ID.
+        example: nordbean_irrigation_northfield_2025
       GPSCoordinates:
         type: coordinates
         description: Location of the experiment.
+        example: 56.091250;9.552040
       PlotSize:
         type: text
         description: Size of each plot or pot, with its unit.
+        example: 15 square metres
       PlotSizeIncludingPath:
         type: text
         description: Size of each plot, including paths, with its unit.
+        example: 18 square metres
       StartDate:
         type: date
         description: Start of the growing period.
+        example: "2025-04-08"
       EndDate:
         type: date
         description: End of the growing period.
+        example: "2025-08-26"
       Description:
         type: long_text
         description: The site (address and field) or facility, growing conditions, trial size, plot layout,
@@ -130,12 +150,15 @@ tables:
       Manager:
         type: text
         description: Name of the person who managed the trial.
+        example: Rhea Plicate
       Distance:
         type: text
         description: Distance to the weather station that the Climate data comes from, with its unit.
+        example: 1.2 km
       Comments:
         type: long_text
         description: Events that affected the whole experiment.
+        example: A hailstorm on 2025-06-14 damaged leaves and flowers across the whole field.
 
   ExperimentalUnit:
     code: UN
@@ -148,34 +171,43 @@ tables:
         required: true
         unique: true
         description: Unit ID.
+        example: nordbean_irrigation_northfield_2025_plot101
       EXPID:
         type: id
         required: true
         links_to: Experiment
         description: Experiment the unit belongs to.
+        example: nordbean_irrigation_northfield_2025
       SLID:
         type: id
         required: true
         links_to: SeedLot
         description: Seed lot the plants in the unit come from.
+        example: vandrel_northfield_2024
       GPSCoordinates:
         type: coordinates
         description: Location of the unit.
+        example: 56.091200;9.552000
       Features:
         type: features
         description: Features of the whole unit.
+        example: soil_type=sandy loam;soil_ph=6.4
       Block:
         type: integer
         description: Block or batch the unit belongs to.
+        example: "1"
       Column:
         type: integer
         description: Column the unit is in.
+        example: "1"
       Row:
         type: integer
         description: Row the unit is in.
+        example: "1"
       Comments:
         type: long_text
         description: Something that happened to this unit.
+        example: "Poor emergence: about 22 plants per square metre, against about 40 in the other plots."
 
   ExperimentIntervention:
     code: I
@@ -188,17 +220,20 @@ tables:
         required: true
         unique: true
         description: Intervention ID.
+        example: nordbean_irrigation_northfield_2025_001
       UNID:
         type: id
         required: true
         unique: true
         links_to: ExperimentalUnit
         description: Unit that received the intervention.
+        example: nordbean_irrigation_northfield_2025_plot101
       Intervention:
         type: text
         required: true
         description: Level the unit received. With several factors, the combination of levels, such as
           `HighWaterInoculated`.
+        example: HighWater
       Description:
         type: long_text
         required: true
@@ -216,27 +251,34 @@ tables:
         required: true
         unique: true
         description: Management ID.
+        example: nordbean_irrigation_northfield_2025_001
       EXPID:
         type: id
         required: true
         links_to: Experiment
         description: Experiment that received the treatment.
+        example: nordbean_irrigation_northfield_2025
       Treatment:
         type: text
         description: Treatment the plants got.
+        example: Fertiliser
       Description:
         type: long_text
         description: The product or active ingredient, how it was applied, and why. The concentration and amount
           go in Dosage.
+        example: Phosphorus and potassium fertiliser, spread over the whole field and harrowed in before sowing. No nitrogen was given, as the crop fixes its own.
       Dosage:
         type: text
         description: Dosage of the treatment, with its unit.
+        example: 300 kg phosphorus and 150 kg potassium per hectare
       Date:
         type: date
         description: Date of the treatment.
+        example: "2025-04-03"
       Comments:
         type: long_text
         description: Deviations from the plan.
+        example: The eastern half of the field was sprayed a day later, on 2025-04-11, because of wind.
 
   PhenotypeDescription:
     code: PD
@@ -249,18 +291,22 @@ tables:
         required: true
         unique: true
         description: Phenotype description ID.
+        example: plant_height_mean_of_5_plants_cm
       PhenotypeDescription:
         type: text
         required: true
         description: Name of the trait.
+        example: Plant height
       Unit:
         type: text
         required: true
         description: Unit the trait is scored in.
+        example: cm
       Grouping:
         type: text
         description: "Trait class the trait belongs to, from Crop Ontology: Morphological, Phenological,
           Agronomical, Physiological, Abiotic stress, Biotic stress, Biochemical, Quality or Fertility."
+        example: Morphological
       DescriptionOfMethod:
         type: long_text
         required: true
@@ -278,32 +324,40 @@ tables:
         required: true
         unique: true
         description: Phenotype ID.
+        example: nordbean_irrigation_northfield_2025_000001
       UNID:
         type: id
         required: true
         links_to: ExperimentalUnit
         description: Unit that was scored.
+        example: nordbean_irrigation_northfield_2025_plot101
       PDID:
         type: id
         required: true
         links_to: PhenotypeDescription
         description: Trait that was scored.
+        example: plant_height_mean_of_5_plants_cm
       Features:
         type: features
         description: Features of this score.
+        example: wavelength=1450;tissue=young leaf
       Date:
         type: date
         description: Date of scoring.
+        example: "2025-06-30"
       Score:
         type: number
         required: true
         description: The score.
+        example: "94"
       ScoredBy:
         type: text
         description: Name of the person who did the scoring.
+        example: Rhea Plicate
       Comments:
         type: long_text
         description: Something about this one value that a reader should know.
+        example: Scored three days after the other plots, as rain stopped the scoring.
 
   ClimateDescription:
     code: CD
@@ -316,22 +370,27 @@ tables:
         required: true
         unique: true
         description: Climate description ID.
+        example: air_temperature_daily_mean_2m_c
       Name:
         type: text
         required: true
         description: Name of the climate variable.
+        example: Mean air temperature at 2 m
       Unit:
         type: text
         required: true
         description: Unit the variable is measured in.
+        example: degrees Celsius
       Grouping:
         type: text
         description: Group the variable belongs to.
+        example: Temperature
       DescriptionOfMethod:
         type: long_text
         required: true
         description: What is measured, at which height or depth, how often it is read, how the value is
           calculated, and what every code means.
+        example: Air temperature measured 2 m above the ground in a ventilated radiation shield, read every 10 minutes. The value is the mean of the readings from 00:00 to 24:00 local time.
 
   Climate:
     code: CL
@@ -344,30 +403,37 @@ tables:
         required: true
         unique: true
         description: Climate ID.
+        example: nordbean_irrigation_northfield_2025_003
       EXPID:
         type: id
         required: true
         links_to: Experiment
         description: Experiment the measurement belongs to.
+        example: nordbean_irrigation_northfield_2025
       UNID:
         type: id
         links_to: ExperimentalUnit
         description: Unit the measurement belongs to. **Empty or missing means all units in the experiment.**
+        example: nordbean_irrigation_northfield_2025_plot101
       CDID:
         type: id
         required: true
         links_to: ClimateDescription
         description: Climate variable that was measured.
+        example: soil_water_content_20cm_percent
       Date:
         type: date
         description: Date of the measurement.
+        example: "2025-06-10"
       Score:
         type: number
         required: true
         description: The measured value.
+        example: "27.8"
       Comments:
         type: long_text
         description: Something about this one value that a reader should know.
+        example: Includes the hail that fell in the afternoon, measured as melted water.
 
   Features:
     code: FT
@@ -380,20 +446,25 @@ tables:
         required: true
         unique: true
         description: Feature ID, used as the key in Features cells.
+        example: soil_type
       Type:
         type: text
         description: "Kind of value, in lower case: `c` for text, `i` for whole numbers, `d` for real numbers.
           Empty means `c`."
+        example: c
       Unit:
         type: text
         description: Unit of the values, mostly for numbers.
+        example: nm
       Vocabulary:
         type: text
         description: "Allowed values: a `;`-separated list for `c`, or a `min..max` range for `i` and `d`."
+        example: clay;loam;sandy loam
       Description:
         type: long_text
         required: true
         description: What the feature is and what its values mean.
+        example: Texture class of the topsoil, from a soil map.
 
 # Rules that span tables, checked after the links. Each name is implemented in the validator.
 rules:
