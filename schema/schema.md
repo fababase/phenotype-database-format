@@ -4,7 +4,7 @@ The phenotype database schema is a set of 11 linked tables for phenotype data fr
 
 This document describes every table and column, the conventions that apply throughout, and the few places where the schema does not behave like an ordinary relational database.
 
-This is **version 1.0.0** of the schema. [schema.yaml](schema.yaml) is a machine-readable copy, which the validator checks data against.
+This is **version 1.0.0** of the schema. [schema.yaml](schema.yaml) is a machine-readable copy, which the validator checks data against. The tables in this document that list the tables and their columns are written from it.
 
 > [!NOTE]
 > **In short:** the tables are linked by IDs, and every measured value is a row of its own. Scores are plain numbers, and description tables say what they mean. Two things need special handling: an empty UNID in Climate means *all units*, and Features cells hold lists like `FTID1=value1;FTID2=value2`.
@@ -35,6 +35,7 @@ This is **version 1.0.0** of the schema. [schema.yaml](schema.yaml) is a machine
 
 ### The tables at a glance
 
+<!-- BEGIN tables: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Table | ID column | One row is | Filled in | Needed |
 |---|---|---|---|---|
 | [Germplasm](#germplasm) | GPID | a variety, line or other genetically distinct plant material | before | always |
@@ -48,6 +49,7 @@ This is **version 1.0.0** of the schema. [schema.yaml](schema.yaml) is a machine
 | [ClimateDescription](#climatedescription) | CDID | a climate variable: what is measured, in which unit and how | before | with Climate |
 | [Climate](#climate) | CLID | one climate measurement | during or after | if recorded |
 | [Features](#features) | FTID | a kind of extra annotation | before, during or after | if needed |
+<!-- END tables -->
 
 "Filled in" is relative to the experiment. The tables also fall into a few overlapping groups:
 
@@ -96,7 +98,7 @@ Every table has an ID column, which is its first column, and every row must have
 - IDs are unique within their table, ignoring case: `hedin_2` and `Hedin_2` count as the same ID.
 - An ID in a column that refers to another table must exist in that table, written exactly the same way, character for character.
 
-These rules keep IDs safe wherever the data goes: `;`, `=` and `|` have meanings inside cells, `,` separates the values in CSV files, `-` and spaces break column names in R and many other tools, and some databases do not tell upper and lower case apart.
+These rules keep IDs safe wherever the data goes: `;` and `=` have occasional meanings inside some cells, `,` separates the values in CSV files, `-`, spaces and other symbols might break column names in R and many other tools, and some databases do not tell upper and lower case apart.
 
 **Recommendations:**
 
@@ -165,7 +167,7 @@ Dates are written `YYYY-MM-DD` (ISO 8601): a four-digit year, a two-digit month 
 
 Coordinates are written as latitude and longitude in decimal degrees[^wgs84], latitude first, separated by `;` and without spaces: `latitude;longitude`. Southern latitudes and western longitudes are negative. This applies to GPSCoordinates in Experiment and ExperimentalUnit.
 
-**Example:** TODO
+**Example:** `56.170308;10.207013`
 
 ### Free text
 
@@ -182,22 +184,7 @@ Description, DescriptionOfMethod and Comments columns take any text. They are wh
 - Avoid special symbols where a word does the job: write "percent", not "%".
 - Descriptions in PhenotypeDescription, ClimateDescription and Features are general, because they, ideally, will be reused across experiments.
 
-**What each column covers:**
-
-| Table | Column | Covers |
-|---|---|---|
-| Germplasm | Comments | What is known about the material that no column holds, such as its pedigree, breeding history or notable traits. |
-| SeedLot | Comments | Seed quality and handling, such as germination, seed treatment or deviations from expected phenotype. |
-| Experiment | Description | The site (address and field) or facility, growing conditions, trial size, plot layout, design and number of replicates, what the blocks are, any irrigation, which traits were tested, which factors are tested, and any other information relevant to this experiment. The levels of the factors are defined in ExperimentIntervention. |
-| Experiment | Comments | Events that affected the whole experiment. |
-| ExperimentalUnit | Comments | Something that happened to this unit. |
-| ExperimentIntervention | Description | Every level, defined concretely: what was done, how much and when. Also which level is the control, if applicable. |
-| Management | Description | The product or active ingredient, how it was applied, and why. The concentration and amount goes in Dosage. |
-| Management | Comments | Deviations from the plan. |
-| PhenotypeDescription | DescriptionOfMethod | What is measured, on which part of the plant, at which growth stage, with what, on how many plants and how they are chosen, how the score is calculated, and what every code means. |
-| ClimateDescription | DescriptionOfMethod | What is measured, at which height or depth, how often it is read, and how the value is calculated. |
-| Features | Description | What the feature is and what its values mean. |
-| Phenotype, Climate | Comments | Something about this one value that a reader should know. |
+What each of these columns should cover is in its description, in the [table reference](#table-reference).
 
 ## Special rules
 
@@ -329,22 +316,24 @@ In an experiment with interventions, every unit has exactly one row in [Experime
 
 ## Table reference
 
-Each table below lists its columns in standard order. **Required** says whether every row must have a value; *unique* means no two rows can share the same value. **Links to** names the table whose ID the column holds. Types are explained under [Data types](#data-types).
+Each table below lists its columns in standard order, as written from [schema.yaml](schema.yaml). **Required** says whether every row must have a value; *unique* means no two rows can share the same value. **Links to** names the table whose ID the column holds. Types are explained under [Data types](#data-types).
 
 ### Germplasm
 
 Genetically distinct plant material, such as a variety or line. **One row per germplasm.**
 
+<!-- BEGIN columns of Germplasm: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
 | GPID | ID | Yes, unique | | Germplasm ID. | TODO |
 | Name | Text | No | | Name of the variety or line. | TODO |
-| AlternativeName | Text | No | | Other names for the variety. Separate several names with `\|`. | TODO |
+| AlternativeName | Text | No | | Other names for the variety. Separate several names with `;`. | TODO |
 | Species | Text | No | | Species of the variety. | TODO |
 | Donor | Text | No | | Donor or parent of the variety. | TODO |
 | GeographicOrigin | Text | No | | Geographic origin of the variety. | TODO |
 | Maintaining | Text | No | | Who maintains the variety, such as a breeder or genebank. | TODO |
-| Comments | Long text | No | | Anything about this row that no other column holds. See [Free text](#free-text). | TODO |
+| Comments | Long text | No | | What is known about the material that no column holds, such as its pedigree, breeding history or notable traits. See [Free text](#free-text). | TODO |
+<!-- END columns of Germplasm -->
 
 > [!IMPORTANT]
 > GPID is what links phenotype data to other data on the same plant material, such as genomic data. Make sure it is correct, and use the same GPID for the same germplasm in every dataset.
@@ -355,6 +344,7 @@ Genetically distinct plant material, such as a variety or line. **One row per ge
 
 A physical batch of seed of one germplasm, from one harvest. **One row per seed lot.**
 
+<!-- BEGIN columns of SeedLot: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
 | SLID | ID | Yes, unique | | Seed lot ID. | TODO |
@@ -362,7 +352,8 @@ A physical batch of seed of one germplasm, from one harvest. **One row per seed 
 | HarvestDate | Date | No | | Date the seed lot was harvested. | TODO |
 | HarvestLocation | Text | No | | Where the seed lot was harvested. | TODO |
 | ParentSLID | ID | No | [SeedLot](#seedlot) | Seed lot this one was grown from. | TODO |
-| Comments | Long text | No | | Anything about this row that no other column holds. See [Free text](#free-text). | TODO |
+| Comments | Long text | No | | Seed quality and handling, such as germination, seed treatment or deviations from expected phenotype. See [Free text](#free-text). | TODO |
+<!-- END columns of SeedLot -->
 
 - ParentSLID points to another row in this same table, so a seed lot can be traced back through earlier generations. When it is filled in, it must be an SLID that exists in SeedLot. If the parent seed lot is not in the dataset, either add it as a row of its own or leave ParentSLID empty.
 - Experimental units point to seed lots, not to germplasm. To find the germplasm of a unit, go through its seed lot.
@@ -373,20 +364,20 @@ A physical batch of seed of one germplasm, from one harvest. **One row per seed 
 
 One trial or experiment: where and when it ran, and how it was set up. **One row per experiment.**
 
+<!-- BEGIN columns of Experiment: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
 | EXPID | ID | Yes, unique | | Experiment ID. | TODO |
 | GPSCoordinates | Coordinates | No | | Location of the experiment. | TODO |
-| PlotSize | Text | No | | Size of each plot or pot. | TODO |
-| PlotSizeIncludingPath | Text | No | | Size of each plot, including paths. | TODO |
+| PlotSize | Text | No | | Size of each plot or pot, with its unit. | TODO |
+| PlotSizeIncludingPath | Text | No | | Size of each plot, including paths, with its unit. | TODO |
 | StartDate | Date | No | | Start of the growing period. | TODO |
 | EndDate | Date | No | | End of the growing period. | TODO |
-| Description | Long text | No | | Description of the trial in plain text. See [Free text](#free-text). | TODO |
+| Description | Long text | No | | The site (address and field) or facility, growing conditions, trial size, plot layout, design and number of replicates, what the blocks are, any irrigation, which traits were tested, which factors are tested, and any other information relevant to this experiment. The levels of the factors are defined in ExperimentIntervention. See [Free text](#free-text). | TODO |
 | Manager | Text | No | | Name of the person who managed the trial. | TODO |
-| Distance | Text | No | | Distance to the weather station that the [Climate](#climate) data comes from. | TODO |
-| Comments | Long text | No | | Anything about this row that no other column holds. See [Free text](#free-text). | TODO |
-
-- PlotSize, PlotSizeIncludingPath and Distance are text, so write the unit with the number.
+| Distance | Text | No | | Distance to the weather station that the Climate data comes from, with its unit. | TODO |
+| Comments | Long text | No | | Events that affected the whole experiment. See [Free text](#free-text). | TODO |
+<!-- END columns of Experiment -->
 
 <sub>[↑ Back to contents](#contents)</sub>
 
@@ -394,6 +385,7 @@ One trial or experiment: where and when it ran, and how it was set up. **One row
 
 A unit in an experiment that phenotypes are recorded on: a field plot, a plant pot, a sample, and so on. **One row per unit.**
 
+<!-- BEGIN columns of ExperimentalUnit: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
 | UNID | ID | Yes, unique | | Unit ID. | TODO |
@@ -404,7 +396,8 @@ A unit in an experiment that phenotypes are recorded on: a field plot, a plant p
 | Block | Integer | No | | Block or batch the unit belongs to. | TODO |
 | Column | Integer | No | | Column the unit is in. | TODO |
 | Row | Integer | No | | Row the unit is in. | TODO |
-| Comments | Long text | No | | Anything about this row that no other column holds. See [Free text](#free-text). | TODO |
+| Comments | Long text | No | | Something that happened to this unit. See [Free text](#free-text). | TODO |
+<!-- END columns of ExperimentalUnit -->
 
 - Block, Column and Row are whole numbers, not text or IDs. Explain what the blocks are in the experiment's Description.
 - In experiments with interventions, the level each unit received is in [ExperimentIntervention](#experimentintervention).
@@ -415,12 +408,14 @@ A unit in an experiment that phenotypes are recorded on: a field plot, a plant p
 
 The intervention level each unit received, in experiments where units are treated differently on purpose. **One row per unit**, in experiments with interventions only.
 
+<!-- BEGIN columns of ExperimentIntervention: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
 | IID | ID | Yes, unique | | Intervention ID. | TODO |
 | UNID | ID | Yes, unique | [ExperimentalUnit](#experimentalunit) | Unit that received the intervention. | TODO |
 | Intervention | Text | Yes | | Level the unit received. With several factors, the combination of levels, such as `HighWaterInoculated`. | TODO |
-| Description | Long text | Yes | | Description of the intervention system in the experiment, including all levels, each defined concretely. See [Free text](#free-text). | TODO |
+| Description | Long text | Yes | | The intervention system in the experiment, with every level defined concretely: what was done, how much and when. Also which level is the control, if there is one. See [Free text](#free-text). | TODO |
+<!-- END columns of ExperimentIntervention -->
 
 See [One intervention level per unit](#one-intervention-level-per-unit) for how designs with more than one factor are coded.
 
@@ -430,17 +425,18 @@ See [One intervention level per unit](#one-intervention-level-per-unit) for how 
 
 Treatments given to an experiment as a whole, such as fertiliser or herbicide. **One row per treatment application.** Mostly used for field trials.
 
+<!-- BEGIN columns of Management: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
 | MMID | ID | Yes, unique | | Management ID. | TODO |
 | EXPID | ID | Yes | [Experiment](#experiment) | Experiment that received the treatment. | TODO |
 | Treatment | Text | No | | Treatment the plants got. | TODO |
-| Description | Long text | No | | Longer description of the treatment. See [Free text](#free-text). | TODO |
-| Dosage | Text | No | | Dosage of the treatment. | TODO |
+| Description | Long text | No | | The product or active ingredient, how it was applied, and why. The concentration and amount go in Dosage. See [Free text](#free-text). | TODO |
+| Dosage | Text | No | | Dosage of the treatment, with its unit. | TODO |
 | Date | Date | No | | Date of the treatment. | TODO |
-| Comments | Long text | No | | Anything about this row that no other column holds. See [Free text](#free-text). | TODO |
+| Comments | Long text | No | | Deviations from the plan. See [Free text](#free-text). | TODO |
+<!-- END columns of Management -->
 
-- Dosage is text, so write the unit with the number.
 - Treatments that differ between units belong in [ExperimentIntervention](#experimentintervention), not here.
 
 <sub>[↑ Back to contents](#contents)</sub>
@@ -449,18 +445,19 @@ Treatments given to an experiment as a whole, such as fertiliser or herbicide. *
 
 Defines a trait: what is measured, in which unit and how. **One row per trait.**
 
+<!-- BEGIN columns of PhenotypeDescription: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
 | PDID | ID | Yes, unique | | Phenotype description ID. | TODO |
 | PhenotypeDescription | Text | Yes | | Name of the trait. | TODO |
 | Unit | Text | Yes | | Unit the trait is scored in. | TODO |
-| Grouping | Text | No | | Trait class the trait belongs to, from Crop Ontology; see below. | TODO |
-| DescriptionOfMethod | Long text | Yes | | Description of the trait and how it is scored. For categorical traits, what each code means. See [Free text](#free-text). | TODO |
+| Grouping | Text | No | | Trait class the trait belongs to, from Crop Ontology: Morphological, Phenological, Agronomical, Physiological, Abiotic stress, Biotic stress, Biochemical, Quality or Fertility. | TODO |
+| DescriptionOfMethod | Long text | Yes | | What is measured, on which part of the plant, at which growth stage, with what, on how many plants and how they are chosen, how the score is calculated, and what every code means. See [Free text](#free-text). | TODO |
+<!-- END columns of PhenotypeDescription -->
 
 - The PhenotypeDescription column holds the name of the trait. The full description of the trait and its method goes in DescriptionOfMethod.
 - A PDID fixes the trait, its method and its unit. This is what [Crop Ontology](https://cropontology.org) calls a variable: a trait, a method and a scale. The same trait measured in another unit or by another method needs a PDID of its own. The level a trait is scored at is part of the method, so the height of single plants, the mean height of 5 plants in a plot and a visual estimate for the whole plot are three PDIDs.
 - Name a PDID after its trait, method and scale, in that order: `plant_height_mean_of_5_plants_cm`, or shorter, `plt_ht_mean5_cm`.
-- For Grouping, use one of Crop Ontology's trait classes: Morphological, Phenological, Agronomical, Physiological, Abiotic stress, Biotic stress, Biochemical, Quality or Fertility.
 - Reuse the same PDID for the same trait, measured the same way, across experiments and datasets.
 
 <sub>[↑ Back to contents](#contents)</sub>
@@ -469,6 +466,7 @@ Defines a trait: what is measured, in which unit and how. **One row per trait.**
 
 The phenotype scores. **One row per score:** one value of one trait on one unit.
 
+<!-- BEGIN columns of Phenotype: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
 | PHID | ID | Yes, unique | | Phenotype ID. | TODO |
@@ -476,9 +474,10 @@ The phenotype scores. **One row per score:** one value of one trait on one unit.
 | PDID | ID | Yes | [PhenotypeDescription](#phenotypedescription) | Trait that was scored. | TODO |
 | Features | Feature list | No | [Features](#features), one or more | Features of this score. See [Features cells](#features-cells-hold-several-values). | TODO |
 | Date | Date | No | | Date of scoring. | TODO |
-| Score | Number | Yes | | The score, as a number. | TODO |
+| Score | Number | Yes | | The score. | TODO |
 | ScoredBy | Text | No | | Name of the person who did the scoring. | TODO |
-| Comments | Long text | No | | Anything about this row that no other column holds. See [Free text](#free-text). | TODO |
+| Comments | Long text | No | | Something about this one value that a reader should know. See [Free text](#free-text). | TODO |
+<!-- END columns of Phenotype -->
 
 - Different traits, dates and repeated measurements on the same unit each get a row of their own.
 - What Score means, and its unit, come from the PDID.
@@ -492,13 +491,15 @@ The phenotype scores. **One row per score:** one value of one trait on one unit.
 
 Defines a climate variable: what is measured, in which unit and how. **One row per climate variable.**
 
+<!-- BEGIN columns of ClimateDescription: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
 | CDID | ID | Yes, unique | | Climate description ID. | TODO |
 | Name | Text | Yes | | Name of the climate variable. | TODO |
 | Unit | Text | Yes | | Unit the variable is measured in. | TODO |
 | Grouping | Text | No | | Group the variable belongs to. | TODO |
-| DescriptionOfMethod | Long text | Yes | | Description of the variable and how it is scored or measured. For categorical variables, what each code means. See [Free text](#free-text). | TODO |
+| DescriptionOfMethod | Long text | Yes | | What is measured, at which height or depth, how often it is read, how the value is calculated, and what every code means. See [Free text](#free-text). | TODO |
+<!-- END columns of ClimateDescription -->
 
 - As with traits, a CDID fixes the variable, its unit and its method. Reuse the same CDID for the same variable, measured the same way, across experiments and datasets.
 - Name a CDID the same way as a PDID: `air_temperature_daily_mean_2m_c`, or shorter, `air_temp_day_mean_c`.
@@ -509,6 +510,7 @@ Defines a climate variable: what is measured, in which unit and how. **One row p
 
 Climate measurements for an experiment, or for one unit in it. **One row per measurement.** Mostly used for field trials.
 
+<!-- BEGIN columns of Climate: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
 | CLID | ID | Yes, unique | | Climate ID. | TODO |
@@ -516,8 +518,9 @@ Climate measurements for an experiment, or for one unit in it. **One row per mea
 | UNID | ID | No | [ExperimentalUnit](#experimentalunit) | Unit the measurement belongs to. **Empty or missing means all units in the experiment.** | TODO |
 | CDID | ID | Yes | [ClimateDescription](#climatedescription) | Climate variable that was measured. | TODO |
 | Date | Date | No | | Date of the measurement. | TODO |
-| Score | Number | Yes | | The measured value, as a number. | TODO |
-| Comments | Long text | No | | Anything about this row that no other column holds. See [Free text](#free-text). | TODO |
+| Score | Number | Yes | | The measured value. | TODO |
+| Comments | Long text | No | | Something about this one value that a reader should know. See [Free text](#free-text). | TODO |
+<!-- END columns of Climate -->
 
 > [!IMPORTANT]
 > An empty UNID does not mean "no unit": the value applies to every unit in the experiment. A UNID that is filled in must belong to the experiment given by EXPID. See [Climate rows without a unit apply to all units](#climate-rows-without-a-unit-apply-to-all-units).
@@ -531,13 +534,15 @@ Climate measurements for an experiment, or for one unit in it. **One row per mea
 
 Defines the extra annotations that can be attached to units and phenotype scores. **One row per feature.**
 
+<!-- BEGIN columns of Features: written from schema.yaml by schema/schema_md.py, do not edit by hand -->
 | Column | Type | Required | Links to | Description | Example |
 |---|---|---|---|---|---|
 | FTID | ID | Yes, unique | | Feature ID, used as the key in Features cells. | TODO |
 | Type | Text | No | | Kind of value, in lower case: `c` for text, `i` for whole numbers, `d` for real numbers. Empty means `c`. | TODO |
 | Unit | Text | No | | Unit of the values, mostly for numbers. | TODO |
 | Vocabulary | Text | No | | Allowed values: a `;`-separated list for `c`, or a `min..max` range for `i` and `d`. | TODO |
-| Description | Text | Yes | | What the feature is and what its values mean. See [Free text](#free-text). | TODO |
+| Description | Long text | Yes | | What the feature is and what its values mean. See [Free text](#free-text). | TODO |
+<!-- END columns of Features -->
 
 - Features are used in the Features columns of [ExperimentalUnit](#experimentalunit) and [Phenotype](#phenotype). See [Features cells hold several values](#features-cells-hold-several-values) and [Feature types and vocabularies](#feature-types-and-vocabularies).
 

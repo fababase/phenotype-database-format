@@ -26,7 +26,8 @@ This roadmap records the decisions made so far, the work in order, and the quest
 | Data in git | **Never.** Contributions are kept in a private folder until published. |
 | Zenodo | **One record** for the whole database. New contributions and corrections become new versions of that record. |
 | What is published | **Only the formatted tables**, plus the README and the schema doc. Raw files and conversion scripts are kept privately, not published. |
-| Source of truth | `schema/schema.yaml`. The validator reads it, and tests check the collection sheet against it. `schema.md` is for people to read, so it is kept in step by hand, not by tests. |
+| Source of truth | `schema/schema.yaml`, including one description per column, and what one row of each table is. The validator reads it. Everything that lists the tables or columns is made from it, so it cannot go out of step: the collection sheet, the diagram, and the tables in `schema.md` that list the tables and columns. Those tables are written between marker comments by the *Update schema.md* Action on every push to main, with `schema/schema_md.py`, and committed back. The rest of `schema.md` is written by hand. |
+| Collection sheet | **Built from `schema.yaml` by the app**, which offers it for download; not kept in the repository. One sheet per table, named after it. Row 2 says what goes in each column: required or optional, the description and a hint for the type. The validator skips row 2 only when it is there: when its first cell starts with that help text. A short *READ ME 1st* sheet gives the schema version, how to fill it in, links, and the list of tables; it does not repeat `schema.md`. |
 | One schema.yaml | There is only ever **one** `schema.yaml`, in `schema/`. It is never copied into `app/` or anywhere else in the repository, and a test fails if a second one appears. |
 | Validator input | A set of **CSV files**, one per table, or a filled-in **collection sheet** (.xlsx). Either way, the tables that pass can be written out as CSV files. |
 | Validator errors | **Stops at the first error.** Later errors are often knock-on effects of the first one, so they are not reported. Each message names the table, row, column and value. |
@@ -51,15 +52,15 @@ CHANGELOG.md          what changed in each schema version
 .gitignore
 schema/
   schema.md           the schema description (was phenotype-database-schema.md)
-  schema.yaml         machine-readable copy: tables, columns, types, required, unique, links
+  schema.yaml         machine-readable copy: tables, columns, types, required, unique, links, descriptions
+  schema_md.py        writes the tables in schema.md that list the tables and columns, from schema.yaml
   diagram.py          draws the diagram of how the tables link from schema.yaml, for publishing with the app
   diagram.html        the interactive diagram page that diagram.py fills in
-template/
-  collection-sheet.xlsx   blank collection sheet for filling in by hand
 reference/            shared master lists: Germplasm, PhenotypeDescription, ClimateDescription, Features
 app/                  exactly what gets deployed
   app.py              UI only
   validation.py       all checks; also runs from the command line
+  collection_sheet.py builds the blank collection sheet from schema.yaml, for download from the app
   requirements.txt    pinned versions
 conversion/
   AI_INSTRUCTIONS.md  the prompt contributors give an AI along with the schema and their raw data
@@ -72,7 +73,7 @@ docs/
   submit-data.md      raw data → AI → script → validate → hand over
   release.md          how to release a new schema version and a new Zenodo version
 tests/                one valid dataset plus deliberately broken ones; run on every push
-.github/workflows/    run tests on every push; deploy the app when they pass
+.github/workflows/    run tests on every push; deploy the app when they pass; write the tables in schema.md
 ```
 
 ## How data flows
@@ -108,7 +109,8 @@ Only the tables go to Zenodo.
 
 ## Phase 2: Schema doc, example and AI kit
 
-- [ ] Fill in the TODOs in `schema/schema.md` (examples, worked example) from the worked example below.
+- [ ] Fill in the TODOs in `schema/schema.md` (examples, worked example) from the worked example below. The example of each column goes in `schema.yaml` (`example:`), from where it reaches `schema.md` and row 2 of the collection sheet.
+- [x] One description per column, in `schema.yaml`, replacing the separate descriptions in `schema.md`, its "What each column covers" table and the collection sheet. The tables in `schema.md` that list the tables and columns are written from it by an Action (`.github/workflows/schema-md.yml`), and the app builds the collection sheet from it.
 - [ ] Add a section on the files themselves: one CSV per table, named after the table, UTF-8, comma-separated, `.` as the decimal mark, one header row with the column names.
 - [x] Add ID rules: only letters, digits and `_`, and unique ignoring case, both checked by the validator. The schema doc suggests a form for each ID, with experiment-level IDs (UNID, PHID, IID, MMID, CLID) starting with their EXPID, so IDs never clash when contributions are merged. See [Identifiers](../schema/schema.md#identifiers).
 - [x] Draw the diagram from `schema.yaml` on every deploy, instead of keeping a dbdiagram.io copy: `schema/diagram.py` and `schema/diagram.html`, published at <https://fababase.github.io/phenotype-database-format/diagram/>. The README and `schema.md` link to it. Tick once the first run has published it.
@@ -134,7 +136,7 @@ Only the tables go to Zenodo.
 - [ ] Before publishing, check for personal names (ScoredBy, Manager) and confidential breeding lines. Zenodo records are effectively permanent.
 - [ ] Do a first upload on [sandbox.zenodo.org](https://sandbox.zenodo.org), then publish the real record.
 - [ ] Add `CITATION.cff`.
-- [ ] Write `docs/release.md`: how to release a new schema version (update `schema.yaml`, `schema.md`, the collection sheet and `CHANGELOG.md`, run the tests, tag a release) and how to publish a new version of the Zenodo record.
+- [ ] Write `docs/release.md`: how to release a new schema version (update `schema.yaml`, the hand-written parts of `schema.md` and `CHANGELOG.md`, run the tests, tag a release once the Action has written the tables in `schema.md`) and how to publish a new version of the Zenodo record.
 
 ## Phase 4: Validator plots
 
@@ -167,5 +169,7 @@ To be explored later: instead of each contributor setting up an AI themselves, a
 - **Infinite numbers.** `1e999` passes as a number, though it is read as infinity.
 - **Digits other than 0–9.** Digits such as `１２` (full-width) and `٣` (Arabic-Indic) pass as numbers.
 - **Hidden sheets.** A hidden sheet in the collection sheet, such as one holding dropdown lists, is an error. Decide whether to skip hidden sheets.
+- **More help in the collection sheet.** Now that it is built from `schema.yaml`, it could also get dropdowns (Type in Features; IDs from the sheet a column links to), ID and text columns formatted as text so Excel does not turn `1-2` into a date, and required columns highlighted.
+- **Version of a filled-in sheet.** The *READ ME 1st* sheet says which schema version a blank sheet was built for. The validator could read it and say when a sheet is from an older version.
 - **Case in column names.** `species` gets "Did you mean 'Species'?", but `gpid` gets no suggestion for `GPID`. Decide whether to ignore case when suggesting, or when matching column names.
 - **Blank lines in CSV files.** They are dropped. Decide whether they should be an error.

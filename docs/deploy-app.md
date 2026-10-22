@@ -26,7 +26,8 @@ To publish again without changing anything, go to **Actions → Deploy app → R
 - The schema diagram is drawn without errors.
 - The packages bundled with the app are the versions in `app/requirements.txt`.
 - The app starts in a browser and shows no notices, so it runs the package versions in `app/requirements.txt`.
-- The app gives the same messages as the command line for the valid test dataset and for the blank collection sheet, and the tables it hands back are the same.
+- The app hands out a blank collection sheet with the same contents as one built on the command line.
+- The app gives the same messages as the command line for the valid test dataset and for that blank collection sheet, and the tables it hands back are the same.
 
 ## Package versions
 
@@ -66,8 +67,16 @@ python schema/diagram.py site/diagram
 
 and open `site/diagram/index.html`. The `site/` folder is not committed.
 
+## The collection sheet
+
+The app's *Download a blank collection sheet* button builds the sheet from `schema.yaml` when it is clicked, with [app/collection_sheet.py](../app/collection_sheet.py), so it always matches the schema the app checks against. Nothing else needs publishing. To build one on your own computer:
+
+```
+python app/collection_sheet.py collection-sheet.xlsx
+```
+
 ## Setup, done once
 
 In the repository's **Settings → Pages**, under *Build and deployment*, *Source* is set to **GitHub Actions**. Only an admin of the repository can change this.
 
-The address contains the repository's name. If the repository is renamed, the address changes and the old one stops working, so update the links in `README.md`, this file and anywhere else the address was shared.
+The address contains the repository's name. If the repository is renamed, the address changes and the old one stops working, so update the links in `README.md`, this file, the *READ ME 1st* sheet (`SITE` and `SCHEMA_DOC` in `app/collection_sheet.py`) and anywhere else the address was shared.

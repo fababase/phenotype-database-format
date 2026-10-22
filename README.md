@@ -10,10 +10,10 @@ This repository describes and checks the format of the FabaBase phenotype databa
 | Path | What it is |
 |---|---|
 | [schema/schema.md](schema/schema.md) | The schema: every table and column, the conventions and the special rules. **Start here.** |
-| [schema/schema.yaml](schema/schema.yaml) | The same schema in machine-readable form, with its version number. The validator reads it. |
+| [schema/schema.yaml](schema/schema.yaml) | The same schema in machine-readable form, with its version number and a description of every column. The validator reads it, and the collection sheet, the diagram and the tables in `schema.md` that list the tables and columns are made from it. |
 | [Schema diagram](https://fababase.github.io/phenotype-database-format/diagram/) | How the tables link together. Drag the tables around, and click one to highlight its links. Also as a picture: [PNG](https://fababase.github.io/phenotype-database-format/diagram/diagram.png), [SVG](https://fababase.github.io/phenotype-database-format/diagram/diagram.svg). |
-| [template/collection-sheet.xlsx](template/collection-sheet.xlsx) | Blank collection sheet, one sheet per table, for filling in by hand. |
-| [app/](app/) | The validator. `validation.py` holds the checks and runs from the command line; `app.py` is the app around it. |
+| Collection sheet | A workbook with one sheet per table, for filling in by hand. Download a blank one from the [app](https://fababase.github.io/phenotype-database-format/). |
+| [app/](app/) | The validator. `validation.py` holds the checks and runs from the command line; `app.py` is the app around it; `collection_sheet.py` builds the blank collection sheet. |
 | [docs/deploy-app.md](docs/deploy-app.md) | How the app is published, and how to refresh it. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Decisions, planned work and open questions. |
 
@@ -22,7 +22,7 @@ This repository describes and checks the format of the FabaBase phenotype databa
 The validator checks a set of tables against the [schema](schema/schema.yaml). Give it either:
 
 - one CSV file per table, named after the table: `Germplasm.csv`, `SeedLot.csv`, … Columns can be in any order, and optional columns can be left out. Comma-, semicolon- and tab-separated files all work.
-- or one filled-in [collection sheet](template/collection-sheet.xlsx).
+- or one filled-in collection sheet.
 
 It stops at the first problem it finds and says where it is and how to fix it, for example:
 
@@ -44,7 +44,7 @@ python app/validation.py collection-sheet.xlsx --out path/to/new-folder
 ## Contributing data
 
 1. Read the [schema](schema/schema.md).
-2. Fill in the [collection sheet](template/collection-sheet.xlsx), or convert your data into the same tables. The *READ ME 1st* sheet explains the steps.
+2. Fill in a collection sheet, which you can download from the [app](https://fababase.github.io/phenotype-database-format/), or convert your data into the same tables. The sheet's *READ ME 1st* explains how to fill it in.
 3. Check it with the [validation app](#checking-your-data) and fix what it reports.
 
 A step-by-step guide, including how to convert messy raw data with the help of an AI, is planned (see the [roadmap](docs/ROADMAP.md#phase-2-schema-doc-example-and-ai-kit)).
@@ -59,7 +59,9 @@ conda activate fababase
 pip install -r app/requirements.txt
 ```
 
-Then either check files from the command line (`python app/validation.py --help` lists the options), or start the app with `shiny run app/app.py` and open the address it prints (usually <http://127.0.0.1:8000>).
+Then either check files from the command line (`python app/validation.py --help` lists the options), or start the app with `shiny run app/app.py` and open the address it prints (usually <http://127.0.0.1:8000>). `python app/collection_sheet.py collection-sheet.xlsx` builds a blank collection sheet.
+
+After you push a change to `schema/schema.yaml`, the *Update schema.md* Action writes the tables in `schema.md` that list the tables and columns, and commits them. Pull afterwards (*Pull origin* in GitHub Desktop) to get that commit. To see the tables before pushing, run `python schema/schema_md.py`.
 
 ## Licences
 

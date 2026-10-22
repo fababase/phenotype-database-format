@@ -1,5 +1,5 @@
 """
-Setup shared by all tests: makes app/validation.py, schema/diagram.py and tests/helpers.py importable, and
+Setup shared by all tests: makes the modules in app/ and schema/, and tests/helpers.py, importable, and
 provides the `dataset` fixture, a copy of the valid dataset to change.
 """
 import sys

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from shiny import App, reactive, render, ui
 
+import collection_sheet
 from validation import Table, ValidationError, load_schema, summary, validate_files, version_notices
 
 SCHEMA = load_schema()
@@ -15,6 +16,7 @@ app_ui = ui.page_fluid(
             ui.h2("Phenotype data validator"),
             ui.p("Upload one CSV file per table, named after the table (Germplasm.csv, SeedLot.csv, …), "
                  "or a filled-in collection sheet (.xlsx)."),
+            ui.div(ui.download_button("download_sheet", "Download a blank collection sheet")),
             *(ui.p(f"Notice: {notice}") for notice in version_notices()),
             ui.hr(),
             ui.input_file("files", "Choose files", multiple=True, accept=[".csv", ".xlsx"]),
@@ -54,6 +56,11 @@ def server(input, output, session):
             lines.append("Please contact the developer.")
             return lines, {}
         return lines + summary(tables, SCHEMA), tables
+
+    # Downloading a blank collection sheet, built from the schema the app checks against
+    @render.download(filename="collection-sheet.xlsx")
+    def download_sheet():
+        yield collection_sheet.build(SCHEMA)
 
     # Downloading the checked tables as CSV files
     @render.download(filename="tables.zip")

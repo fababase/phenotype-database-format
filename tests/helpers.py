@@ -13,12 +13,12 @@ from pathlib import Path
 import openpyxl
 import pytest
 
+import collection_sheet
 from validation import DATE, Table, ValidationError, cell_text, load_schema, validate_files
 
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA = load_schema()
 VALID = Path(__file__).resolve().parent / "valid"
-TEMPLATE = ROOT / "template" / "collection-sheet.xlsx"
 
 OPTIONAL_TABLES = ["ExperimentIntervention", "Management", "ClimateDescription", "Climate", "Features"]
 
@@ -32,7 +32,7 @@ SPECTRUM = f"{GREENHOUSE}_000005"  # a Phenotype row with Features wavelength=14
 
 # Read once rather than for every test, which is slow when the repository is on a network drive
 VALID_FILES = {path.name: path.read_bytes() for path in VALID.iterdir()}
-TEMPLATE_BYTES = TEMPLATE.read_bytes()
+BLANK_SHEET = collection_sheet.build(SCHEMA)
 
 
 class Dataset:
@@ -140,21 +140,21 @@ def excel_value(text: str, column_type: str):
     return text
 
 
-def make_workbook(dataset: Dataset, path: Path, descriptor_row: bool = True) -> Path:
+def make_workbook(dataset: Dataset, path: Path, help_row: bool = True) -> Path:
     """
-    Fills a copy of the blank collection sheet with the dataset's tables, from row 3 (below the row of column
-    descriptions), or from row 2 with the descriptions removed. Tables the dataset lacks keep their blank sheet.
+    Fills a blank collection sheet with the dataset's tables, from row 3 (below the row of help text), or from
+    row 2 with the help text removed. Tables the dataset lacks keep their blank sheet.
     """
-    wb = openpyxl.load_workbook(io.BytesIO(TEMPLATE_BYTES))
+    wb = openpyxl.load_workbook(io.BytesIO(BLANK_SHEET))
     for name, definition in SCHEMA.tables.items():
-        ws = wb[definition.sheet]
-        if not descriptor_row:
+        ws = wb[name]
+        if not help_row:
             ws.delete_rows(2)
         if not dataset.path(name).exists():
             continue
         header = [cell_text(cell.value) for cell in ws[1]]
         rows = dataset.read(name)
-        first = 3 if descriptor_row else 2
+        first = 3 if help_row else 2
         for i, record in enumerate(rows[1:]):
             for column, text in zip(rows[0], record):
                 if text:
@@ -173,7 +173,7 @@ def edit_workbook(path: Path, change: Callable[[openpyxl.Workbook], None]) -> No
 def set_sheet_cell(path: Path, table: str, row: int, column: str, value) -> None:
     """Sets a cell in the sheet of a table in a workbook. row is the row number in the sheet."""
     def change(wb: openpyxl.Workbook) -> None:
-        ws = wb[SCHEMA.tables[table].sheet]
+        ws = wb[table]
         header = [cell_text(cell.value) for cell in ws[1]]
         ws.cell(row, header.index(column) + 1, value)
     edit_workbook(path, change)

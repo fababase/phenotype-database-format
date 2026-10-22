@@ -6,8 +6,9 @@ from datetime import date, datetime
 
 import pytest
 
-from helpers import OPTIONAL_TABLES, SCHEMA, SCORE, TRIAL, UNIT, as_csv, make_workbook, passes, rename_sheet
-from validation import cell_text, summary
+from helpers import (OPTIONAL_TABLES, SCHEMA, SCORE, TRIAL, UNIT, as_csv, make_workbook, passes, rename_sheet,
+                     set_sheet_cell)
+from validation import cell_text, help_text, summary
 
 
 def test_csv_files_pass(dataset):
@@ -62,23 +63,36 @@ def test_missing_values_become_empty_cells(dataset, value):
 
 # ---------------------------------------------------------------- Collection sheet
 
-@pytest.mark.parametrize("descriptor_row", [True, False], ids=["with descriptions", "without descriptions"])
-def test_collection_sheet_passes_with_the_same_tables(dataset, tmp_path, descriptor_row):
+@pytest.mark.parametrize("help_row", [True, False], ids=["with help text", "without help text"])
+def test_collection_sheet_passes_with_the_same_tables(dataset, tmp_path, help_row):
     from_csv, _ = passes(dataset.files())
-    workbook = make_workbook(dataset, tmp_path / "sheet.xlsx", descriptor_row)
+    workbook = make_workbook(dataset, tmp_path / "sheet.xlsx", help_row)
     from_sheet, notices = passes([("sheet.xlsx", workbook)])
     assert notices == []
     assert as_csv(from_sheet) == as_csv(from_csv)
-    offset = 1 if descriptor_row else 0
+    offset = 1 if help_row else 0
     for name, table in from_sheet.items():
-        assert table.source == f"sheet '{SCHEMA.tables[name].sheet}'"
+        assert table.source == f"sheet '{name}'"
         assert table.row_numbers == [row + offset for row in from_csv[name].row_numbers]
 
 
-@pytest.mark.parametrize("title", ["Germplasm", "germplasm", "GP", "gp", "GERMPLASM GP"])
-def test_sheet_named_after_table_code_or_sheet(dataset, tmp_path, title):
+@pytest.mark.parametrize("ending", ["", " A hint added in a later version.", " SOMETHING ELSE"])
+def test_help_text_of_another_version_is_skipped(dataset, tmp_path, ending):
+    """
+    Row 2 is skipped when its first cell starts with the help text's 'Required, unique.' and the description of
+    the ID column, so blank sheets from earlier versions still pass if a type hint or example was added since.
+    """
     workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
-    rename_sheet(workbook, "Germplasm GP", title)
+    gpid = SCHEMA.tables["Germplasm"].columns["GPID"]
+    set_sheet_cell(workbook, "Germplasm", 2, "GPID", f"Required, unique. {gpid.description}{ending}")
+    passes([("sheet.xlsx", workbook)])
+    assert help_text(gpid, SCHEMA).startswith(f"Required, unique. {gpid.description}")
+
+
+@pytest.mark.parametrize("title", ["Germplasm", "germplasm", "GP", "gp", "GERMPLASM"])
+def test_sheet_named_after_table_or_code(dataset, tmp_path, title):
+    workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
+    rename_sheet(workbook, "Germplasm", title)
     tables, _ = passes([("sheet.xlsx", workbook)])
     assert tables["Germplasm"].source == f"sheet '{title}'"
 
@@ -120,8 +134,8 @@ def test_cell_text(value, text):
 
 # ---------------------------------------------------------------- CSV files
 
-@pytest.mark.parametrize("name", ["GP.csv", "germplasm.csv", "Germplasm GP.csv", "GERMPLASM.CSV"])
-def test_csv_named_after_table_code_or_sheet(dataset, name):
+@pytest.mark.parametrize("name", ["GP.csv", "germplasm.csv", "GERMPLASM.CSV"])
+def test_csv_named_after_table_or_code(dataset, name):
     dataset.rename_file("Germplasm", name)
     tables, _ = passes(dataset.files())
     assert tables["Germplasm"].source == name

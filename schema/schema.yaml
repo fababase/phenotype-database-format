@@ -1,5 +1,7 @@
 # Machine-readable copy of the phenotype database schema. schema.md describes it in full.
-# The validator (app/validation.py) reads this file, so a change here changes what it checks.
+# The validator (app/validation.py) reads this file, so a change here changes what it checks. The collection sheet,
+# the diagram and the tables in schema.md that list the tables and columns are made from it too. An Action writes
+# the tables in schema.md, with schema/schema_md.py, on every push to main.
 
 version: "1.0.0"
 
@@ -19,152 +21,382 @@ missing_values: ["NULL", "NA", "N/A", "None", "Not applicable"]
 # Each table's first column is its ID column. Columns are optional and not unique unless marked.
 # Unique IDs are compared ignoring case, so hedin_2 and Hedin_2 count as the same ID.
 # A table marked required must be present with at least one row; the others may be left out.
+#
+# Each table has:
+#   one_row_is   what one row of the table is
+#   filled_in    when the table is filled in, relative to the experiment
+#   needed       when an optional table is needed; a required table is needed always
+# and each column has a description, which may have `code` and **bold** in it, and optionally an example.
+# They are shown in schema.md and in row 2 of the collection sheet.
 
 tables:
   Germplasm:
     code: GP
     required: true
+    one_row_is: a variety, line or other genetically distinct plant material
+    filled_in: before
     columns:
-      GPID:             {type: id, required: true, unique: true}
-      Name:             {type: text}
-      AlternativeName:  {type: text}
-      Species:          {type: text}
-      Donor:            {type: text}
-      GeographicOrigin: {type: text}
-      Maintaining:      {type: text}
-      Comments:         {type: long_text}
+      GPID:
+        type: id
+        required: true
+        unique: true
+        description: Germplasm ID.
+      Name:
+        type: text
+        description: Name of the variety or line.
+      AlternativeName:
+        type: text
+        description: Other names for the variety. Separate several names with `;`.
+      Species:
+        type: text
+        description: Species of the variety.
+      Donor:
+        type: text
+        description: Donor or parent of the variety.
+      GeographicOrigin:
+        type: text
+        description: Geographic origin of the variety.
+      Maintaining:
+        type: text
+        description: Who maintains the variety, such as a breeder or genebank.
+      Comments:
+        type: long_text
+        description: What is known about the material that no column holds, such as its pedigree, breeding
+          history or notable traits.
 
   SeedLot:
     code: SL
     required: true
+    one_row_is: a batch of seed of one germplasm
+    filled_in: before
     columns:
-      SLID:            {type: id, required: true, unique: true}
-      GPID:            {type: id, required: true, links_to: Germplasm}
-      HarvestDate:     {type: date}
-      HarvestLocation: {type: text}
-      ParentSLID:      {type: id, links_to: SeedLot}
-      Comments:        {type: long_text}
+      SLID:
+        type: id
+        required: true
+        unique: true
+        description: Seed lot ID.
+      GPID:
+        type: id
+        required: true
+        links_to: Germplasm
+        description: Germplasm the seed is of.
+      HarvestDate:
+        type: date
+        description: Date the seed lot was harvested.
+      HarvestLocation:
+        type: text
+        description: Where the seed lot was harvested.
+      ParentSLID:
+        type: id
+        links_to: SeedLot
+        description: Seed lot this one was grown from.
+      Comments:
+        type: long_text
+        description: Seed quality and handling, such as germination, seed treatment or deviations from expected
+          phenotype.
 
   Experiment:
     code: EXP
     required: true
+    one_row_is: a trial or experiment
+    filled_in: before
     columns:
-      EXPID:                 {type: id, required: true, unique: true}
-      GPSCoordinates:        {type: coordinates}
-      PlotSize:              {type: text}
-      PlotSizeIncludingPath: {type: text}
-      StartDate:             {type: date}
-      EndDate:               {type: date}
-      Description:           {type: long_text}
-      Manager:               {type: text}
-      Distance:              {type: text}
-      Comments:              {type: long_text}
+      EXPID:
+        type: id
+        required: true
+        unique: true
+        description: Experiment ID.
+      GPSCoordinates:
+        type: coordinates
+        description: Location of the experiment.
+      PlotSize:
+        type: text
+        description: Size of each plot or pot, with its unit.
+      PlotSizeIncludingPath:
+        type: text
+        description: Size of each plot, including paths, with its unit.
+      StartDate:
+        type: date
+        description: Start of the growing period.
+      EndDate:
+        type: date
+        description: End of the growing period.
+      Description:
+        type: long_text
+        description: The site (address and field) or facility, growing conditions, trial size, plot layout,
+          design and number of replicates, what the blocks are, any irrigation, which traits were tested, which
+          factors are tested, and any other information relevant to this experiment. The levels of the factors
+          are defined in ExperimentIntervention.
+      Manager:
+        type: text
+        description: Name of the person who managed the trial.
+      Distance:
+        type: text
+        description: Distance to the weather station that the Climate data comes from, with its unit.
+      Comments:
+        type: long_text
+        description: Events that affected the whole experiment.
 
   ExperimentalUnit:
     code: UN
     required: true
+    one_row_is: "a unit in an experiment: a field plot, a pot, a sample, …"
+    filled_in: before
     columns:
-      UNID:           {type: id, required: true, unique: true}
-      EXPID:          {type: id, required: true, links_to: Experiment}
-      SLID:           {type: id, required: true, links_to: SeedLot}
-      GPSCoordinates: {type: coordinates}
-      Features:       {type: features}
-      Block:          {type: integer}
-      Column:         {type: integer}
-      Row:            {type: integer}
-      Comments:       {type: long_text}
+      UNID:
+        type: id
+        required: true
+        unique: true
+        description: Unit ID.
+      EXPID:
+        type: id
+        required: true
+        links_to: Experiment
+        description: Experiment the unit belongs to.
+      SLID:
+        type: id
+        required: true
+        links_to: SeedLot
+        description: Seed lot the plants in the unit come from.
+      GPSCoordinates:
+        type: coordinates
+        description: Location of the unit.
+      Features:
+        type: features
+        description: Features of the whole unit.
+      Block:
+        type: integer
+        description: Block or batch the unit belongs to.
+      Column:
+        type: integer
+        description: Column the unit is in.
+      Row:
+        type: integer
+        description: Row the unit is in.
+      Comments:
+        type: long_text
+        description: Something that happened to this unit.
 
   ExperimentIntervention:
     code: I
+    one_row_is: the intervention level of one unit
+    filled_in: before
+    needed: in experiments with interventions
     columns:
-      IID:          {type: id, required: true, unique: true}
-      UNID:         {type: id, required: true, unique: true, links_to: ExperimentalUnit}
-      Intervention: {type: text, required: true}
-      Description:  {type: long_text, required: true}
+      IID:
+        type: id
+        required: true
+        unique: true
+        description: Intervention ID.
+      UNID:
+        type: id
+        required: true
+        unique: true
+        links_to: ExperimentalUnit
+        description: Unit that received the intervention.
+      Intervention:
+        type: text
+        required: true
+        description: Level the unit received. With several factors, the combination of levels, such as
+          `HighWaterInoculated`.
+      Description:
+        type: long_text
+        required: true
+        description: "The intervention system in the experiment, with every level defined concretely: what was
+          done, how much and when. Also which level is the control, if there is one."
 
   Management:
     code: MM
+    one_row_is: a treatment given to a whole experiment
+    filled_in: during or after
+    needed: if recorded
     columns:
-      MMID:        {type: id, required: true, unique: true}
-      EXPID:       {type: id, required: true, links_to: Experiment}
-      Treatment:   {type: text}
-      Description: {type: long_text}
-      Dosage:      {type: text}
-      Date:        {type: date}
-      Comments:    {type: long_text}
+      MMID:
+        type: id
+        required: true
+        unique: true
+        description: Management ID.
+      EXPID:
+        type: id
+        required: true
+        links_to: Experiment
+        description: Experiment that received the treatment.
+      Treatment:
+        type: text
+        description: Treatment the plants got.
+      Description:
+        type: long_text
+        description: The product or active ingredient, how it was applied, and why. The concentration and amount
+          go in Dosage.
+      Dosage:
+        type: text
+        description: Dosage of the treatment, with its unit.
+      Date:
+        type: date
+        description: Date of the treatment.
+      Comments:
+        type: long_text
+        description: Deviations from the plan.
 
   PhenotypeDescription:
     code: PD
     required: true
+    one_row_is: "a trait: what is measured, in which unit and how"
+    filled_in: before
     columns:
-      PDID:                 {type: id, required: true, unique: true}
-      PhenotypeDescription: {type: text, required: true}
-      Unit:                 {type: text, required: true}
-      Grouping:             {type: text}
-      DescriptionOfMethod:  {type: long_text, required: true}
+      PDID:
+        type: id
+        required: true
+        unique: true
+        description: Phenotype description ID.
+      PhenotypeDescription:
+        type: text
+        required: true
+        description: Name of the trait.
+      Unit:
+        type: text
+        required: true
+        description: Unit the trait is scored in.
+      Grouping:
+        type: text
+        description: "Trait class the trait belongs to, from Crop Ontology: Morphological, Phenological,
+          Agronomical, Physiological, Abiotic stress, Biotic stress, Biochemical, Quality or Fertility."
+      DescriptionOfMethod:
+        type: long_text
+        required: true
+        description: What is measured, on which part of the plant, at which growth stage, with what, on how many
+          plants and how they are chosen, how the score is calculated, and what every code means.
 
   Phenotype:
     code: PH
     required: true
+    one_row_is: one score of one trait on one unit
+    filled_in: during or after
     columns:
-      PHID:     {type: id, required: true, unique: true}
-      UNID:     {type: id, required: true, links_to: ExperimentalUnit}
-      PDID:     {type: id, required: true, links_to: PhenotypeDescription}
-      Features: {type: features}
-      Date:     {type: date}
-      Score:    {type: number, required: true}
-      ScoredBy: {type: text}
-      Comments: {type: long_text}
+      PHID:
+        type: id
+        required: true
+        unique: true
+        description: Phenotype ID.
+      UNID:
+        type: id
+        required: true
+        links_to: ExperimentalUnit
+        description: Unit that was scored.
+      PDID:
+        type: id
+        required: true
+        links_to: PhenotypeDescription
+        description: Trait that was scored.
+      Features:
+        type: features
+        description: Features of this score.
+      Date:
+        type: date
+        description: Date of scoring.
+      Score:
+        type: number
+        required: true
+        description: The score.
+      ScoredBy:
+        type: text
+        description: Name of the person who did the scoring.
+      Comments:
+        type: long_text
+        description: Something about this one value that a reader should know.
 
   ClimateDescription:
     code: CD
+    one_row_is: "a climate variable: what is measured, in which unit and how"
+    filled_in: before
+    needed: with Climate
     columns:
-      CDID:                {type: id, required: true, unique: true}
-      Name:                {type: text, required: true}
-      Unit:                {type: text, required: true}
-      Grouping:            {type: text}
-      DescriptionOfMethod: {type: long_text, required: true}
+      CDID:
+        type: id
+        required: true
+        unique: true
+        description: Climate description ID.
+      Name:
+        type: text
+        required: true
+        description: Name of the climate variable.
+      Unit:
+        type: text
+        required: true
+        description: Unit the variable is measured in.
+      Grouping:
+        type: text
+        description: Group the variable belongs to.
+      DescriptionOfMethod:
+        type: long_text
+        required: true
+        description: What is measured, at which height or depth, how often it is read, how the value is
+          calculated, and what every code means.
 
   Climate:
     code: CL
+    one_row_is: one climate measurement
+    filled_in: during or after
+    needed: if recorded
     columns:
-      CLID:     {type: id, required: true, unique: true}
-      EXPID:    {type: id, required: true, links_to: Experiment}
-      UNID:     {type: id, links_to: ExperimentalUnit}  # empty means all units in the experiment
-      CDID:     {type: id, required: true, links_to: ClimateDescription}
-      Date:     {type: date}
-      Score:    {type: number, required: true}
-      Comments: {type: long_text}
+      CLID:
+        type: id
+        required: true
+        unique: true
+        description: Climate ID.
+      EXPID:
+        type: id
+        required: true
+        links_to: Experiment
+        description: Experiment the measurement belongs to.
+      UNID:
+        type: id
+        links_to: ExperimentalUnit
+        description: Unit the measurement belongs to. **Empty or missing means all units in the experiment.**
+      CDID:
+        type: id
+        required: true
+        links_to: ClimateDescription
+        description: Climate variable that was measured.
+      Date:
+        type: date
+        description: Date of the measurement.
+      Score:
+        type: number
+        required: true
+        description: The measured value.
+      Comments:
+        type: long_text
+        description: Something about this one value that a reader should know.
 
   Features:
     code: FT
+    one_row_is: a kind of extra annotation
+    filled_in: before, during or after
+    needed: if needed
     columns:
-      FTID:        {type: id, required: true, unique: true}
-      Type:        {type: text}  # c (text), i (whole number), d (real number), in lower case; empty means c
-      Unit:        {type: text}
-      Vocabulary:  {type: text}  # c: allowed values separated by ";"; i and d: a range min..max
-      Description: {type: text, required: true}
+      FTID:
+        type: id
+        required: true
+        unique: true
+        description: Feature ID, used as the key in Features cells.
+      Type:
+        type: text
+        description: "Kind of value, in lower case: `c` for text, `i` for whole numbers, `d` for real numbers.
+          Empty means `c`."
+      Unit:
+        type: text
+        description: Unit of the values, mostly for numbers.
+      Vocabulary:
+        type: text
+        description: "Allowed values: a `;`-separated list for `c`, or a `min..max` range for `i` and `d`."
+      Description:
+        type: long_text
+        required: true
+        description: What the feature is and what its values mean.
 
 # Rules that span tables, checked after the links. Each name is implemented in the validator.
 rules:
   - climate_unit_in_experiment  # a Climate UNID that is filled in belongs to the row's EXPID
   - one_intervention_per_unit   # in experiments with interventions, every unit has a row in ExperimentIntervention
   - every_experiment_has_a_unit # every experiment has at least one unit
-
-# The collection sheet (template/collection-sheet.xlsx): the sheet name of each table, and the first
-# cell of the row of column descriptions under the header, which the validator skips.
-# Every required table needs a sheet; optional tables may be left out.
-collection_sheet:
-  ignore: ["READ ME 1st"]
-  sheets:
-    Germplasm:              {name: Germplasm GP, descriptor: Germplasm ID (required)}
-    SeedLot:                {name: Seed Lot SL, descriptor: Seed lot ID (Required)}
-    Experiment:             {name: Experiment information EXP, descriptor: Experiment ID (Required)}
-    ExperimentalUnit:       {name: Experimental Unit UN, descriptor: Unit ID (Required)}
-    ExperimentIntervention: {name: Experiment intervention I, descriptor: Intervention ID (required)}
-    Management:             {name: Management MM, descriptor: Management ID (Required)}
-    PhenotypeDescription:   {name: Phenotype Description PD, descriptor: Phenotype ID (Required)}
-    Phenotype:              {name: Phenotype scores PH, descriptor: Phenotype ID (Required)}
-    ClimateDescription:     {name: Climate Description CD, descriptor: Climate Description ID (Required)}
-    Climate:                {name: Climate CL, descriptor: Climate ID (Required)}
-    Features:               {name: Features FT, descriptor: Feature ID (required)}

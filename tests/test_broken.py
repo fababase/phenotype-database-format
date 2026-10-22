@@ -138,59 +138,61 @@ def test_sheet_that_is_not_a_table(dataset, tmp_path):
 
 def test_empty_sheet(dataset, tmp_path):
     def empty(wb):
-        del wb["Management MM"]
-        wb.create_sheet("Management MM")
+        del wb["Management"]
+        wb.create_sheet("Management")
     workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
     edit_workbook(workbook, empty)
-    fails([("sheet.xlsx", workbook)], "sheet 'Management MM' is empty. Put the column names in row 1, "
+    fails([("sheet.xlsx", workbook)], "sheet 'Management' is empty. Put the column names in row 1, "
                                       "or delete the sheet.")
 
 
 def test_two_sheets_for_one_table(dataset, tmp_path):
     def copy(wb):
-        wb.copy_worksheet(wb["Germplasm GP"]).title = "GP"
+        wb.copy_worksheet(wb["Germplasm"]).title = "GP"
     workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
     edit_workbook(workbook, copy)
-    fails([("sheet.xlsx", workbook)], "sheet 'GP' and sheet 'Germplasm GP' are both the Germplasm table. "
+    fails([("sheet.xlsx", workbook)], "sheet 'GP' and sheet 'Germplasm' are both the Germplasm table. "
                                       "Keep only one.")
 
 
 def test_required_sheet_missing(dataset, tmp_path):
     def delete(wb):
-        del wb["Germplasm GP"]
+        del wb["Germplasm"]
     workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
     edit_workbook(workbook, delete)
     fails([("sheet.xlsx", workbook)], "The Germplasm table is missing. "
-                                      "Add Germplasm.csv, or the sheet 'Germplasm GP' to the workbook.")
+                                      "Add Germplasm.csv, or the sheet 'Germplasm' to the workbook.")
 
 
 def test_required_sheet_left_blank(dataset, tmp_path):
     dataset.drop_table("Germplasm")
     workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
-    fails([("sheet.xlsx", workbook)], "sheet 'Germplasm GP' has no rows, but Germplasm needs at least one.")
+    fails([("sheet.xlsx", workbook)], "sheet 'Germplasm' has no rows, but Germplasm needs at least one.")
 
 
-@pytest.mark.parametrize("descriptor_row", [True, False], ids=["with descriptions", "without descriptions"])
-def test_row_numbers_are_those_of_the_sheet(dataset, tmp_path, descriptor_row):
+def test_row_2_that_is_not_help_text_is_data(dataset, tmp_path):
+    """Such as the row of column descriptions in the collection sheet before it was built from schema.yaml."""
+    workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
+    set_sheet_cell(workbook, "Germplasm", 2, "GPID", "Germplasm ID (required)")
+    fails([("sheet.xlsx", workbook)], f"sheet 'Germplasm', row 2, column GPID: 'Germplasm ID (required)' contains "
+                                      f"a space, '(' and ')'. {ID_RULE} Use '_' instead: Germplasm_ID_required_")
+
+
+@pytest.mark.parametrize("help_row", [True, False], ids=["with help text", "without help text"])
+def test_row_numbers_are_those_of_the_sheet(dataset, tmp_path, help_row):
     dataset.set("Phenotype", SCORE, "Score", "n.a.")
-    workbook = make_workbook(dataset, tmp_path / "sheet.xlsx", descriptor_row)
-    row = dataset.row("Phenotype", SCORE) + (1 if descriptor_row else 0)
-    fails([("sheet.xlsx", workbook)], f"sheet 'Phenotype scores PH', row {row}, column Score: 'n.a.' {NOT_A_NUMBER}")
+    workbook = make_workbook(dataset, tmp_path / "sheet.xlsx", help_row)
+    row = dataset.row("Phenotype", SCORE) + (1 if help_row else 0)
+    fails([("sheet.xlsx", workbook)], f"sheet 'Phenotype', row {row}, column Score: 'n.a.' {NOT_A_NUMBER}")
 
 
 # ---------------------------------------------------------------- Tables
 
-@pytest.mark.parametrize("table, sheet", [
-    ("Germplasm", "Germplasm GP"),
-    ("SeedLot", "Seed Lot SL"),
-    ("Experiment", "Experiment information EXP"),
-    ("ExperimentalUnit", "Experimental Unit UN"),
-    ("PhenotypeDescription", "Phenotype Description PD"),
-    ("Phenotype", "Phenotype scores PH"),
-])
-def test_required_table_missing(dataset, table, sheet):
+@pytest.mark.parametrize("table", ["Germplasm", "SeedLot", "Experiment", "ExperimentalUnit", "PhenotypeDescription",
+                                   "Phenotype"])
+def test_required_table_missing(dataset, table):
     dataset.drop_table(table)
-    fails(dataset.files(), f"The {table} table is missing. Add {table}.csv, or the sheet '{sheet}' to the workbook.")
+    fails(dataset.files(), f"The {table} table is missing. Add {table}.csv, or the sheet '{table}' to the workbook.")
 
 
 @pytest.mark.parametrize("rows", [[], [["NA"] * 8, [""] * 8]], ids=["header only", "only missing values"])
@@ -419,7 +421,7 @@ def test_link_to_a_table_that_is_left_out(dataset):
     dataset.drop_table("ClimateDescription")
     fails(dataset.files(), f"{dataset.where('Climate', f'{TRIAL}_001', 'CDID')}: 'air_temperature_daily_mean_2m_c' "
                            "refers to ClimateDescription, but there is no ClimateDescription table. Add "
-                           "ClimateDescription.csv, or the sheet 'Climate Description CD' to the workbook. "
+                           "ClimateDescription.csv, or the sheet 'ClimateDescription' to the workbook. "
                            "(5 more rows in this column have the same problem.)")
 
 
@@ -468,7 +470,7 @@ def test_features_cell_without_a_features_table(dataset):
     cell = dataset.get("ExperimentalUnit", UNIT, "Features")
     fails(dataset.files(), f"{dataset.where('ExperimentalUnit', UNIT, 'Features')}: invalid Features cell '{cell}'. "
                            "'soil_type' is not an FTID in the Features table. There is no Features table. "
-                           "Add Features.csv, or the sheet 'Features FT' to the workbook.")
+                           "Add Features.csv, or the sheet 'Features' to the workbook.")
 
 
 # ---------------------------------------------------------------- Rules that span tables
@@ -535,14 +537,14 @@ def test_odd_excel_cell(dataset, tmp_path, value, text):
     workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
     row = dataset.row("Phenotype", SCORE) + 1
     set_sheet_cell(workbook, "Phenotype", row, "Score", value)
-    fails([("sheet.xlsx", workbook)], f"sheet 'Phenotype scores PH', row {row}, column Score: '{text}' {NOT_A_NUMBER}")
+    fails([("sheet.xlsx", workbook)], f"sheet 'Phenotype', row {row}, column Score: '{text}' {NOT_A_NUMBER}")
 
 
 def test_date_with_a_time_in_the_collection_sheet(dataset, tmp_path):
     workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
     row = dataset.row("Phenotype", SCORE) + 1
     set_sheet_cell(workbook, "Phenotype", row, "Date", datetime(2025, 6, 30, 12, 30))
-    fails([("sheet.xlsx", workbook)], f"sheet 'Phenotype scores PH', row {row}, column Date: '2025-06-30 12:30:00' "
+    fails([("sheet.xlsx", workbook)], f"sheet 'Phenotype', row {row}, column Date: '2025-06-30 12:30:00' "
                                       "holds more than a date. Write only the date, as YYYY-MM-DD.")
 
 
@@ -554,12 +556,12 @@ def test_merged_cells(dataset, tmp_path):
     first = dataset.row("Phenotype", SPECTRUM) + 1
 
     def merge(wb):
-        ws = wb["Phenotype scores PH"]
+        ws = wb["Phenotype"]
         j = [cell.value for cell in ws[1]].index("UNID") + 1
         ws.merge_cells(start_row=first, start_column=j, end_row=first + 3, end_column=j)
     workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
     edit_workbook(workbook, merge)
-    fails([("sheet.xlsx", workbook)], f"sheet 'Phenotype scores PH', row {first + 1}, column UNID: the cell is empty, "
+    fails([("sheet.xlsx", workbook)], f"sheet 'Phenotype', row {first + 1}, column UNID: the cell is empty, "
                                       "but UNID is required. Fill it in. "
                                       "(2 more rows in this column have the same problem.)")
 

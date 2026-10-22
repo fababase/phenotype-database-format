@@ -68,6 +68,8 @@ class Column:
     required: bool = False
     unique: bool = False
     links_to: str | None = None
+    description: str = ""      # may have `code` and **bold** in it
+    example: str | None = None
 
 
 @dataclass
@@ -76,8 +78,9 @@ class TableDef:
     code: str
     required: bool
     columns: dict[str, Column]
-    sheet: str | None       # sheet name in the collection sheet; optional tables may have none
-    descriptor: str | None  # first cell of the collection sheet's row of column descriptions
+    one_row_is: str  # what one row of the table is
+    filled_in: str   # when the table is filled in, relative to the experiment
+    needed: str      # when the table is needed: "always" if it is required
 
     @property
     def id_column(self) -> str:
@@ -85,9 +88,7 @@ class TableDef:
         return next(iter(self.columns))
 
     def add_hint(self) -> str:
-        if self.sheet is None:
-            return f"Add {self.name}.csv."
-        return f"Add {self.name}.csv, or the sheet '{self.sheet}' to the workbook."
+        return f"Add {self.name}.csv, or the sheet '{self.name}' to the workbook."
 
 
 @dataclass
@@ -96,13 +97,12 @@ class Schema:
     missing_values: set[str]  # lower case, including "" for an empty cell
     tables: dict[str, TableDef]
     rules: list[str]
-    ignored_sheets: set[str]  # lower case
 
     def match(self, name: str) -> str | None:
-        """The table that a file stem or sheet name stands for: its table name, code or sheet name, in any case."""
+        """The table that a file stem or sheet name stands for: its table name or code, in any case."""
         key = name.strip().lower()
         for table in self.tables.values():
-            if key in (table.name.lower(), table.code.lower(), (table.sheet or table.name).lower()):
+            if key in (table.name.lower(), table.code.lower()):
                 return table.name
         return None
 
@@ -110,21 +110,23 @@ class Schema:
 def load_schema(path: Path = SCHEMA_FILE) -> Schema:
     """Reads the schema from schema.yaml. Raises ValueError if the file itself is inconsistent."""
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    sheets = raw["collection_sheet"]["sheets"]
     tables = {}
     for name, table in raw["tables"].items():
         columns = {column: Column(column, **spec) for column, spec in table["columns"].items()}
-        sheet = sheets.get(name, {})
-        tables[name] = TableDef(name, table["code"], table.get("required", False), columns,
-                                sheet.get("name"), sheet.get("descriptor"))
+        required = table.get("required", False)
+        tables[name] = TableDef(name, table["code"], required, columns, table.get("one_row_is", ""),
+                                table.get("filled_in", ""), "always" if required else table.get("needed", ""))
     for table in tables.values():
-        if table.required and table.sheet is None:
-            raise ValueError(f"schema.yaml: {table.name} is required, so it needs a sheet in collection_sheet")
+        for key in ("one_row_is", "filled_in", "needed"):
+            if not getattr(table, key):
+                raise ValueError(f"schema.yaml: {table.name} has no {key}")
         for column in table.columns.values():
             if column.type not in COLUMN_TYPES:
                 raise ValueError(f"schema.yaml: unknown type '{column.type}' of {table.name}.{column.name}")
             if column.links_to and column.links_to not in tables:
                 raise ValueError(f"schema.yaml: {table.name}.{column.name} links to unknown table '{column.links_to}'")
+            if not column.description:
+                raise ValueError(f"schema.yaml: {table.name}.{column.name} has no description")
     for rule in raw.get("rules", []):
         if rule not in RULES:
             raise ValueError(f"schema.yaml: unknown rule '{rule}'")
@@ -133,8 +135,44 @@ def load_schema(path: Path = SCHEMA_FILE) -> Schema:
         missing_values={""} | {str(value).strip().lower() for value in raw["missing_values"]},
         tables=tables,
         rules=raw.get("rules", []),
-        ignored_sheets={str(sheet).lower() for sheet in raw["collection_sheet"].get("ignore", [])},
     )
+
+
+# ---------------------------------------------------------------- Collection sheet
+
+# The collection sheet's sheet of instructions, which the validator skips. Compared ignoring case.
+READ_ME_SHEET = "READ ME 1st"
+
+# What row 2 of the collection sheet says about each type of column, after the column's description
+TYPE_HINTS = {
+    "id": "Only the letters a-z and A-Z, the digits 0-9 and _.",
+    "integer": "A whole number.",
+    "number": "A number, with . as the decimal mark.",
+    "date": "A date, written YYYY-MM-DD, or a date that Excel recognises as one.",
+    "coordinates": "latitude;longitude in decimal degrees, without spaces, e.g. 56.170308;10.207013.",
+    "features": "FTID1=value1;FTID2=value2, with FTIDs from Features, and no spaces around = or ;.",
+}
+
+
+def plain(text: str) -> str:
+    """A description without its `code` and **bold** marks, as the collection sheet shows it."""
+    return text.replace("**", "").replace("`", "")
+
+
+def help_start(column: Column) -> str:
+    """How row 2 of the collection sheet starts for a column: whether it is required, then its description."""
+    need = ("Required" if column.required else "Optional") + (", unique" if column.unique else "")
+    return f"{need}. {plain(column.description)}"
+
+
+def help_text(column: Column, schema: Schema) -> str:
+    """What row 2 of the collection sheet says about a column."""
+    if column.links_to:
+        hint = f"A {schema.tables[column.links_to].id_column} from {column.links_to}."
+    else:
+        hint = TYPE_HINTS.get(column.type, "")
+    example = f"E.g. {column.example}." if column.example else ""
+    return " ".join(part for part in (help_start(column), hint, example) if part)
 
 
 # ---------------------------------------------------------------- Tables
@@ -142,7 +180,7 @@ def load_schema(path: Path = SCHEMA_FILE) -> Schema:
 @dataclass
 class RawTable:
     """A table as read from a file or sheet, before any checks."""
-    source: str             # "Germplasm.csv" or "sheet 'Germplasm GP'", for messages
+    source: str             # "Germplasm.csv" or "sheet 'Germplasm'", for messages
     header: list[str]
     records: list[list[str]]
     row_numbers: list[int]  # row number of each record in the file or sheet; the header is row 1
@@ -237,7 +275,7 @@ def read_workbook(name: str, path: Path, schema: Schema) -> list[tuple[str, RawT
     try:
         found = []
         for ws in wb.worksheets:
-            if ws.title.strip().lower() in schema.ignored_sheets:
+            if ws.title.strip().lower() == READ_ME_SHEET.lower():
                 continue
             source = f"sheet '{ws.title}'"
             table = schema.match(ws.title)
@@ -247,10 +285,12 @@ def read_workbook(name: str, path: Path, schema: Schema) -> list[tuple[str, RawT
             rows = [[cell_text(value) for value in row] for row in ws.iter_rows(values_only=True)]
             if not rows:
                 raise ValidationError(f"{source} is empty. Put the column names in row 1, or delete the sheet.")
-            # Skip the row of column descriptions under the header, if the sheet has it
-            descriptor = schema.tables[table].descriptor
+            # Skip row 2 if it holds the collection sheet's help text, which no ID can start with. Only the start
+            # is compared, so blank sheets from earlier versions pass even if a type hint or example was added since.
+            definition = schema.tables[table]
+            start_of_help = help_start(definition.columns[definition.id_column]).lower()
             start = 1
-            if descriptor and len(rows) > 1 and rows[1] and rows[1][0].strip().lower() == descriptor.lower():
+            if len(rows) > 1 and rows[1] and rows[1][0].strip().lower().startswith(start_of_help):
                 start = 2
             found.append((table, RawTable(source, rows[0], rows[start:], list(range(start + 1, len(rows) + 1)))))
         return found

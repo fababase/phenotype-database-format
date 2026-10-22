@@ -1,7 +1,8 @@
 """
-The schema itself: there is exactly one schema.yaml, mistakes in it are reported, and the collection sheet
-matches it.
+The schema itself: there is exactly one schema.yaml, mistakes in it are reported, and what is made from it, the
+collection sheet and the tables in schema.md, matches it.
 """
+import dataclasses
 import io
 import os
 import shutil
@@ -12,8 +13,9 @@ import openpyxl
 import pytest
 import yaml
 
-from helpers import ROOT, SCHEMA, TEMPLATE_BYTES, VALID
-from validation import SCHEMA_FILE, cell_text, load_schema
+import schema_md
+from helpers import BLANK_SHEET, ROOT, SCHEMA, VALID
+from validation import READ_ME_SHEET, SCHEMA_FILE, cell_text, help_text, load_schema
 
 
 def test_schema_yaml_has_only_one_copy():
@@ -41,11 +43,14 @@ def test_schema_yaml_next_to_the_validator(tmp_path):
      "schema.yaml: unknown type 'string' of Germplasm.Name"),
     (lambda raw: raw["tables"]["SeedLot"]["columns"]["GPID"].update(links_to="Germplasms"),
      "schema.yaml: SeedLot.GPID links to unknown table 'Germplasms'"),
-    (lambda raw: raw["collection_sheet"]["sheets"].pop("Germplasm"),
-     "schema.yaml: Germplasm is required, so it needs a sheet in collection_sheet"),
+    (lambda raw: raw["tables"]["Germplasm"]["columns"]["Name"].pop("description"),
+     "schema.yaml: Germplasm.Name has no description"),
+    (lambda raw: raw["tables"]["Climate"].pop("needed"),
+     "schema.yaml: Climate has no needed"),
     (lambda raw: raw["rules"].append("every_unit_has_a_score"),
      "schema.yaml: unknown rule 'every_unit_has_a_score'"),
-], ids=["unknown type", "link to unknown table", "required table without a sheet", "unknown rule"])
+], ids=["unknown type", "link to unknown table", "column without a description", "optional table without needed",
+        "unknown rule"])
 def test_mistake_in_schema_yaml(tmp_path, change, message):
     raw = yaml.safe_load(SCHEMA_FILE.read_text(encoding="utf-8"))
     change(raw)
@@ -56,23 +61,74 @@ def test_mistake_in_schema_yaml(tmp_path, change, message):
     assert str(raised.value) == message
 
 
+# ---------------------------------------------------------------- Collection sheet
+
 def test_collection_sheet_matches_schema():
     """
-    The collection sheet has a sheet for each table, named as in schema.yaml, plus the sheets the validator
-    ignores. Each sheet has the table's columns in row 1, in the schema's order, and the row of column
-    descriptions in row 2.
+    The collection sheet has the READ ME 1st sheet, then a sheet for each table, named after it. Each has the
+    table's columns in row 1, in the schema's order, and their help text in row 2.
     """
-    wb = openpyxl.load_workbook(io.BytesIO(TEMPLATE_BYTES), read_only=True)
-    titles = [ws.title for ws in wb.worksheets]
-    assert sorted(title for title in titles if title.lower() not in SCHEMA.ignored_sheets) == \
-           sorted(table.sheet for table in SCHEMA.tables.values())
-    assert sorted(title.lower() for title in titles if title.lower() in SCHEMA.ignored_sheets) == \
-           sorted(SCHEMA.ignored_sheets)
+    wb = openpyxl.load_workbook(io.BytesIO(BLANK_SHEET), read_only=True)
+    assert wb.sheetnames == [READ_ME_SHEET, *SCHEMA.tables]
     for name, table in SCHEMA.tables.items():
-        header, descriptions = ([cell_text(value) for value in row]
-                                for row in wb[table.sheet].iter_rows(max_row=2, values_only=True))
-        columns = list(table.columns)
-        assert header[:len(columns)] == columns, name
-        assert not any(header[len(columns):]), name
-        assert descriptions[0] == table.descriptor, name
+        header, help_row = ([cell_text(value) for value in row]
+                            for row in wb[name].iter_rows(max_row=2, values_only=True))
+        assert header == list(table.columns), name
+        assert help_row == [help_text(column, SCHEMA) for column in table.columns.values()], name
     wb.close()
+
+
+def test_read_me_sheet_lists_the_version_and_the_tables():
+    wb = openpyxl.load_workbook(io.BytesIO(BLANK_SHEET), read_only=True)
+    rows = [[cell_text(value) for value in row] for row in wb[READ_ME_SHEET].iter_rows(values_only=True)]
+    wb.close()
+    assert f"schema version {SCHEMA.version}" in rows[0][0]
+    tables = rows[rows.index(["Sheet", "One row is", "Needed", "Filled in, relative to the experiment"]) + 1:]
+    assert tables == [[t.name, t.one_row_is, t.needed, t.filled_in] for t in SCHEMA.tables.values()]
+
+
+@pytest.mark.parametrize("table, column, text", [
+    ("Germplasm", "GPID", "Required, unique. Germplasm ID. Only the letters a-z and A-Z, the digits 0-9 and _."),
+    ("Germplasm", "Name", "Optional. Name of the variety or line."),
+    ("SeedLot", "GPID", "Required. Germplasm the seed is of. A GPID from Germplasm."),
+    ("Climate", "UNID", "Optional. Unit the measurement belongs to. Empty or missing means all units in the "
+                        "experiment. A UNID from ExperimentalUnit."),
+    ("Phenotype", "Score", "Required. The score. A number, with . as the decimal mark."),
+    ("Features", "Type", "Optional. Kind of value, in lower case: c for text, i for whole numbers, d for real "
+                         "numbers. Empty means c."),
+], ids=["ID", "text", "link", "bold", "number", "code"])
+def test_help_text(table, column, text):
+    """Whether the column is required, its description without `code` and **bold** marks, and a hint for its type."""
+    assert help_text(SCHEMA.tables[table].columns[column], SCHEMA) == text
+
+
+def test_help_text_with_an_example():
+    column = dataclasses.replace(SCHEMA.tables["Germplasm"].columns["GPID"], example="hedin_2")
+    assert help_text(column, SCHEMA).endswith(" E.g. hedin_2.")
+
+
+# ---------------------------------------------------------------- schema.md
+
+def schema_md_text() -> str:
+    return (ROOT / "schema" / "schema.md").read_text(encoding="utf-8")
+
+
+def test_schema_md_has_a_place_for_every_table():
+    """
+    The Update schema.md Action can write the tables: schema.md has comments to put each one between. Whether they
+    are up to date is not checked, as the Action brings them up to date after each push to main.
+    """
+    schema_md.update(schema_md_text(), SCHEMA)
+
+
+def test_schema_md_has_the_version():
+    assert f"This is **version {SCHEMA.version}** of the schema." in schema_md_text()
+
+
+def test_schema_md_without_a_place_for_a_table():
+    text = schema_md_text().replace("<!-- END columns of Climate -->", "")
+    with pytest.raises(ValueError) as raised:
+        schema_md.update(text, SCHEMA)
+    assert str(raised.value) == ("schema.md has no place for the table 'columns of Climate'. Put "
+                                 f"'<!-- BEGIN columns of Climate: {schema_md.NOTE} -->' and "
+                                 "'<!-- END columns of Climate -->' where it goes.")

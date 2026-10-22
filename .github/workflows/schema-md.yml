@@ -1,0 +1,49 @@
+# Writes the tables in schema/schema.md that list the tables and columns, from schema/schema.yaml, on every push to
+# main, and commits schema.md if they changed. Can also be started by hand from the Actions tab.
+# See schema/schema_md.py.
+name: Update schema.md
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# One run at a time, so two runs never push at once
+concurrency:
+  group: schema-md
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: app/requirements.txt
+
+      # schema_md.py reads the schema with the validator, which needs these
+      - name: Install packages
+        run: pip install -r app/requirements.txt
+
+      - name: Write the tables
+        run: python schema/schema_md.py
+
+      # A commit made with the Action's own token starts no other workflows, so this never runs itself again.
+      # If someone pushed in the meantime, the push fails, and the run for their push writes the tables instead.
+      - name: Commit schema.md if it changed
+        run: |
+          if git diff --quiet schema/schema.md; then
+            echo "Nothing to commit."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Update the tables in schema.md from schema.yaml" schema/schema.md
+            git push
+          fi
