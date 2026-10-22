@@ -9,8 +9,6 @@ This roadmap records the decisions made so far, the work in order, and the quest
 - [Decisions](#decisions)
 - [Target layout](#target-layout)
 - [How data flows](#how-data-flows)
-- [Phase 0: Clean up and restructure](#phase-0-clean-up-and-restructure)
-- [Phase 1: Validator and app](#phase-1-validator-and-app)
 - [Phase 2: Schema doc, example and AI kit](#phase-2-schema-doc-example-and-ai-kit)
 - [Phase 3: Publish on Zenodo](#phase-3-publish-on-zenodo)
 - [Phase 4: Validator plots](#phase-4-validator-plots)
@@ -22,24 +20,21 @@ This roadmap records the decisions made so far, the work in order, and the quest
 | Topic | Decision |
 |---|---|
 | Repository | One **public** GitHub repo for the schema, collection sheet, validator, app, list of datasets and AI guide. They change together, so they are versioned together. |
-| Repository name | May be renamed, since it holds more than the app. Name to be decided; see [Phase 0](#phase-0-clean-up-and-restructure). |
-| Data in git | **Never.** Contributions are kept in a private folder until published. |
-| Zenodo | **One record** for the whole database. New contributions and corrections become new versions of that record. |
-| What is published | **Only the formatted tables**, plus the README and the schema doc. Raw files and conversion scripts are kept privately, not published. |
-| Source of truth | `schema/schema.yaml`, including one description per column, and what one row of each table is. The validator reads it. Everything that lists the tables or columns is made from it, so it cannot go out of step: the collection sheet, the diagram, and the tables in `schema.md` that list the tables and columns. Those tables are written between marker comments by the *Update schema.md* Action on every push to main, with `schema/schema_md.py`, and committed back. The rest of `schema.md` is written by hand. |
-| Collection sheet | **Built from `schema.yaml` by the app**, which offers it for download; not kept in the repository. One sheet per table, named after it. Row 2 says what goes in each column: required or optional, the description and a hint for the type. The validator skips row 2 only when it is there: when its first cell starts with that help text. A short *READ ME 1st* sheet gives the schema version, how to fill it in, links, and the list of tables; it does not repeat `schema.md`. |
-| One schema.yaml | There is only ever **one** `schema.yaml`, in `schema/`. It is never copied into `app/` or anywhere else in the repository, and a test fails if a second one appears. |
+| Data | **On Zenodo.** Contributions are kept in private records until published on a public record. |
+| Zenodo | **One record** for the whole public database, several private records for each project group of unpublished data. New contributions and corrections become new versions of those records. |
+| What is published | **Only the formatted tables**, plus the README and the schema doc. Raw files, conversion scripts and AI notes are kept privately, not published. |
+| Source of truth | `schema/schema.yaml`, including one description per column, and what one row of each table is. The validator reads it. Almost everything that lists the tables or columns is made from it, so it cannot go out of step: the collection sheet, the diagram, and the tables in `schema.md` that list the tables and columns. Those tables are written between marker comments by the *Update schema.md* Action on every push to main, with `schema/schema_md.py`, and committed back. The rest of `schema.md` is written by hand. |
+| Collection sheet | **Built from `schema.yaml` by the app**, which offers it for download. One sheet per table, named after it. Row 2 says what goes in each column: required or optional, the description and a hint for the type. The validator skips row 2 when its first cell starts with that help text. A short *READ ME 1st* sheet gives the schema version, how to fill it in, links, and the list of tables; it is generated from `schema/schema.yaml`. |
+| One schema.yaml | There is only ever **one** `schema.yaml`, in `schema/`, so there is no confusion about format, **ever**. It is never copied into `app/` or anywhere else in the repository, and a test fails if a second one appears. |
 | Validator input | A set of **CSV files**, one per table, or a filled-in **collection sheet** (.xlsx). Either way, the tables that pass can be written out as CSV files. |
-| Validator errors | **Stops at the first error.** Later errors are often knock-on effects of the first one, so they are not reported. Each message names the table, row, column and value. |
-| Dates | Written as `YYYY-MM-DD` everywhere, including the validator's output. |
-| IDs | Only `a`–`z`, `A`–`Z`, `0`–`9` and `_`, and unique within their table ignoring case. The validator checks both. Suggested forms for each ID are in the schema doc. |
-| Schema diagram | **Drawn from `schema.yaml`** by `schema/diagram.py` each time the app is published, so it never goes out of date: an interactive page next to the app, where tables can be dragged around, clicking a table highlights its links, and pointing at a column, a table's name or a link says what it is (a column's description, type hint and example, as in row 2 of the collection sheet), plus a PNG and an SVG picture, which keeps that text as tooltips. No hand-drawn copy (dbdiagram.io) is kept. See [deploy-app.md](deploy-app.md#the-schema-diagram). |
-| App hosting | **Shinylive on GitHub Pages**: the app runs in the visitor's browser, so data never leaves their computer, and it redeploys automatically. Replaces shinyapps.io. `schema.yaml` is bundled into the app when it is built, not copied into the repository, and not offered for download on the site. See [deploy-app.md](deploy-app.md). |
-| Python | 3.12, with the package versions pinned to those of the browser app, so the tests, the command line and the app run the same ones. The app and the command line say when another version is installed. |
+| Validator errors | **Stops at the first error.** Later errors are often knock-on effects of the first one, so they are not reported. Each message names the table, row, column and value, and hint where possible. |
+| Format | All written in `schema/schema.yaml`. |
+| Schema diagram | **Drawn from `schema.yaml`** by `schema/diagram.py` each time the app is published: an interactive page next to the app, where tables can be dragged around, clicking a table highlights its links, and pointing at a column, a table's name or a link says what it is (a column's description, type hint and example, as in row 2 of the collection sheet), plus a PNG and an SVG picture, which keeps that text as tooltips. See [deploy-app.md](deploy-app.md#the-schema-diagram). |
+| App hosting | **Shinylive on GitHub Pages**: the app runs in the visitor's browser, so data never leaves their computer, and it redeploys automatically on push. `schema.yaml` is bundled into the app when it is built. See [deploy-app.md](deploy-app.md). |
+| Packages | See requirements.txt. |
 | AI conversion | Done by **contributors**, using the AI kit in this repo. A central AI agent may follow later ([Phase 5](#phase-5-a-central-ai-agent)). |
-| Existing data | **No copies in this repo**, not even of the shared reference tables (Germplasm, SeedLot, PhenotypeDescription, ClimateDescription, Features). The IDs to reuse are in the datasets themselves, on Zenodo. [docs/datasets.md](datasets.md) lists every known dataset in the format by DOI: the published FabaBase record, and the records of ongoing projects, which may be restricted. A restricted record's page is public, so people and AIs are pointed to it, and those with access can get the files. |
+| Existing data | The IDs to reuse across datasets and even projects are in the datasets themselves, on Zenodo. [docs/datasets.md](datasets.md) lists every known dataset in the format by DOI: the published FabaBase record, and the records of ongoing projects, which may be restricted. A restricted record's page is public, so people and AIs are pointed to it, and those with access can get the files. |
 | Licences | Code: GPL-3.0. Schema doc, collection sheet and published data: CC-BY-4.0. |
-| Committing | Through GitHub Desktop. |
 
 ## Target layout
 
@@ -77,10 +72,10 @@ tests/                one valid dataset plus deliberately broken ones; run on ev
 
 ## How data flows
 
-1. A contributor gives an AI the AI kit (the schema doc, `schema.yaml`, `AI_INSTRUCTIONS.md`, the datasets in `docs/datasets.md` and the example dataset in `tests/valid/`) and a trimmed copy of their raw data.
+1. A contributor gives an AI the AI kit (the schema doc, `schema.yaml`, `AI_INSTRUCTIONS.md`, the datasets in `docs/datasets.md` and the example dataset in `tests/valid/`) and (a perhaps trimmed copy of) their raw data.
 2. The AI asks what it needs to know, then writes a script that converts the raw data into one CSV per table. As it goes, it reports what it sees in the data (traits, number of scores, units, ranges), so the contributor can confirm it or catch mistakes early.
-3. The contributor runs the script on the full data and checks the CSVs with the validator, fixing the script until they pass.
-4. The contributor hands over the bundle below. It is kept privately.
+3. The AI and the contributor runs the script on the full data and checks the CSVs with the validator, fixing the script until they pass.
+4. The contributor hands over the bundle below. It is kept privately, by a data manager.
 5. The tables of all contributions are merged and published as a new version of the Zenodo record.
 
 Each contribution is kept privately as:
@@ -94,17 +89,6 @@ Each contribution is kept privately as:
 ```
 
 Only the tables go to Zenodo.
-
-## Phase 1: Validator and app
-
-- [x] Tests in `tests/`: one valid dataset, and one broken dataset per rule, each expected to fail with the right message.
-- [x] GitHub Action that runs the tests on every push. See `.github/workflows/tests.yml`.
-- [x] Deploy with Shinylive on GitHub Pages: a GitHub Action exports the app with Shinylive and publishes it to Pages on every push to `main`, once the tests pass. See `.github/workflows/deploy-app.yml`. Tick once the first run has published the app.
-  - [x] `schema.yaml` reaches the browser without a second copy in the repository: the Action builds the app from a folder outside the repository, holding `app/` and `schema.yaml`.
-  - [x] The pinned versions in `app/requirements.txt` are now those of Shinylive's browser Python (pandas 2.2.3, numpy 2.0.2, PyYAML 6.0.2), as the app does not start with others. All tests pass with them.
-- [x] Check that file upload works in the browser version. The Action checks it in a browser before every deploy: `tests/check_browser_app.py`.
-- [x] Once the new app works, retire the old shinyapps.io app (`n2crop-validation`), or replace it with a page pointing to the new address.
-- [x] Write `docs/deploy-app.md`. Refreshing the app should be: commit and push to `main` in GitHub Desktop, then wait for the Action to finish. Include where to see whether the Action failed.
 
 ## Phase 2: Schema doc, example and AI kit
 
@@ -169,7 +153,7 @@ To be explored later: instead of each contributor setting up an AI themselves, a
   - A parent seed lot (ParentSLID) is harvested before its child.
   - A seed lot is harvested before the phenotype dates of the units sown from it.
   - A Phase 4 plot of the Phenotype, Management and Climate dates against each experiment's StartDate–EndDate.
-- **ParentSLID loops.** Check that ParentSLID chains never loop back on themselves (A → A, or A → B → A).
+- **ParentSLID loops.** Check that ParentSLID chains never loop back on themselves (A → A, or A → B → A or any variation thereof).
 - **Coordinates in range.** `91;181` passes. Decide whether to check latitude −90 to 90 and longitude −180 to 180.
 - **Infinite numbers.** `1e999` passes as a number, though it is read as infinity.
 - **Digits other than 0–9.** Digits such as `１２` (full-width) and `٣` (Arabic-Indic) pass as numbers.
