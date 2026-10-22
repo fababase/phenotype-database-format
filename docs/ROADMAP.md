@@ -32,7 +32,8 @@ This roadmap records the decisions made so far, the work in order, and the quest
 | Schema diagram | **Drawn from `schema.yaml`** by `schema/diagram.py` each time the app is published: an interactive page next to the app, where tables can be dragged around, clicking a table highlights its links, and pointing at a column, a table's name or a link says what it is (a column's description, type hint and example, as in row 2 of the collection sheet), plus a PNG and an SVG picture, which keeps that text as tooltips. See [deploy-app.md](deploy-app.md#the-schema-diagram). |
 | App hosting | **Shinylive on GitHub Pages**: the app runs in the visitor's browser, so data never leaves their computer, and it redeploys automatically on push. `schema.yaml` is bundled into the app when it is built. See [deploy-app.md](deploy-app.md). |
 | Packages | See requirements.txt. |
-| AI conversion | Done by **contributors**, using the AI kit in this repo. A central AI agent may follow later ([Phase 5](#phase-5-a-central-ai-agent)). |
+| AI conversion | Done by **contributors** with an AI, following the guides in this repo, in a folder laid out as in [How data flows](#how-data-flows). A fresh AI session reviews each finished run. A central AI agent may follow later ([Phase 5](#phase-5-a-central-ai-agent)). |
+| Guides | One per role, written once for people, and read by AIs too. |
 | Existing data | The IDs to reuse across datasets and even projects are in the datasets themselves, on Zenodo. [docs/datasets.md](datasets.md) lists every known dataset in the format by DOI: the published FabaBase record, and the records of ongoing projects, which may be restricted. A restricted record's page is public, so people and AIs are pointed to it, and those with access can get the files. |
 | Licences | Code: GPL-3.0. Schema doc, collection sheet and published data: CC-BY-4.0. |
 
@@ -57,14 +58,16 @@ app/                  exactly what gets deployed
   collection_sheet.py builds the blank collection sheet from schema.yaml, for download from the app
   requirements.txt    pinned versions
 conversion/
-  AI_INSTRUCTIONS.md  the prompt contributors give an AI along with the schema and their raw data
+  AI_INSTRUCTIONS.md  how an AI converts a contributor's data, and what it never does
+  notes-template.md   the sections of each run's conversion-notes.md
 zenodo/
   README_TEMPLATE.md  README for the Zenodo record
 docs/
   ROADMAP.md          this file
   datasets.md         every known dataset in the format, by DOI, to reuse IDs from
   deploy-app.md       how the app is deployed and how to refresh it
-  submit-data.md      raw data → AI → script → validate → hand over
+  submit-data.md      for contributors: setting up the folder, starting the AI and the review, handing over
+  review-data.md      for reviewers: what a finished run must meet, and its FAIR score
   release.md          how to release a new schema version and a new Zenodo version
 tests/                one valid dataset plus deliberately broken ones; run on every push
 .github/workflows/    run tests on every push; deploy the app when they pass; write the tables in schema.md
@@ -72,21 +75,33 @@ tests/                one valid dataset plus deliberately broken ones; run on ev
 
 ## How data flows
 
-1. A contributor gives an AI the AI kit (the schema doc, `schema.yaml`, `AI_INSTRUCTIONS.md`, the datasets in `docs/datasets.md` and the example dataset in `tests/valid/`) and (a perhaps trimmed copy of) their raw data.
-2. The AI asks what it needs to know, then writes a script that converts the raw data into one CSV per table. As it goes, it reports what it sees in the data (traits, number of scores, units, ranges), so the contributor can confirm it or catch mistakes early.
-3. The AI and the contributor runs the script on the full data and checks the CSVs with the validator, fixing the script until they pass.
-4. The contributor hands over the bundle below. It is kept privately, by a data manager.
-5. The tables of all contributions are merged and published as a new version of the Zenodo record.
+1. A contributor sets up a folder for their contribution, as below: their files in `raw_data/`, and a copy of this repository next to it. They start an AI in the folder with one line, the same in every session: "Read `phenotype-database-format/conversion/AI_INSTRUCTIONS.md` and follow it."
+2. The AI asks whether it may see all the data, and if not, how much. It reads everything it may see, and asks about anything missing, odd or ambiguous as each question comes up. The contributor answers by adding files to `raw_data/`, getting the information from others where needed.
+3. The AI writes `conversion.py`, which turns `raw_data/` into one CSV per table, working from `schema.yaml` and `schema.md`. The final data should pass the validator. Each time it runs, `conversion.py` writes `summary.md`: which traits were scored and how many scores each has, how many units, experiments and germplasm there are, the date range, the range of each trait, etc., and which rows, if any, were left out and why. The contributor checks it, so that mistakes are caught early.
+4. When the run is finished, the contributor starts a fresh AI session, which reviews it against `docs/review-data.md` and writes `review.md`, with a FAIR score. If the review finds problems, the AI fixes them, and a fresh session reviews the run again.
+5. The contributor hands over the properly formatted data, in a way still to be decided, but should keep the raw data and the run for future reference. The formatted data are kept privately, by a data manager.
+6. The tables of all contributions are merged and published as a new version of the Zenodo record, either as a restricted project-level record, or a full public record.
 
-Each contribution is kept privately as:
+Each contribution is worked on in a folder like this, which the contributor keeps for reproducibility:
 
 ```
-<contribution>/
-  raw/                    exactly as received, never edited
-  conversion/convert.py   the script: raw/ → tables/
-  conversion/NOTES.md     questions & answers, assumptions, row counts in vs. out
-  tables/                 Germplasm.csv … Features.csv
+<contribution>/                  one folder per contribution, the workfolder of the AI agent should be set here
+  raw_data/                      everything from the contributor: data, documents, metadata, etc., in any format
+  phenotype-database-format/     a copy of this repository at a fixed version; never edited
+  runs/
+    2026-10-22/                  one run per handover
+      conversion.py              the script: raw_data/ → tables/
+      conversion-notes.md        kept by the AI, from conversion/notes-template.md
+      summary.md                 written by conversion.py each time it runs
+      review.md                  written only by the review session: findings and FAIR score
+      tables/                    Germplasm.csv … Features.csv, written only by conversion.py
+      scratch/                   the AI's throwaway scripts; deleted whenever it stops
 ```
+
+- `raw_data/` is add-only: nothing in it is ever changed or deleted by the AI. Its files are read-only.
+- Every it of information about the experiment, data, metadata, notation, all of it is a file in `raw_data/` - no data is found in `conversion-notes.md` or similar. An AI agent can draft a file in the chat from an answer from the contributor, but only the contributor saves it (after reviewing contents, of course).
+- `conversion.py` names each raw file it reads, with its checksum, and stops if one has changed. It lists Python 3.12 and the exact version of each package it needs, so that [uv](https://docs.astral.sh/uv/) can run it in an environment of its own, without touching the contributor's Python. uv runs the validator the same way, with the versions in `app/requirements.txt`.
+- A run ends either *stopped*, waiting for information the contributor has to get, or *finished*. A stopped run is carried on in the same folder. A new run is started only for a new handover, such as corrections, more data after the last one, or a new schema version.
 
 Only the tables go to Zenodo.
 
@@ -98,24 +113,43 @@ Only the tables go to Zenodo.
 - [x] Add ID rules: only letters, digits and `_`, and unique ignoring case, both checked by the validator. The schema doc suggests a form for each ID, with experiment-level IDs (UNID, PHID, IID, MMID, CLID) starting with their EXPID, so IDs never clash when contributions are merged. See [Identifiers](../schema/schema.md#identifiers).
 - [x] Draw the diagram from `schema.yaml` on every deploy, instead of keeping a dbdiagram.io copy: `schema/diagram.py` and `schema/diagram.html`, published at <https://fababase.github.io/phenotype-database-format/diagram/>. The README and `schema.md` link to it. Tick once the first run has published it.
 - [x] Write `docs/datasets.md`, the list of every known dataset in the format, by DOI, instead of keeping shared reference tables in `reference/`.
-- [ ] Write `conversion/AI_INSTRUCTIONS.md`, telling the AI to:
-  - **Inspect before coding:** every sheet, hidden rows and columns, merged cells, multi-row headers, cell colours, comments, notes below tables, decimal commas and home-made "NA" markers. Use openpyxl, since pandas cannot see colours or merged cells.
-  - **Ask, don't guess:** what a unit is, what colours and formatting mean, the unit and method of each trait, what categorical codes mean, which rows to leave out. Never invent metadata; leave it empty and list it in NOTES.md.
-  - **Reuse IDs:** map germplasm, seed lots, traits, climate variables and features to the tables of the datasets in `docs/datasets.md`, restricted ones too if the person has access, and list any new IDs in NOTES.md.
-  - **Deliver a script, not just tables:** the AI writes `convert.py`, a script that turns the messy raw Excel file into the correct CSV files, one per table. The script is saved with the contribution, so the conversion can be rerun and checked later. Raw files are read-only, every decision is in the code, and nothing is edited by hand afterwards.
-  - **Report what it sees** while it writes and runs the script, so the contributor can say "yes, that's right" or spot at once that something is badly wrong. For example: which traits were scored and how many scores each has, how many units, experiments and germplasm there are, the date range, the value range of each trait, and which rows were left out and why.
-  - **Run the validator** and fix the script until the tables pass.
-  - **Write NOTES.md:** the questions asked and the answers, the assumptions made, and row counts in the raw data vs. in the tables.
-  - Work from a trimmed copy of the raw data (headers and some rows) where possible, so the full data does not have to be uploaded to an AI service.
-- [ ] Write `docs/submit-data.md` for contributors: the steps in [How data flows](#how-data-flows), what to hand over, best practices etc.
-- [ ] Pilot the kit on 2–3 real messy datasets, and improve the instructions based on what the AI gets wrong.
+- [ ] Write `docs/submit-data.md` for contributors, which their AI reads too: the folder and its rules from [How data flows](#how-data-flows), how to set it up (a copy of this repository, uv, read-only files), the lines that start the AI and the review, that what the AI reads goes to the AI service they use, the details the AI asks for about them (name, ORCID, affiliation, contact and funding, so that they are credited if the data is published), and how to hand over, once that is decided.
+- [ ] Write `conversion/AI_INSTRUCTIONS.md`: how the AI works and what it never does. Only this is written for the AI alone; the folder and its rules are in `docs/submit-data.md`, and what a finished run must meet is in `docs/review-data.md`, both of which the AI reads first. It tells the AI to:
+  - **Ask first** whether it may see all the data, and if not, how much, and keep to the answer.
+  - **Read everything before asking:** every file, sheet and column, and the documents. Don't ask what they already answer.
+  - **Look at every value**, not just the first rows: hidden rows and columns, merged cells, multi-row headers, cell colours, comments, notes below tables, decimal commas, home-made "NA" markers, the distinct values of columns that have few, and the range of each number column. Use openpyxl, since pandas cannot see colours or merged cells.
+  - **Check each source against the others:** the data against the field plan and the protocol, sheet against sheet, and dates against the season.
+  - **Treat anything unexpected or ambiguous as a question:** a gap in the plot numbers, a value far out of line, a format that changes halfway down a column, 39 plots where the design has 40, or a date that could be read either way round.
+  - **Ask as soon as a question comes up**, a few at a time and in plain words, and carry on only with what does not depend on the answer. Use an answer only once it is in a file in `raw_data/`.
+  - **Leave the last word to the contributor.** When the AI still doubts something, it records the doubt rather than overruling them.
+  - **Never make up a value**, even to make the tables pass. An optional cell stays empty; a required one says plainly what is not known.
+  - **Reuse IDs** from the datasets in `docs/datasets.md`, restricted ones too if the contributor has access.
+  - **Run the validator** and fix `conversion.py` until the tables pass.
+  - **Keep the notes as it goes**, so that the next session can carry on from them.
+  - **Stop and ask when something blocks it**, never work around it. It never writes in `raw_data/`, changes permissions or file attributes anywhere (chmod, attrib, icacls and the like), edits the copy of this repository, installs anything beyond what `conversion.py` lists, sends data anywhere (uploads, pushes, issues, web forms), or changes or deletes an earlier run.
+- [ ] Write `conversion/notes-template.md`, the sections of each run's `conversion-notes.md`. Facts are in `raw_data/`, decisions in `conversion.py` and counts in `summary.md`, so the notes hold only what needs judgement, and each item fits one section only. Every item is dated.
+  - **Header:** the run's date, when the notes were last updated, the status (stopped, and what it is waiting for; or finished), the version of this repository, what the AI may see, which known datasets were searched for IDs to reuse, and when the contributor last checked `summary.md`.
+  - **Open questions:** asked, and waiting for a file in `raw_data/`. An answer removes the question; "don't know" moves it to Missing. Empty once the run is finished.
+  - **Changed or left out:** where the tables differ from the raw files: corrected, recoded, combined, removed or not converted. Each item rests on a file in `raw_data/` or on the raw data itself, and says which.
+  - **Assumptions:** what the AI decided without such a basis, and why it could not be asked or answered. These should be rare, since the AI asks rather than guesses.
+  - **Missing:** what the tables lack that exists, or that people reusing the data would want to know, including required cells that say it is not known, and when each was asked.
+  - **Doubtful:** in the tables as the raw files or the contributor give it, but possibly wrong, and why.
+  - **Schema issues:** what the format could not hold, pointing to the item that says what was done about it.
+- [ ] Write `docs/review-data.md` for reviewers. Until a person takes on the role, a fresh AI session reviews each finished run with it, relying only on the files, and writes only `review.md`:
+  - **Checks:** `conversion.py` reruns to the same tables, the raw files are unchanged, and the validator passes. A sample of values can be traced back to their cells in the raw files, and every fact in the tables is in `raw_data/`. New IDs in the shared reference tables were checked against the known datasets. There are no open questions and no `scratch/`.
+  - **FAIR score**, from 1 to 5: how well the dataset meets the [FAIR principles](https://www.go-fair.org/fair-principles/). Findable and Accessible come from publishing on Zenodo, so in practice it scores how richly the data are described, and whether they reuse shared IDs. It counts what exists, or what people reusing the data would want to know, but is not described. Tables and columns that do not apply, or hardly apply, to the experiment do not count against it. A required value that is not known keeps the score at 2 or below. Each point below 5 names the items in Missing, Assumptions or Doubtful that cost it, so the contributor can see what would raise it.
+    - 5: everything people reusing the data would want to know is described.
+    - 4: small gaps, which matter only for some uses, such as the harvest dates of seed lots.
+    - 3: some things people would want to know are not described, such as the growth stage at scoring, or parts of the design.
+    - 2: something needed to read part of the data is not known, such as a required value.
+    - 1: most of the data cannot be interpreted.
+- [ ] Pilot the kit on 2–3 real messy datasets. Compare the FAIR scores with our own judgement, and improve the guides, the notes template and the score levels based on what goes wrong.
 
 ## Phase 3: Publish on Zenodo
 
 - [ ] Write `zenodo/README_TEMPLATE.md` for the record: what the database is, the contributions it contains and who made them, experiments and locations, the schema version, the list of files, how the tables link, licence, how to cite, contact.
 - [ ] Write a merge script that combines the tables of all contributions into one set of tables, and validate the merged set.
 - [ ] Decide what goes into each version of the record: the merged tables, the README, and `schema.md`, `schema.yaml` and the diagram for the schema version used, so the record makes sense without GitHub.
-- [ ] Before publishing, check for personal names (ScoredBy, Manager) and confidential breeding lines. Zenodo records are effectively permanent.
 - [ ] Do a first upload on [sandbox.zenodo.org](https://sandbox.zenodo.org), then publish the real record.
 - [ ] Add `CITATION.cff`.
 - [ ] Write `docs/release.md`: how to release a new schema version (update `schema.yaml`, the hand-written parts of `schema.md` and `CHANGELOG.md`, run the tests, tag a release once the Action has written the tables in `schema.md`) and how to publish a new version of the Zenodo record.
@@ -140,7 +174,7 @@ To be explored later: instead of each contributor setting up an AI themselves, a
   - *Data reviewers and managers*: review contributions, approve new reference IDs, publish on Zenodo, and keep at least two people with access to GitHub and Zenodo.
   - *Developers*: change the schema, validator, app and Actions; how the pieces fit, and which files are generated.
 
-  Each guide is written once, concisely, for people. AIs read the same files; an `AGENTS.md` only points them to the right guide for their task. The Decisions table above could move to its own file then, so it outlives this roadmap.
+- The Decisions table above could move to its own file then, so it outlives this roadmap.
 - **IDs that start with a digit.** The schema doc recommends against them. Decide whether to make it a rule the validator checks.
 - **Special symbols.** We may restrict special symbols in values where possible, so that each one has a single defined meaning, and any other use is an error.
 - **Dates that make sense.** The validator only checks that a date is real and written YYYY-MM-DD. Possible additions:
