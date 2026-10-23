@@ -47,7 +47,8 @@ def server(input, output, session):
         lines = []
         files = [(upload["name"], Path(upload["datapath"])) for upload in uploads]
         try:
-            tables = validate_files(files, SCHEMA, notice=lambda msg: lines.append(f"Notice: {msg}"))
+            tables = validate_files(files, SCHEMA, notice=lambda msg: lines.append(f"Notice: {msg}"),
+                                    warning=lambda msg: lines.append(f"Warning: {msg}"))
         except ValidationError as e:
             lines.append(f"Validation failed: {e}")
             return lines, {}

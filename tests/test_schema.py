@@ -11,10 +11,14 @@ import sys
 import openpyxl
 import pytest
 import yaml
+from openpyxl.utils import get_column_letter
 
 import schema_md
 from helpers import BLANK_SHEET, ROOT, SCHEMA, VALID
 from validation import READ_ME_SHEET, SCHEMA_FILE, TYPE_PROBLEMS, cell_text, help_text, load_schema
+
+TEXT_HINT = "Letters, the digits 0-9, spaces and the symbols of a US keyboard except ; and =."
+LONG_TEXT_HINT = "Letters, the digits 0-9, spaces, line breaks and the symbols of a US keyboard except ; and =."
 
 
 def test_schema_yaml_has_only_one_copy():
@@ -77,6 +81,31 @@ def test_collection_sheet_matches_schema():
     wb.close()
 
 
+def test_collection_sheet_formats():
+    """
+    Each column is formatted as text, so Excel keeps what is typed, or dates as YYYY-MM-DD. The names of required
+    columns are coloured. Below the help text, columns that link to another table list the IDs in its sheet to pick
+    from, and Type in Features the feature types, without stopping other values from being typed.
+    """
+    wb = openpyxl.load_workbook(io.BytesIO(BLANK_SHEET))
+    for name, table in SCHEMA.tables.items():
+        ws = wb[name]
+        lists = {}
+        for j, column in enumerate(table.columns.values(), start=1):
+            letter = get_column_letter(j)
+            where = f"{name}.{column.name}"
+            assert ws.column_dimensions[letter].number_format == ("yyyy-mm-dd" if column.type == "date" else "@"), where
+            assert (ws.cell(1, j).fill.fill_type == "solid") == column.required, where
+            if column.links_to:
+                lists[f"{letter}3:{letter}1048576"] = f"'{column.links_to}'!$A$3:$A$1048576"
+            elif (name, column.name) == ("Features", "Type"):
+                lists[f"{letter}3:{letter}1048576"] = '"c,i,d"'
+        validations = ws.data_validations.dataValidation
+        assert {str(validation.sqref): validation.formula1 for validation in validations} == lists, name
+        assert not any(validation.showErrorMessage for validation in validations), name
+    wb.close()
+
+
 def test_read_me_sheet_lists_the_version_and_the_tables():
     wb = openpyxl.load_workbook(io.BytesIO(BLANK_SHEET), read_only=True)
     rows = [[cell_text(value) for value in row] for row in wb[READ_ME_SHEET].iter_rows(values_only=True)]
@@ -87,19 +116,22 @@ def test_read_me_sheet_lists_the_version_and_the_tables():
 
 
 @pytest.mark.parametrize("table, column, text", [
-    ("Germplasm", "GPID", "Required, unique. Germplasm ID. Only the letters a-z and A-Z, the digits 0-9 and _. "
-                          "Example: vandrel"),
-    ("Germplasm", "Name", "Optional. Name of the variety or line. Example: Vandrel"),
+    ("Germplasm", "GPID", "Required, unique. Germplasm ID. Only the letters a-z and A-Z, the digits 0-9 and _, "
+                          "starting with a letter. Example: vandrel"),
+    ("Germplasm", "Name", f"Optional. Name of the variety or line. {TEXT_HINT} Example: Vandrel"),
+    ("Germplasm", "AlternativeName", "Optional. Other names for the variety. Values separated by ;, with no spaces "
+                                     "around it. Example: NB 117"),
     ("SeedLot", "GPID", "Required. Germplasm the seed is of. A GPID from Germplasm. Example: vandrel"),
     ("Climate", "UNID", "Optional. Unit the measurement belongs to. Empty or missing means all units in the "
                         "experiment. A UNID from ExperimentalUnit. Example: nordbean_irrigation_northfield_2025_plot101"),
     ("Phenotype", "Score", "Required. The score. A number, with . as the decimal mark. Example: 94"),
     ("Features", "Type", "Optional. Kind of value, in lower case: c for text, i for whole numbers, d for real "
-                         "numbers. Empty means c. Example: c"),
+                         f"numbers. Empty means c. {TEXT_HINT} Example: c"),
     ("PhenotypeDescription", "DescriptionOfMethod", "Required. What is measured, on which part of the plant, at "
                                                     "which growth stage, with what, on how many plants and how they are "
-                                                    "chosen, how the score is calculated, and what every code means."),
-], ids=["ID", "text", "link", "bold", "number", "code", "no example"])
+                                                    "chosen, how the score is calculated, and what every code means. "
+                                                    f"{LONG_TEXT_HINT}"),
+], ids=["ID", "text", "list", "link", "bold", "number", "code", "long text without an example"])
 def test_help_text(table, column, text):
     """
     Whether the column is required, its description without `code` and **bold** marks, a hint for its type, and

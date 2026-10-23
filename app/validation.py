@@ -3,7 +3,8 @@ Checks phenotype database tables against the schema in schema.yaml.
 
 The tables come either as CSV files, one per table and named after it (Germplasm.csv, SeedLot.csv, ...),
 or as one filled-in collection sheet (.xlsx). Checking stops at the first error, with a message that says
-where it is and how to fix it.
+where it is and how to fix it. Warnings point out what is allowed, but more often a mistake, such as a very early
+date; the tables pass with them.
 
 From the command line:
     python validation.py <CSV files, a folder of CSV files, or a .xlsx file> [--out FOLDER]
@@ -12,8 +13,11 @@ import argparse
 import csv
 import difflib
 import io
+import math
 import re
+import string
 import sys
+import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -34,19 +38,28 @@ if not SCHEMA_FILE.exists():
 # The package versions that the tests and the browser app run with
 REQUIREMENTS_FILE = HERE / "requirements.txt"
 
-COLUMN_TYPES = {"id", "text", "long_text", "integer", "number", "date", "coordinates", "features"}
+COLUMN_TYPES = {"id", "text", "long_text", "list", "integer", "number", "date", "coordinates", "features"}
 # Feature types, in lower case: c = text, i = whole number, d = real number. An empty Type means c.
 FEATURE_TYPES = ("c", "i", "d")
 
-DECIMAL = r"-?\d+(?:\.\d+)?"
-INTEGER = re.compile(r"-?\d+")
-NUMBER = re.compile(rf"{DECIMAL}(?:[eE][-+]?\d+)?")
-DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+# Digits are only 0-9, so that full-width or Arabic-Indic digits, which Python reads as numbers too, do not pass
+DECIMAL = r"-?[0-9]+(?:\.[0-9]+)?"
+INTEGER = re.compile(r"-?[0-9]+")
+NUMBER = re.compile(rf"{DECIMAL}(?:[eE][-+]?[0-9]+)?")
+DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 COORDINATES = re.compile(rf"{DECIMAL};{DECIMAL}")
-RANGE = re.compile(rf"({NUMBER.pattern})\.\.({NUMBER.pattern})")
+# min..max, where an end left blank means no limit
+RANGE = re.compile(rf"({NUMBER.pattern})?\.\.({NUMBER.pattern})?")
 # A number with one ',' that could be a decimal mark or separate thousands, such as 1,234
-THOUSANDS = re.compile(r"-?[1-9]\d{0,2},\d{3}")
-ID = re.compile(r"[A-Za-z0-9_]+")
+THOUSANDS = re.compile(r"-?[1-9][0-9]{0,2},[0-9]{3}")
+ID = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
+ID_CHARACTER = re.compile(r"[A-Za-z0-9_]")
+# Besides letters, the digits 0-9 and spaces, text can hold the symbols of a US keyboard (ASCII), apart from ';',
+# which separates the values of a list, and '=', which joins an FTID to its value in Features cells. Other symbols,
+# such as '°', are garbled when a file is read in the wrong encoding.
+TEXT_SYMBOLS = set(string.punctuation) - {";", "="}
+# Dates before this get a warning, as they are more often a mistake, such as 0025 for 2025, than a real date
+EARLY = date(1950, 1, 1)
 
 # CSV separators to recognise, and how to name them in notices
 DELIMITERS = {",": "commas", ";": "semicolons", "\t": "tabs"}
@@ -142,10 +155,16 @@ def load_schema(path: Path = SCHEMA_FILE) -> Schema:
 
 # The collection sheet's sheet of instructions, which the validator skips. Compared ignoring case.
 READ_ME_SHEET = "READ ME 1st"
+# The first cell of the READ ME 1st sheet, which the validator reads the version from
+READ_ME_TITLE = "Collection sheet for the FabaBase phenotype database, schema version {version}"
+SHEET_VERSION = re.compile(r"schema version (\S+)")
 
 # What row 2 of the collection sheet says about each type of column, after the column's description
 TYPE_HINTS = {
-    "id": "Only the letters a-z and A-Z, the digits 0-9 and _.",
+    "id": "Only the letters a-z and A-Z, the digits 0-9 and _, starting with a letter.",
+    "text": "Letters, the digits 0-9, spaces and the symbols of a US keyboard except ; and =.",
+    "long_text": "Letters, the digits 0-9, spaces, line breaks and the symbols of a US keyboard except ; and =.",
+    "list": "Values separated by ;, with no spaces around it.",
     "integer": "A whole number.",
     "number": "A number, with . as the decimal mark.",
     "date": "A date, written YYYY-MM-DD, or a date that Excel recognises as one.",
@@ -207,6 +226,10 @@ class Table:
         """The values of a column that are not missing."""
         return self.data[column][~self.missing[column]]
 
+    def dates(self, column: str) -> list[date | None]:
+        """The dates in a date column whose values have been checked, with None where a value is missing."""
+        return [None if m else date.fromisoformat(v) for v, m in zip(self.data[column], self.missing[column])]
+
     def to_csv(self) -> str:
         """The table as CSV: comma-separated, a header row, dates YYYY-MM-DD and missing values as empty cells."""
         return self.data.mask(self.missing, "").to_csv(index=False, lineterminator="\n")
@@ -267,22 +290,48 @@ def read_csv(name: str, path: Path, notice: Callable[[str], None]) -> RawTable:
     return RawTable(name, rows[0], rows[1:], list(range(2, len(rows) + 1)))
 
 
-def read_workbook(name: str, path: Path, schema: Schema) -> list[tuple[str, RawTable]]:
-    """Reads the sheets of a collection sheet. Returns (table name, table) for each sheet that is a table."""
+def check_version(name: str, ws, schema: Schema) -> None:
+    """
+    A collection sheet has to be for the schema version it is checked against. Its READ ME 1st sheet says which
+    version it is for; if it does not, nothing is checked.
+    """
+    first_row = next(ws.iter_rows(max_row=1, max_col=1, values_only=True), ())
+    match = SHEET_VERSION.search(cell_text(first_row[0]) if first_row else "")
+    if match and match[1] != schema.version:
+        raise ValidationError(f"{name} is a collection sheet for schema version {match[1]}, but it is checked "
+                              f"against schema version {schema.version}. Download a new blank collection sheet, "
+                              "and copy your data into it.")
+
+
+def read_workbook(name: str, path: Path, schema: Schema, notice: Callable[[str], None],
+                  warning: Callable[[str], None]) -> list[tuple[str, RawTable]]:
+    """
+    Reads the sheets of a collection sheet. Returns (table name, table) for each sheet that is a table.
+    A hidden sheet that is a table is read as usual, with a warning, and any other hidden sheet is skipped.
+    """
     try:
         wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
     except Exception as e:
         raise ValidationError(f"Could not open {name} as an Excel workbook ({e}).") from None
     try:
+        read_me = [ws for ws in wb.worksheets if ws.title.strip().lower() == READ_ME_SHEET.lower()]
+        if read_me:
+            check_version(name, read_me[0], schema)
         found = []
         for ws in wb.worksheets:
-            if ws.title.strip().lower() == READ_ME_SHEET.lower():
+            if ws in read_me:
                 continue
             source = f"sheet '{ws.title}'"
             table = schema.match(ws.title)
+            hidden = ws.sheet_state != "visible"
             if table is None:
+                if hidden:
+                    notice(f"{source} is hidden and is not a table, so it was skipped.")
+                    continue
                 raise ValidationError(f"{source} is not a table of the schema. Rename it after its table "
                                       f"({', '.join(schema.tables)}), or delete it.")
+            if hidden:
+                warning(f"{source} is hidden, but it is the {table} table, so it was checked.")
             rows = [[cell_text(value) for value in row] for row in ws.iter_rows(values_only=True)]
             if not rows:
                 raise ValidationError(f"{source} is empty. Put the column names in row 1, or delete the sheet.")
@@ -299,7 +348,8 @@ def read_workbook(name: str, path: Path, schema: Schema) -> list[tuple[str, RawT
         wb.close()
 
 
-def load_files(files: list[tuple[str, Path]], schema: Schema, notice: Callable[[str], None]) -> dict[str, RawTable]:
+def load_files(files: list[tuple[str, Path]], schema: Schema, notice: Callable[[str], None],
+               warning: Callable[[str], None]) -> dict[str, RawTable]:
     """
     Reads the tables from CSV files or one collection sheet.
     Parameters:
@@ -318,7 +368,7 @@ def load_files(files: list[tuple[str, Path]], schema: Schema, notice: Callable[[
         raise ValidationError("Give either one collection sheet (.xlsx) or CSV files, not both or several workbooks.")
 
     if workbooks:
-        found = read_workbook(*workbooks[0], schema)
+        found = read_workbook(*workbooks[0], schema, notice, warning)
     else:
         found = []
         for name, path in files:
@@ -339,15 +389,19 @@ def load_files(files: list[tuple[str, Path]], schema: Schema, notice: Callable[[
 def build_table(definition: TableDef, raw: RawTable, schema: Schema) -> Table:
     """
     Matches the columns of a table to the schema: in any order, optional columns may be left out,
-    and unknown columns are an error. Rows in which every cell is missing are dropped.
+    and unknown columns are an error. A row in which every cell is missing has no values: at the end of the table
+    it is dropped, as Excel often leaves such rows there unseen, but with rows after it, it is an error, as it may
+    end the table, with something else below it.
     """
     width = max([len(raw.header)] + [len(record) for record in raw.records])
     header = [name.strip() for name in raw.header] + [""] * (width - len(raw.header))
     records = [record + [""] * (width - len(record)) for record in raw.records]
-    keep = [i for i, record in enumerate(records)
-            if any(value.strip().lower() not in schema.missing_values for value in record)]
-    records = [records[i] for i in keep]
-    row_numbers = [raw.row_numbers[i] for i in keep]
+    blank = [all(value.strip().lower() in schema.missing_values for value in record) for record in records]
+    end = len(blank)
+    while end and blank[end - 1]:
+        end -= 1
+    records = records[:end]
+    row_numbers = raw.row_numbers[:end]
 
     positions = {}
     for j, name in enumerate(header):
@@ -357,8 +411,10 @@ def build_table(definition: TableDef, raw: RawTable, schema: Schema) -> Table:
                                       "Add the column name, or delete the column.")
             continue
         if name not in definition.columns:
-            close = difflib.get_close_matches(name, definition.columns, n=1)
-            hint = (f"Did you mean '{close[0]}'?" if close
+            # Compared ignoring case, so that gpid gets GPID
+            names = {column.lower(): column for column in definition.columns}
+            close = difflib.get_close_matches(name.lower(), names, n=1)
+            hint = (f"Did you mean '{names[close[0]]}'?" if close
                     else f"The columns of {definition.name} are: {', '.join(definition.columns)}.")
             raise ValidationError(f"{raw.source}: '{name}' is not a column of {definition.name}. {hint}")
         if name in positions:
@@ -368,6 +424,9 @@ def build_table(definition: TableDef, raw: RawTable, schema: Schema) -> Table:
         if column.required and column.name not in positions:
             raise ValidationError(f"{raw.source}: the column '{column.name}' is missing. "
                                   f"It is required in {definition.name}.")
+    if any(blank[:end]):
+        raise ValidationError(f"{raw.source}, row {raw.row_numbers[blank.index(True)]} has no values, but rows after "
+                              "it do. Delete the row. If the rows below it are not part of the table, delete them too.")
 
     data = pd.DataFrame({name: [record[positions[name]] if name in positions else "" for record in records]
                          for name in definition.columns}, dtype=str)
@@ -378,11 +437,14 @@ def build_table(definition: TableDef, raw: RawTable, schema: Schema) -> Table:
 
 # ---------------------------------------------------------------- Checks
 
-def fail_first(table: Table, column: str, mask: pd.Series, describe: Callable[[int], str]) -> None:
-    """Raises a ValidationError for the first row where mask is True. describe(i) says what is wrong in row i."""
+def first_row(table: Table, column: str, mask: pd.Series, describe: Callable[[int], str]) -> str | None:
+    """
+    A message about the first row where mask is True, which also says how many more rows are like it, or None if
+    there is no such row. describe(i) says what is wrong in row i.
+    """
     rows = mask.to_numpy().nonzero()[0]
     if len(rows) == 0:
-        return
+        return None
     i = int(rows[0])
     others = len(rows) - 1
     more = ""
@@ -390,7 +452,42 @@ def fail_first(table: Table, column: str, mask: pd.Series, describe: Callable[[i
         more = " (1 more row in this column has the same problem.)"
     elif others > 1:
         more = f" ({others} more rows in this column have the same problem.)"
-    raise ValidationError(f"{table.where(i, column)}: {describe(i)}{more}")
+    return f"{table.where(i, column)}: {describe(i)}{more}"
+
+
+def fail_first(table: Table, column: str, mask: pd.Series, describe: Callable[[int], str]) -> None:
+    """Raises a ValidationError for the first row where mask is True. describe(i) says what is wrong in row i."""
+    message = first_row(table, column, mask, describe)
+    if message:
+        raise ValidationError(message)
+
+
+def warn_first(table: Table, column: str, mask: pd.Series, describe: Callable[[int], str],
+               warning: Callable[[str], None]) -> None:
+    """Gives one warning for the rows where mask is True, about the first of them."""
+    message = first_row(table, column, mask, describe)
+    if message:
+        warning(message)
+
+
+def character_name(c: str) -> str:
+    """How messages name a character: in quotes, or in words if it cannot be seen."""
+    if c == " ":
+        return "a space"
+    if c in "\n\r":
+        return "a line break"
+    if c == "\t":
+        return "a tab"
+    if c.isprintable() and not c.isspace():
+        return f"'{c}'"
+    name = unicodedata.name(c, "")
+    return f"the invisible character U+{ord(c):04X}" + (f" ({name.lower()})" if name else "")
+
+
+def character_names(characters: list[str]) -> str:
+    """Characters named in a list, such as "'-', '/' and a space"."""
+    names = [character_name(c) for c in characters]
+    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
 
 
 def id_problem(value: str) -> str | None:
@@ -398,27 +495,61 @@ def id_problem(value: str) -> str | None:
         return None
     if ID.fullmatch(value.strip()):
         return f"'{value}' has spaces before or after it. Remove them."
-    bad = list(dict.fromkeys(c for c in value.strip() if not ID.fullmatch(c)))
-    names = ["a space" if c.isspace() else f"'{c}'" for c in bad]
-    named = names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
-    message = (f"'{value}' contains {named}. IDs can only hold the letters a-z and A-Z without accents, "
-               "the digits 0-9 and '_'.")
-    # Letters such as 'ø' have no obvious replacement, so a fix is only suggested for other characters
-    if any(c.isalpha() for c in bad):
+    bad = list(dict.fromkeys(c for c in value.strip() if not ID_CHARACTER.fullmatch(c)))
+    if not bad:
+        return f"'{value}' starts with '{value.strip()[0]}'. IDs have to start with a letter, a-z or A-Z."
+    message = (f"'{value}' contains {character_names(bad)}. IDs can only hold the letters a-z and A-Z without "
+               "accents, the digits 0-9 and '_'.")
+    # Letters such as 'ø' have no obvious replacement, so a fix is only suggested for other characters, and only
+    # if it is a valid ID
+    fix = re.sub(r"[^A-Za-z0-9_]+", "_", value.strip())
+    if any(c.isalpha() for c in bad) or not ID.fullmatch(fix):
         return message
-    return f"{message} Use '_' instead: {re.sub(r'[^A-Za-z0-9_]+', '_', value.strip())}"
+    return f"{message} Use '_' instead: {fix}"
+
+
+def other_digits(value: str) -> str | None:
+    """What is wrong with a value that has digits other than 0-9, such as full-width or Arabic-Indic ones."""
+    digits = [c for c in dict.fromkeys(value) if c.isdecimal() and not c.isascii()]
+    if digits:
+        return f"'{value}' has digits other than 0-9: {character_names(digits)}. Write them as 0-9."
+    return None
+
+
+def too_large(value: str) -> str | None:
+    """What is wrong with a number so large that it is read as infinity, such as 1e999."""
+    if math.isinf(float(value)):
+        return f"'{value}' is too large a number: it would be read as infinity."
+    return None
+
+
+def swap_hint(day: date, fits: Callable[[date], bool]) -> str:
+    """
+    For a message about a date that breaks a rule: what the date would be with day and month swapped, if that is a
+    real date that is not in the future and fits(it). An empty text otherwise.
+    """
+    try:
+        other = date(day.year, day.day, day.month)
+    except ValueError:
+        return ""
+    if other == day or other > date.today() or not fits(other):
+        return ""
+    return f" With day and month swapped, it would be {other.isoformat()}, which fits. Check which is meant."
 
 
 def integer_problem(value: str) -> str | None:
     if INTEGER.fullmatch(value):
         return None
-    return f"'{value}' is not a whole number. Write digits only, e.g. 12."
+    return other_digits(value) or f"'{value}' is not a whole number. Write digits only, e.g. 12."
 
 
 def number_problem(value: str) -> str | None:
     """A fix is only suggested when it is the one way to read the value."""
     if NUMBER.fullmatch(value):
-        return None
+        return too_large(value)
+    digits = other_digits(value)
+    if digits:
+        return digits
     if THOUSANDS.fullmatch(value):
         return (f"'{value}' has ','. Numbers have '.' as the decimal mark and no separator between thousands. "
                 f"Write {value.replace(',', '.')} if ',' is the decimal mark, or {value.replace(',', '')} if it "
@@ -433,25 +564,61 @@ def number_problem(value: str) -> str | None:
 def date_problem(value: str) -> str | None:
     if DATE.fullmatch(value):
         try:
-            date.fromisoformat(value)
-            return None
+            day = date.fromisoformat(value)
         except ValueError:
             return f"'{value}' is not a real date."
+        if day > date.today():
+            return f"'{value}' is in the future.{swap_hint(day, lambda other: True)}"
+        return None
     if DATE.match(value):
         return f"'{value}' holds more than a date. Write only the date, as YYYY-MM-DD."
-    return f"'{value}' is not a date written YYYY-MM-DD, e.g. 2023-05-17."
+    return other_digits(value) or f"'{value}' is not a date written YYYY-MM-DD, e.g. 2023-05-17."
 
 
 def coordinates_problem(value: str) -> str | None:
     if COORDINATES.fullmatch(value):
-        return None
+        latitude, longitude = (float(part) for part in value.split(";"))
+        if -90 <= latitude <= 90 and -180 <= longitude <= 180:
+            return None
+        return (f"'{value}' is outside the range of coordinates: latitude goes from -90 to 90, and longitude from "
+                "-180 to 180.")
+    digits = other_digits(value)
+    if digits:
+        return digits
     hint = " Remove the spaces." if COORDINATES.fullmatch(re.sub(r"\s", "", value)) else ""
     return f"'{value}' is not written latitude;longitude in decimal degrees, e.g. 56.170308;10.207013.{hint}"
+
+
+def text_problem(value: str, kind: str = "text", subject: str = "the text") -> str | None:
+    """
+    What is wrong with text, or None if nothing is. Text holds only letters, the digits 0-9, spaces and
+    TEXT_SYMBOLS. Long text can hold line breaks too, and a list ';' between its values.
+    subject is how the message starts: "the text", or the value in quotes.
+    """
+    allowed = TEXT_SYMBOLS | {"text": {" "}, "long_text": {" ", "\n", "\r"}, "list": {" ", ";"}}[kind]
+    bad = [c for c in dict.fromkeys(value) if not (c.isalpha() or c in "0123456789" or c in allowed)]
+    if not bad:
+        return None
+    breaks = ", line breaks" if kind == "long_text" else ""
+    return (f"{subject} contains {character_names(bad)}. Text can only hold letters, the digits 0-9, spaces{breaks} "
+            "and the symbols of a US keyboard, apart from ';' and '=', which have meanings of their own. Write "
+            "other symbols in words, such as 'degrees' for '°'.")
+
+
+def list_problem(value: str) -> str | None:
+    """A list holds values separated by ';', with no spaces around it, and each value is text."""
+    if any(item == "" or item != item.strip() for item in value.split(";")):
+        return (f"'{value}' is not a list written value1;value2. Separate the values with ';', with no spaces "
+                "around it and no empty values.")
+    return text_problem(value, "list")
 
 
 # What is wrong with a value of a type, or None if nothing is. Features cells are checked separately.
 TYPE_PROBLEMS: dict[str, Callable[[str], str | None]] = {
     "id": id_problem,
+    "text": text_problem,
+    "long_text": lambda value: text_problem(value, "long_text"),
+    "list": list_problem,
     "integer": integer_problem,
     "number": number_problem,
     "date": date_problem,
@@ -459,8 +626,11 @@ TYPE_PROBLEMS: dict[str, Callable[[str], str | None]] = {
 }
 
 
-def check_cells(table: Table) -> None:
-    """Checks each column: required values, types and unique values. IDs are unique ignoring case."""
+def check_cells(table: Table, warning: Callable[[str], None]) -> None:
+    """
+    Checks each column: required values, types and unique values. IDs are unique ignoring case.
+    Dates before EARLY get a warning.
+    """
     for column in table.definition.columns.values():
         values = table.data[column.name]
         missing = table.missing[column.name]
@@ -472,6 +642,10 @@ def check_cells(table: Table) -> None:
         if problem:
             problems = pd.Series([None if m else problem(v) for v, m in zip(values, missing)], dtype=object)
             fail_first(table, column.name, problems.notna(), lambda i: problems.iat[i])
+        if column.type == "date":
+            early = pd.Series([day is not None and day < EARLY for day in table.dates(column.name)], dtype=bool)
+            warn_first(table, column.name, early, lambda i: (
+                f"'{values.iat[i]}' is before {EARLY.year}. Check that it is right."), warning)
         if column.unique:
             keys = values.str.lower() if column.type == "id" else values
 
@@ -511,8 +685,8 @@ def check_links(table: Table, column: Column, tables: dict[str, Table], schema: 
 
 def check_feature_definitions(table: Table | None) -> dict[str, tuple[str, str | None]] | None:
     """
-    Checks the Features table: Type has to be c, i, d or empty, and Vocabulary has to be a ';'-separated
-    list for Type c and a min..max range for i and d. FTIDs are checked as IDs by `check_cells`.
+    Checks the Features table: Type has to be c, i, d or empty, and Vocabulary, which `check_cells` has checked as
+    a list, has to be a min..max range for i and d. FTIDs are checked as IDs by `check_cells`.
     Returns:
         dict: FTID -> (Type, Vocabulary), with an empty Type given as "c" and an empty Vocabulary as None.
         None if there is no Features table, and an empty dict if it has no rows.
@@ -531,22 +705,29 @@ def check_feature_definitions(table: Table | None) -> dict[str, tuple[str, str |
             raise ValidationError(f"{table.where(i, 'Type')}: '{ftype}' is not a feature type.{hint}")
 
         vocabulary = None if missing["Vocabulary"] else row["Vocabulary"]
-        if vocabulary is not None:
-            if ftype == "c":
-                terms = vocabulary.split(";")
-                if any(term == "" or term != term.strip() or "=" in term for term in terms):
-                    raise ValidationError(f"{table.where(i, 'Vocabulary')}: '{vocabulary}' is not a valid "
-                                          "vocabulary. For Type c, list the allowed values separated by ';', "
-                                          "without spaces around ';', e.g. leaf;root;stem.")
-            else:
-                match = RANGE.fullmatch(vocabulary)
-                if not match or float(match[1]) > float(match[2]):
-                    raise ValidationError(f"{table.where(i, 'Vocabulary')}: '{vocabulary}' is not a valid "
-                                          f"vocabulary. For Type {ftype}, give a range min..max with min no "
-                                          "larger than max, e.g. 0..100.")
+        if vocabulary is not None and ftype != "c":
+            ends = vocabulary_range(vocabulary)
+            if ends is None or (None not in ends and ends[0] > ends[1]):
+                raise ValidationError(f"{table.where(i, 'Vocabulary')}: '{vocabulary}' is not a valid "
+                                      f"vocabulary. For Type {ftype}, give a range min..max with min no larger "
+                                      "than max, e.g. 0..100. Leave an end blank for no limit, e.g. 0..")
 
         features[ftid] = (ftype, vocabulary)
     return features
+
+
+def vocabulary_range(vocabulary: str) -> tuple[float | None, float | None] | None:
+    """
+    The ends of a range min..max, with None for an end left blank. None if it is not a range, or an end is so large
+    that it is read as infinity.
+    """
+    match = RANGE.fullmatch(vocabulary)
+    if not match:
+        return None
+    ends = tuple(None if end is None else float(end) for end in match.groups())
+    if any(end is not None and math.isinf(end) for end in ends):
+        return None
+    return ends
 
 
 def check_feature_cells(table: Table, column: str, features: dict[str, tuple[str, str | None]] | None,
@@ -584,17 +765,26 @@ def feature_value_problem(value: str, ftid: str, ftype: str, vocabulary: str | N
     The Vocabulary is assumed to have passed `check_feature_definitions`.
     """
     if ftype == "i" and not INTEGER.fullmatch(value):
-        return f"'{value}' is not a whole number, as feature {ftid} (Type i) needs."
-    if ftype == "d" and not NUMBER.fullmatch(value):
-        return f"'{value}' is not a number with '.' as the decimal mark, as feature {ftid} (Type d) needs."
+        return other_digits(value) or f"'{value}' is not a whole number, as feature {ftid} (Type i) needs."
+    if ftype == "d":
+        if not NUMBER.fullmatch(value):
+            return other_digits(value) or (f"'{value}' is not a number with '.' as the decimal mark, as feature "
+                                           f"{ftid} (Type d) needs.")
+        problem = too_large(value)
+        if problem:
+            return problem
+    if ftype == "c":
+        problem = text_problem(value, subject=f"'{value}'")
+        if problem:
+            return problem
     if vocabulary is None:
         return None
     if ftype == "c":
         if value not in vocabulary.split(";"):
             return f"'{value}' is not in the vocabulary of feature {ftid} ({vocabulary})."
     else:
-        low, high = (float(end) for end in RANGE.fullmatch(vocabulary).groups())
-        if not low <= float(value) <= high:
+        low, high = vocabulary_range(vocabulary)
+        if (low is not None and float(value) < low) or (high is not None and float(value) > high):
             return f"{value} is outside the range of feature {ftid} ({vocabulary})."
     return None
 
@@ -646,21 +836,133 @@ def every_experiment_has_a_unit(tables: dict[str, Table]) -> None:
         f"experiment '{expids.iat[i]}' has no units in {units.source}. Every experiment needs at least one unit."))
 
 
+def no_seed_lot_descends_from_itself(tables: dict[str, Table]) -> None:
+    """Going from seed lot to parent seed lot, by ParentSLID, never leads back to the seed lot started from."""
+    seed_lots = tables["SeedLot"]
+    slids = seed_lots.data["SLID"]
+    parents = {slid: parent for slid, parent, missing
+               in zip(slids, seed_lots.data["ParentSLID"], seed_lots.missing["ParentSLID"]) if not missing}
+
+    def loop(slid: str) -> list[str] | None:
+        """The seed lots from slid back to itself, or None if its ancestors do not lead back to it."""
+        path = [slid]
+        while path[-1] in parents:
+            parent = parents[path[-1]]
+            if parent == slid:
+                return path + [slid]
+            if parent in path:
+                return None
+            path.append(parent)
+        return None
+
+    loops = [loop(slid) for slid in slids]
+    fail_first(seed_lots, "ParentSLID", pd.Series([path is not None for path in loops], dtype=bool), lambda i: (
+        f"seed lot '{slids.iat[i]}' descends from itself: {' -> '.join(loops[i])}. A seed lot cannot be grown from "
+        "itself or its own offspring. Fix the ParentSLID of one of these seed lots."))
+
+
+def parent_seed_lot_harvested_first(tables: dict[str, Table]) -> None:
+    """A seed lot is harvested after the seed lot it was grown from."""
+    seed_lots = tables["SeedLot"]
+    days = seed_lots.dates("HarvestDate")
+    harvested = dict(zip(seed_lots.data["SLID"], days))
+    parents = [None if missing else parent
+               for parent, missing in zip(seed_lots.data["ParentSLID"], seed_lots.missing["ParentSLID"])]
+    parent_days = [harvested[parent] if parent else None for parent in parents]
+    wrong = pd.Series([day is not None and parent_day is not None and day <= parent_day
+                       for day, parent_day in zip(days, parent_days)], dtype=bool)
+    fail_first(seed_lots, "HarvestDate", wrong, lambda i: (
+        f"'{days[i]}' is not after {parent_days[i]}, the HarvestDate of its parent seed lot '{parents[i]}'. "
+        "A seed lot is harvested after the seed lot it was grown from."
+        + swap_hint(days[i], lambda day: day > parent_days[i])))
+
+
+def experiment_starts_before_it_ends(tables: dict[str, Table]) -> None:
+    """An experiment's StartDate is not after its EndDate."""
+    experiments = tables["Experiment"]
+    starts = experiments.dates("StartDate")
+    ends = experiments.dates("EndDate")
+    wrong = pd.Series([start is not None and end is not None and start > end for start, end in zip(starts, ends)],
+                      dtype=bool)
+    fail_first(experiments, "StartDate", wrong, lambda i: (
+        f"'{starts[i]}' is after the EndDate, {ends[i]}." + swap_hint(starts[i], lambda day: day <= ends[i])))
+
+
+def date_within_experiment(table: Table, expids: list[str], limits: dict[str, date | None], limit: str) -> None:
+    """
+    Checks the Date of each row of a table against a date of its experiment: limits holds the StartDate of each
+    experiment if limit is "StartDate", which no Date can be before, or the EndDate if it is "EndDate".
+    """
+    days = table.dates("Date")
+    bounds = [limits[expid] for expid in expids]
+
+    def fits(day: date, bound: date) -> bool:
+        return day >= bound if limit == "StartDate" else day <= bound
+
+    wrong = pd.Series([day is not None and bound is not None and not fits(day, bound)
+                       for day, bound in zip(days, bounds)], dtype=bool)
+    fail_first(table, "Date", wrong, lambda i: (
+        f"'{days[i]}' is {'before' if limit == 'StartDate' else 'after'} {bounds[i]}, the {limit} of experiment "
+        f"'{expids[i]}'." + swap_hint(days[i], lambda day: fits(day, bounds[i]))))
+
+
+def dates_within_experiment(tables: dict[str, Table]) -> None:
+    """
+    Phenotype dates are not before their experiment's StartDate, and Management and Climate dates not after its
+    EndDate. The other way round is normal: seed is scored after harvest, and fertiliser given before sowing.
+    """
+    experiments = tables["Experiment"]
+    starts = dict(zip(experiments.data["EXPID"], experiments.dates("StartDate")))
+    ends = dict(zip(experiments.data["EXPID"], experiments.dates("EndDate")))
+    units = tables["ExperimentalUnit"]
+    unit_experiment = dict(zip(units.data["UNID"], units.data["EXPID"]))
+    phenotype = tables["Phenotype"]
+    date_within_experiment(phenotype, [unit_experiment[unid] for unid in phenotype.data["UNID"]], starts,
+                           "StartDate")
+    for name in ("Management", "Climate"):
+        table = tables.get(name)
+        if table is not None:
+            date_within_experiment(table, list(table.data["EXPID"]), ends, "EndDate")
+
+
+def seed_lot_harvested_before_scoring(tables: dict[str, Table]) -> None:
+    """A unit is scored after the seed lot it was sown from was harvested."""
+    seed_lots = tables["SeedLot"]
+    harvested = dict(zip(seed_lots.data["SLID"], seed_lots.dates("HarvestDate")))
+    units = tables["ExperimentalUnit"]
+    unit_seed_lot = dict(zip(units.data["UNID"], units.data["SLID"]))
+    phenotype = tables["Phenotype"]
+    unids = list(phenotype.data["UNID"])
+    slids = [unit_seed_lot[unid] for unid in unids]
+    days = phenotype.dates("Date")
+    wrong = pd.Series([day is not None and harvested[slid] is not None and day <= harvested[slid]
+                       for day, slid in zip(days, slids)], dtype=bool)
+    fail_first(phenotype, "Date", wrong, lambda i: (
+        f"'{days[i]}' is not after {harvested[slids[i]]}, the HarvestDate of seed lot '{slids[i]}', which unit "
+        f"'{unids[i]}' was sown from." + swap_hint(days[i], lambda day: day > harvested[slids[i]])))
+
+
 RULES: dict[str, Callable[[dict[str, Table]], None]] = {
     "climate_unit_in_experiment": climate_unit_in_experiment,
     "one_intervention_per_unit": one_intervention_per_unit,
     "every_experiment_has_a_unit": every_experiment_has_a_unit,
+    "no_seed_lot_descends_from_itself": no_seed_lot_descends_from_itself,
+    "parent_seed_lot_harvested_first": parent_seed_lot_harvested_first,
+    "experiment_starts_before_it_ends": experiment_starts_before_it_ends,
+    "dates_within_experiment": dates_within_experiment,
+    "seed_lot_harvested_before_scoring": seed_lot_harvested_before_scoring,
 }
 
 
 # ---------------------------------------------------------------- Validation
 
-def validate(raws: dict[str, RawTable], schema: Schema,
-             notice: Callable[[str], None] = lambda message: None) -> dict[str, Table]:
+def validate(raws: dict[str, RawTable], schema: Schema, notice: Callable[[str], None] = lambda message: None,
+             warning: Callable[[str], None] = lambda message: None) -> dict[str, Table]:
     """
     Checks the tables against the schema, in this order, and stops at the first error:
-    which tables there are, their columns, the values in each column, the Features table,
+    which tables there are, their columns and rows, the values in each column, the Features table,
     the links between tables, the Features cells, and the rules that span tables.
+    notice(message) is called for what is good to know, and warning(message) for what may be a mistake.
     Returns:
         dict: table name -> checked table, in the schema's order.
     Raises:
@@ -679,7 +981,7 @@ def validate(raws: dict[str, RawTable], schema: Schema,
             raise ValidationError(f"{table.source} has no rows, but {table.name} needs at least one.")
 
     for table in tables.values():
-        check_cells(table)
+        check_cells(table, warning)
     features = check_feature_definitions(tables.get("Features"))
     for table in tables.values():
         for column in table.definition.columns.values():
@@ -695,10 +997,11 @@ def validate(raws: dict[str, RawTable], schema: Schema,
 
 
 def validate_files(files: list[tuple[str, Path]], schema: Schema | None = None,
-                   notice: Callable[[str], None] = lambda message: None) -> dict[str, Table]:
+                   notice: Callable[[str], None] = lambda message: None,
+                   warning: Callable[[str], None] = lambda message: None) -> dict[str, Table]:
     """Reads the tables from CSV files or one collection sheet, and checks them. See `load_files` and `validate`."""
     schema = schema or load_schema()
-    return validate(load_files(files, schema, notice), schema, notice)
+    return validate(load_files(files, schema, notice, warning), schema, notice, warning)
 
 
 def summary(tables: dict[str, Table], schema: Schema) -> list[str]:
@@ -769,7 +1072,8 @@ def main(argv: list[str] | None = None) -> int:
     for notice in version_notices():
         print(f"Notice: {notice}")
     try:
-        tables = validate_files(files, schema, notice=lambda message: print(f"Notice: {message}"))
+        tables = validate_files(files, schema, notice=lambda message: print(f"Notice: {message}"),
+                                warning=lambda message: print(f"Warning: {message}"))
     except ValidationError as e:
         print(f"Validation failed: {e}")
         return 1

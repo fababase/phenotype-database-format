@@ -27,7 +27,7 @@ This roadmap records the decisions made so far, the work in order, and the quest
 | Collection sheet | **Built from `schema.yaml` by the app**, which offers it for download. One sheet per table, named after it. Row 2 says what goes in each column: required or optional, the description and a hint for the type. The validator skips row 2 when its first cell starts with that help text. A short *READ ME 1st* sheet gives the schema version, how to fill it in, links, and the list of tables; it is generated from `schema/schema.yaml`. |
 | One schema.yaml | There is only ever **one** `schema.yaml`, in `schema/`, so there is no confusion about format, **ever**. It is never copied into `app/` or anywhere else in the repository, and a test fails if a second one appears. |
 | Validator input | A set of **CSV files**, one per table, or a filled-in **collection sheet** (.xlsx). Either way, the tables that pass can be written out as CSV files. |
-| Validator errors | **Stops at the first error.** Later errors are often knock-on effects of the first one, so they are not reported. Each message names the table, row, column and value, and hint where possible. |
+| Validator errors | **Stops at the first error.** Later errors are often knock-on effects of the first one, so they are not reported. Each message names the table, row, column and value, and hint where possible. **Warnings**, one per column, point out what is allowed but often a mistake, such as a date before 1950; the tables still pass. |
 | Format | All written in `schema/schema.yaml`. |
 | Schema diagram | **Drawn from `schema.yaml`** by `schema/diagram.py` each time the app is published: an interactive page next to the app, where tables can be dragged around, clicking a table highlights its links, and pointing at a column, a table's name or a link says what it is (a column's description, type hint and example, as in row 2 of the collection sheet), plus a PNG and an SVG picture, which keeps that text as tooltips. See [deploy-app.md](deploy-app.md#the-schema-diagram). |
 | App hosting | **Shinylive on GitHub Pages**: the app runs in the visitor's browser, so data never leaves their computer, and it redeploys automatically on push. `schema.yaml` is bundled into the app when it is built. See [deploy-app.md](deploy-app.md). |
@@ -160,6 +160,7 @@ The app's right-hand panel is reserved for plots that help spot data that passes
 - the range or distribution of each trait
 - the number of scores per unit
 - a trait plotted over Row × Column of the field, where a shifted row stands out
+- the Phenotype, Management and Climate dates against each experiment's StartDate–EndDate
 
 ## Phase 5: A central AI agent
 
@@ -174,24 +175,3 @@ To be explored later: instead of each contributor setting up an AI themselves, a
   - *Developers*: change the schema, validator, app and Actions; how the pieces fit, and which files are generated.
 
 - The Decisions table above could move to its own file then, so it outlives this roadmap.
-- **IDs that start with a digit.** The schema doc recommends against them. Decide whether to make it a rule the validator checks.
-- **Special symbols.** We may restrict special symbols in values where possible, so that each one has a single defined meaning, and any other use is an error.
-- **Dates that make sense.** The validator only checks that a date is real and written YYYY-MM-DD. Possible additions:
-  - No dates in the future.
-  - A warning, not an error, for very early dates.
-  - An experiment's StartDate is not after its EndDate.
-  - One warning per table, not per row, when Phenotype, Management or Climate dates fall outside their experiment's StartDate–EndDate.
-  - Maybe stricter: Management dates are not after their experiment's EndDate, and Phenotype dates are not before its StartDate.
-  - When a date falls outside its experiment but swapping day and month would bring it inside, say so.
-  - A parent seed lot (ParentSLID) is harvested before its child.
-  - A seed lot is harvested before the phenotype dates of the units sown from it.
-  - A Phase 4 plot of the Phenotype, Management and Climate dates against each experiment's StartDate–EndDate.
-- **ParentSLID loops.** Check that ParentSLID chains never loop back on themselves (A → A, or A → B → A or any variation thereof).
-- **Coordinates in range.** `91;181` passes. Decide whether to check latitude −90 to 90 and longitude −180 to 180.
-- **Infinite numbers.** `1e999` passes as a number, though it is read as infinity.
-- **Digits other than 0–9.** Digits such as `１２` (full-width) and `٣` (Arabic-Indic) pass as numbers.
-- **Hidden sheets.** A hidden sheet in the collection sheet, such as one holding dropdown lists, is an error. Decide whether to skip hidden sheets.
-- **More help in the collection sheet.** Now that it is built from `schema.yaml`, it could also get dropdowns (Type in Features; IDs from the sheet a column links to), ID and text columns formatted as text so Excel does not turn `1-2` into a date, and required columns highlighted.
-- **Version of a filled-in sheet.** The *READ ME 1st* sheet says which schema version a blank sheet was built for. The validator could read it and say when a sheet is from an older version.
-- **Case in column names.** `species` gets "Did you mean 'Species'?", but `gpid` gets no suggestion for `GPID`. Decide whether to ignore case when suggesting, or when matching column names.
-- **Blank lines in CSV files.** They are dropped. Decide whether they should be an error.

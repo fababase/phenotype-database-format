@@ -6,16 +6,28 @@ from datetime import datetime, time
 
 import pytest
 
-from helpers import (GREENHOUSE, POT, SCORE, SPECTRUM, TRIAL, UNIT, Dataset, edit_workbook, error, fails,
+from helpers import (GREENHOUSE, POT, SCHEMA, SCORE, SPECTRUM, TRIAL, UNIT, Dataset, edit_workbook, error, fails,
                      make_workbook, passes, set_sheet_cell)
+from validation import READ_ME_SHEET, READ_ME_TITLE
 
 TABLES = ("Germplasm, SeedLot, Experiment, ExperimentalUnit, ExperimentIntervention, Management, "
           "PhenotypeDescription, Phenotype, ClimateDescription, Climate, Features")
 ID_RULE = "IDs can only hold the letters a-z and A-Z without accents, the digits 0-9 and '_'."
+START_RULE = "IDs have to start with a letter, a-z or A-Z."
 NOT_A_NUMBER = ("is not a number. Write only the number, with '.' as the decimal mark and no thousands separator, "
                 "units or words, e.g. 3.5.")
+INFINITE = "is too large a number: it would be read as infinity."
+NOT_A_LIST = ("is not a list written value1;value2. Separate the values with ';', with no spaces around it and no "
+              "empty values.")
+SYMBOLS = ("the symbols of a US keyboard, apart from ';' and '=', which have meanings of their own. Write other "
+           "symbols in words, such as 'degrees' for '°'.")
+TEXT_RULE = f"Text can only hold letters, the digits 0-9, spaces and {SYMBOLS}"
+LONG_TEXT_RULE = f"Text can only hold letters, the digits 0-9, spaces, line breaks and {SYMBOLS}"
 NOT_ONE_TABLE = "Give either one collection sheet (.xlsx) or CSV files, not both or several workbooks."
 QUOTES = "Check its quote marks: a value that starts with \" has to end with \" too."
+NO_VALUES = "has no values, but rows after it do. Delete the row. If the rows below it are not part of the table, " \
+            "delete them too."
+SWAPPED = "With day and month swapped, it would be {}, which fits. Check which is meant."
 
 
 # ---------------------------------------------------------------- Files
@@ -178,6 +190,18 @@ def test_row_2_that_is_not_help_text_is_data(dataset, tmp_path):
                                       f"a space, '(' and ')'. {ID_RULE} Use '_' instead: Germplasm_ID_required_")
 
 
+def test_collection_sheet_of_another_version(dataset, tmp_path):
+    """It is checked before anything else, as the columns may have changed since that version."""
+    def older(wb):
+        wb[READ_ME_SHEET]["A1"] = READ_ME_TITLE.format(version="0.9.0")
+    dataset.set("Phenotype", SCORE, "Score", "n.a.")
+    workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
+    edit_workbook(workbook, older)
+    fails([("sheet.xlsx", workbook)], f"sheet.xlsx is a collection sheet for schema version 0.9.0, but it is checked "
+                                      f"against schema version {SCHEMA.version}. Download a new blank collection "
+                                      "sheet, and copy your data into it.")
+
+
 @pytest.mark.parametrize("help_row", [True, False], ids=["with help text", "without help text"])
 def test_row_numbers_are_those_of_the_sheet(dataset, tmp_path, help_row):
     dataset.set("Phenotype", SCORE, "Score", "n.a.")
@@ -201,6 +225,18 @@ def test_required_table_without_rows(dataset, rows):
     fails(dataset.files(), "Germplasm.csv has no rows, but Germplasm needs at least one.")
 
 
+@pytest.mark.parametrize("row", [[], ["NA", "", "null", "N/A", "", "None", "", "not applicable"]],
+                         ids=["empty", "only missing values"])
+def test_row_without_values_with_rows_after_it(dataset, tmp_path, row):
+    """It may end the table, with something else below it. In the collection sheet, it is one row further down."""
+    rows = dataset.read("Phenotype")
+    rows.insert(4, row)
+    dataset.write("Phenotype", rows)
+    fails(dataset.files(), f"Phenotype.csv, row 5 {NO_VALUES}")
+    workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
+    fails([("sheet.xlsx", workbook)], f"sheet 'Phenotype', row 6 {NO_VALUES}")
+
+
 # ---------------------------------------------------------------- Columns
 
 def test_values_in_a_column_without_a_name(dataset):
@@ -211,6 +247,9 @@ def test_values_in_a_column_without_a_name(dataset):
 
 @pytest.mark.parametrize("name, hint", [
     ("Specie", "Did you mean 'Species'?"),
+    # Close names are found ignoring case
+    ("SPECIES", "Did you mean 'Species'?"),
+    ("species", "Did you mean 'Species'?"),
     ("Yield", "The columns of Germplasm are: GPID, Name, AlternativeName, Species, Donor, GeographicOrigin, "
               "Maintaining, Comments."),
 ])
@@ -256,6 +295,13 @@ def test_required_value_missing(dataset, value, problem):
     # No fix is suggested for letters with accents
     ("Søren", f"'Søren' contains 'ø'. {ID_RULE}"),
     ("Søren-2", f"'Søren-2' contains 'ø' and '-'. {ID_RULE}"),
+    # A character that cannot be seen is named
+    ("ostrin 2", f"'ostrin 2' contains the invisible character U+00A0 (no-break space). {ID_RULE} "
+                      "Use '_' instead: ostrin_2"),
+    ("2ostrin", f"'2ostrin' starts with '2'. {START_RULE}"),
+    ("_ostrin", f"'_ostrin' starts with '_'. {START_RULE}"),
+    # No fix is suggested when it would not start with a letter either
+    ("2-ostrin", f"'2-ostrin' contains '-'. {ID_RULE}"),
 ])
 def test_invalid_id(dataset, value, problem):
     where = dataset.where("Germplasm", "ostrin", "GPID")
@@ -291,10 +337,58 @@ def test_not_a_whole_number(dataset, value):
     (".5", f"'.5' {NOT_A_NUMBER}"),
     ("5.", f"'5.' {NOT_A_NUMBER}"),
     ("+3", f"'+3' {NOT_A_NUMBER}"),
+    # Read as infinity
+    ("1e999", f"'1e999' {INFINITE}"),
+    ("-1e999", f"'-1e999' {INFINITE}"),
 ])
 def test_not_a_number(dataset, value, problem):
     dataset.set("Phenotype", SCORE, "Score", value)
     fails(dataset.files(), f"{dataset.where('Phenotype', SCORE, 'Score')}: {problem}")
+
+
+@pytest.mark.parametrize("table, rid, column, value, digits", [
+    ("Phenotype", SCORE, "Score", "１２", "'１' and '２'"),  # full-width
+    ("Phenotype", SCORE, "Score", "٣", "'٣'"),  # Arabic-Indic
+    ("ExperimentalUnit", UNIT, "Block", "٣", "'٣'"),
+    ("Phenotype", SCORE, "Date", "٢٠٢٥-06-30", "'٢', '٠' and '٥'"),
+    ("Experiment", TRIAL, "GPSCoordinates", "٥٦;١٠", "'٥', '٦', '١' and '٠'"),
+])
+def test_digits_other_than_0_to_9(dataset, table, rid, column, value, digits):
+    dataset.set(table, rid, column, value)
+    fails(dataset.files(), f"{dataset.where(table, rid, column)}: '{value}' has digits other than 0-9: {digits}. "
+                           "Write them as 0-9.")
+
+
+@pytest.mark.parametrize("column, value, named", [
+    ("Comments", "Germinates best at 20 °C.", "'°'"),
+    ("Comments", "Large seeds; flat.", "';'"),
+    ("Comments", "“Large” seeds.", "'“' and '”'"),
+    ("Comments", "Large seeds.", "the invisible character U+00A0 (no-break space)"),
+    ("Comments", "Large​seeds.", "the invisible character U+200B (zero width space)"),
+    ("Comments", "Large\tseeds.", "a tab"),
+    ("Comments", "Seeds ١٢ mm long.", "'١' and '٢'"),
+    ("Name", "Ostrin\nOS", "a line break"),
+    ("AlternativeName", "OS=2", "'='"),
+])
+def test_text_with_characters_it_cannot_hold(dataset, column, value, named):
+    """Comments is long text, which can hold line breaks too, Name is text and AlternativeName a list."""
+    dataset.set("Germplasm", "ostrin", column, value)
+    rule = LONG_TEXT_RULE if column == "Comments" else TEXT_RULE
+    fails(dataset.files(), f"{dataset.where('Germplasm', 'ostrin', column)}: the text contains {named}. {rule}")
+
+
+@pytest.mark.parametrize("table, rid, column, value", [
+    ("Germplasm", "vandrel", "AlternativeName", "NB 117; Nordbean 117"),
+    ("Germplasm", "vandrel", "AlternativeName", "NB 117;"),
+    ("Features", "soil_type", "Vocabulary", "clay; loam;sandy loam"),
+    ("Features", "soil_type", "Vocabulary", "clay ;loam"),
+    ("Features", "soil_type", "Vocabulary", "clay;;loam"),
+    ("Features", "soil_type", "Vocabulary", "clay;loam;"),
+    ("Features", "soil_type", "Vocabulary", ";clay"),
+])
+def test_not_a_list(dataset, table, rid, column, value):
+    dataset.set(table, rid, column, value)
+    fails(dataset.files(), f"{dataset.where(table, rid, column)}: '{value}' {NOT_A_LIST}")
 
 
 @pytest.mark.parametrize("value, problem", [
@@ -305,10 +399,17 @@ def test_not_a_number(dataset, value, problem):
     ("30/06/2025", "'30/06/2025' is not a date written YYYY-MM-DD, e.g. 2023-05-17."),
     ("2025-6-30", "'2025-6-30' is not a date written YYYY-MM-DD, e.g. 2023-05-17."),
     ("20250630", "'20250630' is not a date written YYYY-MM-DD, e.g. 2023-05-17."),
+    ("2999-12-31", "'2999-12-31' is in the future."),
 ])
 def test_not_a_date(dataset, value, problem):
     dataset.set("Phenotype", SCORE, "Date", value)
     fails(dataset.files(), f"{dataset.where('Phenotype', SCORE, 'Date')}: {problem}")
+
+
+def test_end_of_an_experiment_in_the_future(dataset):
+    """Even one that is still running: data is only added once an experiment has ended."""
+    dataset.set("Experiment", TRIAL, "EndDate", "2999-08-26")
+    fails(dataset.files(), f"{dataset.where('Experiment', TRIAL, 'EndDate')}: '2999-08-26' is in the future.")
 
 
 @pytest.mark.parametrize("value, hint", [
@@ -323,6 +424,13 @@ def test_not_coordinates(dataset, value, hint):
     dataset.set("Experiment", TRIAL, "GPSCoordinates", value)
     fails(dataset.files(), f"{dataset.where('Experiment', TRIAL, 'GPSCoordinates')}: '{value}' is not written "
                            f"latitude;longitude in decimal degrees, e.g. 56.170308;10.207013.{hint}")
+
+
+@pytest.mark.parametrize("value", ["91;9.55204", "-90.5;9.55204", "56.09125;181", "56.09125;-180.1"])
+def test_coordinates_out_of_range(dataset, value):
+    dataset.set("Experiment", TRIAL, "GPSCoordinates", value)
+    fails(dataset.files(), f"{dataset.where('Experiment', TRIAL, 'GPSCoordinates')}: '{value}' is outside the range "
+                           "of coordinates: latitude goes from -90 to 90, and longitude from -180 to 180.")
 
 
 @pytest.mark.parametrize("gpid, problem", [
@@ -367,28 +475,20 @@ def test_unknown_feature_type(dataset, value, hint):
                            f"{hint}")
 
 
-@pytest.mark.parametrize("vocabulary", ["clay; loam;sandy loam", "clay ;loam", "clay;;loam", "clay;loam;", ";clay",
-                                        "clay=1;loam=2"])
-def test_invalid_list_of_values(dataset, vocabulary):
-    dataset.set("Features", "soil_type", "Vocabulary", vocabulary)
-    fails(dataset.files(), f"{dataset.where('Features', 'soil_type', 'Vocabulary')}: '{vocabulary}' is not a valid "
-                           "vocabulary. For Type c, list the allowed values separated by ';', without spaces around "
-                           "';', e.g. leaf;root;stem.")
-
-
 @pytest.mark.parametrize("ftid, ftype, vocabulary", [
     ("wavelength", "d", "400-2500"),
     ("wavelength", "d", "2500..400"),
-    ("wavelength", "d", "400.."),
     ("wavelength", "d", "400 .. 2500"),
     ("wavelength", "d", "low..high"),
+    # An end without a limit is left blank, not written as a number so large that it is read as infinity
+    ("wavelength", "d", "400..1e999"),
     ("plant_count", "i", "0-60"),
 ])
 def test_invalid_range(dataset, ftid, ftype, vocabulary):
     dataset.set("Features", ftid, "Vocabulary", vocabulary)
     fails(dataset.files(), f"{dataset.where('Features', ftid, 'Vocabulary')}: '{vocabulary}' is not a valid "
                            f"vocabulary. For Type {ftype}, give a range min..max with min no larger than max, "
-                           "e.g. 0..100.")
+                           "e.g. 0..100. Leave an end blank for no limit, e.g. 0..")
 
 
 # ---------------------------------------------------------------- Links between tables
@@ -458,11 +558,21 @@ def test_features_cell_not_written_ftid_is_value(dataset, cell):
                           "needs."),
     ("wavelength=399", "399 is outside the range of feature wavelength (400..2500)."),
     ("wavelength=2500.5", "2500.5 is outside the range of feature wavelength (400..2500)."),
+    ("soil_ph=1e999", f"'1e999' {INFINITE}"),
+    ("plant_count=١٢", "'١٢' has digits other than 0-9: '١' and '٢'. Write them as 0-9."),
+    ("tissue=leaf °", f"'leaf °' contains '°'. {TEXT_RULE}"),
 ])
 def test_feature_value_that_does_not_fit(dataset, cell, problem):
     dataset.set("ExperimentalUnit", UNIT, "Features", cell)
     fails(dataset.files(), f"{dataset.where('ExperimentalUnit', UNIT, 'Features')}: invalid Features cell '{cell}'. "
                            f"{problem}")
+
+
+def test_feature_value_outside_an_open_range(dataset):
+    dataset.set("Features", "plant_count", "Vocabulary", "0..")
+    dataset.set("ExperimentalUnit", UNIT, "Features", "plant_count=-1")
+    fails(dataset.files(), f"{dataset.where('ExperimentalUnit', UNIT, 'Features')}: invalid Features cell "
+                           "'plant_count=-1'. -1 is outside the range of feature plant_count (0..).")
 
 
 def test_features_cell_without_a_features_table(dataset):
@@ -496,6 +606,67 @@ def test_experiment_without_units(dataset):
     dataset.add_row("Experiment", EXPID=expid)
     fails(dataset.files(), f"Experiment.csv, row 4, column EXPID: experiment '{expid}' has no units in "
                            "ExperimentalUnit.csv. Every experiment needs at least one unit.")
+
+
+@pytest.mark.parametrize("parents, path, more", [
+    ({"vandrel_northfield_2023": "vandrel_northfield_2023"}, ["vandrel_northfield_2023"] * 2, ""),
+    ({"vandrel_northfield_2023": "vandrel_northfield_2024"},
+     ["vandrel_northfield_2023", "vandrel_northfield_2024", "vandrel_northfield_2023"],
+     " (1 more row in this column has the same problem.)"),
+    # vandrel_northfield_2024 descends from the loop, but is not in it
+    ({"vandrel_northfield_2023": "ostrin_greenhouse_2024", "ostrin_greenhouse_2024": "belkar_genebank",
+      "belkar_genebank": "vandrel_northfield_2023"},
+     ["vandrel_northfield_2023", "ostrin_greenhouse_2024", "belkar_genebank", "vandrel_northfield_2023"],
+     " (2 more rows in this column have the same problem.)"),
+], ids=["itself", "its child", "a loop of three"])
+def test_seed_lot_that_descends_from_itself(dataset, parents, path, more):
+    for slid, parent in parents.items():
+        dataset.set("SeedLot", slid, "ParentSLID", parent)
+    fails(dataset.files(), f"{dataset.where('SeedLot', path[0], 'ParentSLID')}: seed lot '{path[0]}' descends from "
+                           f"itself: {' -> '.join(path)}. A seed lot cannot be grown from itself or its own "
+                           f"offspring. Fix the ParentSLID of one of these seed lots.{more}")
+
+
+@pytest.mark.parametrize("harvested, swapped", [("2023-08-24", ""), ("2023-01-09", SWAPPED.format("2023-09-01"))])
+def test_seed_lot_harvested_before_its_parent(dataset, harvested, swapped):
+    """The parent, vandrel_northfield_2023, was harvested on 2023-08-24."""
+    slid = "vandrel_northfield_2024"
+    dataset.set("SeedLot", slid, "HarvestDate", harvested)
+    fails(dataset.files(), f"{dataset.where('SeedLot', slid, 'HarvestDate')}: '{harvested}' is not after 2023-08-24, "
+                           "the HarvestDate of its parent seed lot 'vandrel_northfield_2023'. A seed lot is harvested "
+                           f"after the seed lot it was grown from. {swapped}".rstrip())
+
+
+@pytest.mark.parametrize("start, swapped", [("2025-08-27", ""), ("2025-09-04", SWAPPED.format("2025-04-09"))])
+def test_experiment_that_starts_after_it_ends(dataset, start, swapped):
+    dataset.set("Experiment", TRIAL, "StartDate", start)
+    fails(dataset.files(), f"{dataset.where('Experiment', TRIAL, 'StartDate')}: '{start}' is after the EndDate, "
+                           f"2025-08-26. {swapped}".rstrip())
+
+
+@pytest.mark.parametrize("day, swapped", [("2025-03-31", ""), ("2025-04-07", SWAPPED.format("2025-07-04"))])
+def test_score_before_its_experiment_starts(dataset, day, swapped):
+    dataset.set("Phenotype", SCORE, "Date", day)
+    fails(dataset.files(), f"{dataset.where('Phenotype', SCORE, 'Date')}: '{day}' is before 2025-04-08, the StartDate "
+                           f"of experiment '{TRIAL}'. {swapped}".rstrip())
+
+
+@pytest.mark.parametrize("table, rid, day, swapped", [
+    ("Management", f"{TRIAL}_002", "2025-08-27", ""),
+    ("Climate", f"{TRIAL}_001", "2025-12-08", SWAPPED.format("2025-08-12")),
+])
+def test_treatment_or_measurement_after_its_experiment_ends(dataset, table, rid, day, swapped):
+    dataset.set(table, rid, "Date", day)
+    fails(dataset.files(), f"{dataset.where(table, rid, 'Date')}: '{day}' is after 2025-08-26, the EndDate of "
+                           f"experiment '{TRIAL}'. {swapped}".rstrip())
+
+
+def test_score_before_the_seed_lot_was_harvested(dataset):
+    """Four scores are of units sown from vandrel_northfield_2024, all on 2025-06-30."""
+    dataset.set("SeedLot", "vandrel_northfield_2024", "HarvestDate", "2025-07-01")
+    fails(dataset.files(), f"{dataset.where('Phenotype', SCORE, 'Date')}: '2025-06-30' is not after 2025-07-01, the "
+                           f"HarvestDate of seed lot 'vandrel_northfield_2024', which unit '{UNIT}' was sown from. "
+                           "(3 more rows in this column have the same problem.)")
 
 
 # ---------------------------------------------------------------- Stops at the first error

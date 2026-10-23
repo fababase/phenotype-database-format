@@ -41,6 +41,14 @@ def test_notices(dataset, capsys):
     assert capsys.readouterr().out.splitlines()[1] == "Notice: Germplasm.csv is separated by semicolons."
 
 
+def test_warnings(dataset, capsys):
+    dataset.set("SeedLot", "belkar_genebank", "HarvestDate", "1925-06-30")
+    where = dataset.where("SeedLot", "belkar_genebank", "HarvestDate")
+    assert main([str(dataset.folder)]) == 0
+    assert capsys.readouterr().out.splitlines()[1] == (f"Warning: {where}: '1925-06-30' is before 1950. "
+                                                       "Check that it is right.")
+
+
 def test_other_files_in_the_folder_are_skipped(dataset, capsys):
     """Excel's lock files (~$...), and files that are not CSV or .xlsx."""
     (dataset.folder / "~$Germplasm.csv").write_bytes(b"\0")

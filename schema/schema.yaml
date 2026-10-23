@@ -9,12 +9,13 @@ version: "1.0.0"
 missing_values: ["NULL", "NA", "N/A", "None", "Not applicable"]
 
 # Column types:
-#   id           identifies a row: only the letters A-Z and a-z, the digits 0-9 and _
-#   text         short text
-#   long_text    free text of any length
+#   id           identifies a row: only the letters A-Z and a-z, the digits 0-9 and _, starting with a letter
+#   text         short text: letters, the digits 0-9, spaces and the symbols of a US keyboard, apart from ; and =
+#   long_text    free text of any length, as text, and line breaks
+#   list         values separated by ;, with no spaces around it, each of them text
 #   integer      whole number
 #   number       real number, with "." as the decimal mark
-#   date         YYYY-MM-DD
+#   date         YYYY-MM-DD, not in the future
 #   coordinates  latitude;longitude in decimal degrees, without spaces
 #   features     FTID1=value1;FTID2=value2, with FTIDs from the Features table
 #
@@ -47,8 +48,8 @@ tables:
         description: Name of the variety or line.
         example: Vandrel
       AlternativeName:
-        type: text
-        description: Other names for the variety. Separate several names with `;`.
+        type: list
+        description: Other names for the variety.
         example: NB 117
       Species:
         type: text
@@ -457,8 +458,9 @@ tables:
         description: Unit of the values, mostly for numbers.
         example: nm
       Vocabulary:
-        type: text
-        description: "Allowed values: a `;`-separated list for `c`, or a `min..max` range for `i` and `d`."
+        type: list
+        description: "Allowed values: a `;`-separated list for `c`, or a `min..max` range for `i` and `d`. Leave an
+          end blank for no limit, as in `0..` for 0 or more."
         example: clay;loam;sandy loam
       Description:
         type: long_text
@@ -468,6 +470,11 @@ tables:
 
 # Rules that span tables, checked after the links. Each name is implemented in the validator.
 rules:
-  - climate_unit_in_experiment  # a Climate UNID that is filled in belongs to the row's EXPID
-  - one_intervention_per_unit   # in experiments with interventions, every unit has a row in ExperimentIntervention
-  - every_experiment_has_a_unit # every experiment has at least one unit
+  - climate_unit_in_experiment        # a Climate UNID that is filled in belongs to the row's EXPID
+  - one_intervention_per_unit         # in experiments with interventions, every unit has a row in ExperimentIntervention
+  - every_experiment_has_a_unit       # every experiment has at least one unit
+  - no_seed_lot_descends_from_itself  # ParentSLID never leads back to the seed lot, however many generations back
+  - parent_seed_lot_harvested_first   # a seed lot is harvested after its ParentSLID
+  - experiment_starts_before_it_ends  # an experiment's StartDate is not after its EndDate
+  - dates_within_experiment           # Phenotype dates are not before StartDate, Management and Climate dates not after EndDate
+  - seed_lot_harvested_before_scoring # a unit is scored after the seed lot it was sown from was harvested

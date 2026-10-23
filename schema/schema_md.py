@@ -23,8 +23,8 @@ BLOCK = re.compile(r"(?P<begin><!-- BEGIN (?P<key>[^:>]+): [^>]*-->\n)(?P<table>
 NOTE = "written from schema.yaml by schema/schema_md.py"
 
 # How schema.md names each column type, as in its section on data types
-TYPE_NAMES = {"id": "ID", "text": "Text", "long_text": "Long text", "integer": "Integer", "number": "Number",
-              "date": "Date", "coordinates": "Coordinates", "features": "Feature list"}
+TYPE_NAMES = {"id": "ID", "text": "Text", "long_text": "Long text", "list": "List", "integer": "Integer",
+              "number": "Number", "date": "Date", "coordinates": "Coordinates", "features": "Feature list"}
 # What follows the description of a column of these types
 SEE = {"long_text": "See [Free text](#free-text).",
        "features": "See [Features cells](#features-cells-hold-several-values)."}

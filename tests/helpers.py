@@ -188,10 +188,12 @@ def rename_sheet(path: Path, old: str, new: str) -> None:
     edit_workbook(path, rename)
 
 
-def passes(files: list[tuple[str, Path]]) -> tuple[dict[str, Table], list[str]]:
-    """Validates the files, which have to pass. Returns the checked tables and the notices."""
+def passes(files: list[tuple[str, Path]], warnings: tuple[str, ...] = ()) -> tuple[dict[str, Table], list[str]]:
+    """Validates the files, which have to pass with exactly these warnings. Returns the checked tables and the notices."""
     notices = []
-    tables = validate_files(files, SCHEMA, notice=notices.append)
+    warned = []
+    tables = validate_files(files, SCHEMA, notice=notices.append, warning=warned.append)
+    assert warned == list(warnings)
     return tables, notices
 
 

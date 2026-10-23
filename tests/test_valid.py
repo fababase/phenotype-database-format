@@ -6,9 +6,9 @@ from datetime import date, datetime
 
 import pytest
 
-from helpers import (OPTIONAL_TABLES, SCHEMA, SCORE, TRIAL, UNIT, as_csv, make_workbook, passes, rename_sheet,
-                     set_sheet_cell)
-from validation import cell_text, help_text, summary
+from helpers import (OPTIONAL_TABLES, SCHEMA, SCORE, TRIAL, UNIT, as_csv, edit_workbook, make_workbook, passes,
+                     rename_sheet, set_sheet_cell)
+from validation import READ_ME_SHEET, cell_text, help_text, summary
 
 
 def test_csv_files_pass(dataset):
@@ -36,15 +36,15 @@ def test_summary_of_one_row(dataset):
     assert "Management: 1 row, from Management.csv" in summary(tables, SCHEMA)
 
 
-def test_rows_where_every_cell_is_missing_are_dropped(dataset, tmp_path):
+def test_rows_without_values_at_the_end_are_dropped(dataset, tmp_path):
     """
-    An empty row and a row of only missing values, as rows 5 and 6 of Phenotype, are dropped, and the rows after
-    keep their numbers. In the collection sheet, every row is one further down, below the row of descriptions.
+    An empty row and a row of only missing values at the end of Phenotype, as Excel often leaves there unseen, are
+    dropped. In the collection sheet, every row is one further down, below the row of help text.
     """
     rows = dataset.read("Phenotype")
-    rows[4:4] = [[], ["NA", "", "null", "N/A", "", "None", "", "not applicable"]]
+    rows += [[], ["NA", "", "null", "N/A", "", "None", "", "not applicable"]]
     dataset.write("Phenotype", rows)
-    expected = [2, 3, 4, *range(7, 24)]
+    expected = list(range(2, 22))
     tables, _ = passes(dataset.files())
     assert tables["Phenotype"].row_numbers == expected
     workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
@@ -101,6 +101,35 @@ def test_read_me_sheet_ignored_in_any_case(dataset, tmp_path):
     workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
     rename_sheet(workbook, "READ ME 1st", "read me 1st")
     passes([("sheet.xlsx", workbook)])
+
+
+def test_read_me_sheet_without_a_version(dataset, tmp_path):
+    """Then the version is not checked."""
+    def notes(wb):
+        wb[READ_ME_SHEET]["A1"] = "Notes on the trial"
+    workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
+    edit_workbook(workbook, notes)
+    passes([("sheet.xlsx", workbook)])
+
+
+def test_hidden_sheet_that_is_not_a_table_is_skipped(dataset, tmp_path):
+    """Such as one holding lists for dropdowns."""
+    def add(wb):
+        wb.create_sheet("Lists").sheet_state = "hidden"
+    workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
+    edit_workbook(workbook, add)
+    _, notices = passes([("sheet.xlsx", workbook)])
+    assert notices == ["sheet 'Lists' is hidden and is not a table, so it was skipped."]
+
+
+def test_hidden_sheet_of_a_table_is_checked_with_a_warning(dataset, tmp_path):
+    def hide(wb):
+        wb["Climate"].sheet_state = "hidden"
+    workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
+    edit_workbook(workbook, hide)
+    tables, _ = passes([("sheet.xlsx", workbook)],
+                       warnings=("sheet 'Climate' is hidden, but it is the Climate table, so it was checked.",))
+    assert len(tables["Climate"].data) == 6
 
 
 def test_collection_sheet_without_optional_tables(dataset, tmp_path):
@@ -241,11 +270,26 @@ def test_windows_line_ends(dataset):
     ("Phenotype", SCORE, "Score", "1.5e-3"),
     ("Phenotype", SCORE, "Score", "2E5"),
     ("Phenotype", SCORE, "Score", "-1.5E+3"),
+    ("Phenotype", SCORE, "Score", "1e308"),
     ("ExperimentalUnit", UNIT, "Block", "-2"),
     ("ExperimentalUnit", UNIT, "Block", "0"),
     ("SeedLot", "vandrel_northfield_2024", "HarvestDate", "2024-02-29"),
     ("Experiment", TRIAL, "GPSCoordinates", "-90;180"),
+    ("Experiment", TRIAL, "GPSCoordinates", "90;-180"),
     ("Experiment", TRIAL, "GPSCoordinates", "56;10"),
+    # Text: letters with accents, and every symbol of a US keyboard but ';' and '=', and in long text line breaks
+    ("Germplasm", "ostrin", "Donor", "Søren Højgård"),
+    ("Germplasm", "ostrin", "Comments", "Symbols: !\"#$%&'()*+,-./:<>?@[\\]^_`{|}~\nand a second line."),
+    ("Germplasm", "ostrin", "AlternativeName", "OS 2;Ostrin (2nd)"),
+    # Dates that are normal on the other side of their experiment: a score of harvested seed after its end, and a
+    # measurement before sowing
+    ("Phenotype", SCORE, "Date", "2025-09-15"),
+    ("Climate", f"{TRIAL}_001", "Date", "2025-03-01"),
+    # Without a StartDate, scores are not checked against it
+    ("Experiment", TRIAL, "StartDate", ""),
+    # Ranges with an end left blank
+    ("Features", "wavelength", "Vocabulary", "400.."),
+    ("Features", "wavelength", "Vocabulary", "..2500"),
     # Missing values in typed columns are not checked against the type
     ("Phenotype", SCORE, "Date", "Not Applicable"),
     ("ExperimentalUnit", UNIT, "Block", "n/a"),
@@ -275,9 +319,31 @@ def test_feature_without_a_vocabulary_takes_any_value_of_its_type(dataset):
     passes(dataset.files())
 
 
-@pytest.mark.parametrize("vocabulary, value", [("0..60", "0"), ("0..60", "60"), ("-10..10", "-10")])
+def test_experiment_of_one_day(dataset):
+    """An experiment can start and end on the same day."""
+    expid = "nordbean_sampling_northfield_2025"
+    dataset.add_row("Experiment", EXPID=expid, StartDate="2025-07-01", EndDate="2025-07-01")
+    dataset.add_row("ExperimentalUnit", UNID=f"{expid}_plot1", EXPID=expid, SLID="vandrel_northfield_2024")
+    passes(dataset.files())
+
+
+def test_early_dates_give_one_warning(dataset):
+    """One warning for all the dates before 1950 in a column, about the first of them."""
+    for slid in ("ostrin_greenhouse_2024", "belkar_genebank"):
+        dataset.set("SeedLot", slid, "HarvestDate", "1949-12-31")
+    passes(dataset.files(), warnings=(
+        f"{dataset.where('SeedLot', 'ostrin_greenhouse_2024', 'HarvestDate')}: '1949-12-31' is before 1950. Check "
+        "that it is right. (1 more row in this column has the same problem.)",))
+    dataset.set("SeedLot", "ostrin_greenhouse_2024", "HarvestDate", "1950-01-01")
+    passes(dataset.files(), warnings=(
+        f"{dataset.where('SeedLot', 'belkar_genebank', 'HarvestDate')}: '1949-12-31' is before 1950. Check that it "
+        "is right.",))
+
+
+@pytest.mark.parametrize("vocabulary, value", [("0..60", "0"), ("0..60", "60"), ("-10..10", "-10"), ("0..", "1000"),
+                                               ("..60", "-5")])
 def test_whole_number_feature_within_its_range(dataset, vocabulary, value):
-    """The range includes both ends."""
+    """The range includes both ends, and has no limit at an end left blank."""
     dataset.set("Features", "plant_count", "Vocabulary", vocabulary)
     dataset.set("ExperimentalUnit", UNIT, "Features", f"plant_count={value}")
     passes(dataset.files())

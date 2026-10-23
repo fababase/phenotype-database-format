@@ -91,6 +91,7 @@ The tables are published, and written by the validator, as files like this:
 - One CSV file per table, named after the table: `Germplasm.csv`, `SeedLot.csv`, …
 - UTF-8 text, with the values separated by commas.
 - The first row holds the column names: every column of the table, in the order of the [table reference](#table-reference). Each row after it is one row of the table.
+- No row is empty, or holds only missing values. The validator drops such rows at the end of a file or sheet, as Excel often leaves some there unseen, but one with rows after it is an error, as it may end the table, with something else below it.
 - A value with a comma, a double quote or a line break in it is put in double quotes, and a double quote in it is written twice.
 - A missing value is an empty cell.
 - A table that is not used is left out, or is a file with only the first row.
@@ -115,14 +116,14 @@ Every table has an ID column, which is its first column, and every row must have
 **Rules.** The validator checks these:
 
 - IDs hold only the letters `a`–`z` and `A`–`Z`, the digits `0`–`9` and `_`. No spaces, no `-`, and no other letters, such as `á`, `ñ` or `ø`.
+- IDs start with a letter: `plot007`, not `007` or `_007`.
 - IDs are unique within their table, ignoring case: `hedin_2` and `Hedin_2` count as the same ID.
 - An ID in a column that refers to another table must exist in that table, written exactly the same way, character for character.
 
-These rules keep IDs safe wherever the data goes: `;` and `=` have occasional meanings inside some cells, `,` separates the values in CSV files, `-`, spaces and other symbols might break column names in R and many other tools, and some databases do not tell upper and lower case apart.
+These rules keep IDs safe wherever the data goes: `;` and `=` have occasional meanings inside some cells, `,` separates the values in CSV files, `-`, spaces, other symbols and a digit or `_` at the start might break column names in R and many other tools, and some databases do not tell upper and lower case apart.
 
 **Recommendations:**
 
-- Start IDs with a letter. This may become a rule.
 - Write IDs in snake_case: lower-case words joined by `_`, such as `plant_height_cm`.
 - Pad numbers with zeros, so that IDs sort in order: `plot007`, not `plot7`.
 - In the shared reference tables (Germplasm, SeedLot, PhenotypeDescription, ClimateDescription and Features), use the same ID for the same thing in every dataset. This matters most for GPID, which links phenotypes to other data about the same plant material, such as genomic data. The known datasets, to look up IDs in, are listed in [datasets.md](https://github.com/fababase/phenotype-database-format/blob/main/docs/datasets.md).
@@ -163,35 +164,48 @@ Leaving the cell empty is the recommended way to write a missing value. The text
 
 | Type | Meaning | How it is written |
 |---|---|---|
-| ID | Identifier of a row | Letters, digits and `_`; see [Identifiers](#identifiers) |
-| Text | Short text | Any text |
-| Long text | Free text of any length | Any text |
+| ID | Identifier of a row | Letters, digits and `_`, starting with a letter; see [Identifiers](#identifiers) |
+| Text | Short text | Letters, digits, spaces and the symbols of a US keyboard, apart from `;` and `=` |
+| Long text | Free text of any length | As text, and line breaks |
+| List | Several values of text | `value1;value2`, with no spaces around `;` |
 | Integer | Whole number | Digits, without a decimal mark |
-| Number | Any real number | `.` as the decimal mark, no thousands separators |
-| Date | Calendar date | `YYYY-MM-DD` |
-| Coordinates | GPS position | `latitude;longitude` |
+| Number | Any real number | `.` as the decimal mark, no thousands separators; see [Numbers and scores](#numbers-and-scores) |
+| Date | Calendar date | `YYYY-MM-DD`; see [Dates](#dates) |
+| Coordinates | GPS position | `latitude;longitude`; see [GPS coordinates](#gps-coordinates) |
 | Feature list | One or more feature values | `FTID1=value1;FTID2=value2`; see [Features cells](#features-cells-hold-several-values) |
+
+**Characters.** Digits are always `0`–`9`, not full-width digits such as `１` or Arabic-Indic ones such as `٣`. Text can hold letters of any language, but no other characters beyond the symbols of a US keyboard (ASCII). Symbols such as `°`, `µ`, `–` and curly quotes are garbled when a file is read in the wrong encoding, so write them in words, such as "degrees". Text cannot hold `;` or `=`, as they have meanings of their own: `;` separates the values of lists, coordinates and Features cells, and `=` joins an FTID to its value.
 
 ### Dates
 
 Dates are written `YYYY-MM-DD` (ISO 8601): a four-digit year, a two-digit month and a two-digit day. This applies to StartDate and EndDate in Experiment, HarvestDate in SeedLot, and Date in Management, Phenotype and Climate.
 
+Dates have to make sense together:
+
+- No date is in the future, not even a planned EndDate: data is added once an experiment has ended.
+- An experiment's StartDate is not after its EndDate. They can be the same day.
+- Phenotype dates are not before their experiment's StartDate, and Management and Climate dates are not after its EndDate. The other way round is normal: harvested seed is scored after the end, and fertiliser can be given before sowing.
+- A seed lot is harvested after the seed lot it was grown from (its ParentSLID), and before the units sown from it are scored.
+
+A date before 1950 gets a warning, as it is more often a mistake, such as `0025` for `2025`, than a real date. When a date breaks one of these rules, but would fit with day and month swapped, the validator says so.
+
 ### Numbers and scores
 
 - Numbers use `.` as the decimal mark, never `,`, and have no thousands separators.
+- Numbers are written with the digits `0`–`9`, and are not so large that they are read as infinity, such as `1e999`.
 - The Score columns in [Phenotype](#phenotype) and [Climate](#climate) hold a number and nothing else: no units, words or symbols. The unit is given in the description table.
 - Categorical values are stored as number codes (1, 2, 3, …). DescriptionOfMethod in the description table must say what each code means.
 - Block, Column and Row in [ExperimentalUnit](#experimentalunit) are whole numbers, not text or IDs.
 
 ### GPS coordinates
 
-Coordinates are written as latitude and longitude in decimal degrees[^wgs84], latitude first, separated by `;` and without spaces: `latitude;longitude`. Southern latitudes and western longitudes are negative. This applies to GPSCoordinates in Experiment and ExperimentalUnit.
+Coordinates are written as latitude and longitude in decimal degrees[^wgs84], latitude first, separated by `;` and without spaces: `latitude;longitude`. Southern latitudes and western longitudes are negative. Latitude goes from −90 to 90, and longitude from −180 to 180. This applies to GPSCoordinates in Experiment and ExperimentalUnit.
 
 **Example:** `56.170308;10.207013`
 
 ### Free text
 
-Description, DescriptionOfMethod and Comments columns take any text. They are what makes the numbers usable by others, so they are worth writing with care. The validator can only check that a required one is filled in.
+Description, DescriptionOfMethod and Comments columns take text of any length, with line breaks, and the [characters](#data-types) of any text. They are what makes the numbers usable by others, so they are worth writing with care. Beyond those characters, the validator can only check that a required one is filled in.
 
 **Recommendations:**
 
@@ -299,7 +313,7 @@ A feature's Type sets what kind of value it takes, and its optional Vocabulary n
 
 - Types are written in lower case. An empty Type is treated as `c`.
 - For `c`, a value must match one of the listed values exactly. Any other value is invalid.
-- For `i` and `d`, the range includes both ends (min ≤ value ≤ max), and both ends must be given.
+- For `i` and `d`, the range includes both ends (min ≤ value ≤ max). An end left blank has no limit: `0..` allows 0 and anything above it, and `..100` allows 100 and anything below it.
 - An empty Vocabulary allows any value of the feature's type.
 - Unit gives the unit of the values, mostly for `i` and `d`.
 
@@ -319,7 +333,7 @@ plant_count has no Vocabulary, so it takes any whole number.
 ```ebnf
 vocabulary = list | range ;
 list       = term , { ";" , term } ;    (* Type c *)
-range      = number , ".." , number ;   (* Type i or d; both ends included *)
+range      = [ number ] , ".." , [ number ] ;   (* Type i or d; both ends included, a blank end has no limit *)
 term       = ? any text without ";" or "=" ? ;
 number     = ? a number, with "." as the decimal mark ? ;
 (* no spaces directly before or after ";" *)
@@ -378,6 +392,7 @@ A physical batch of seed of one germplasm, from one harvest. **One row per seed 
 <!-- END columns of SeedLot -->
 
 - ParentSLID points to another row in this same table, so a seed lot can be traced back through earlier generations. When it is filled in, it must be an SLID that exists in SeedLot. If the parent seed lot is not in the dataset, either add it as a row of its own or leave ParentSLID empty.
+- Going back from parent to parent never leads to the seed lot started from, however many generations back: a seed lot cannot be grown from itself or its own offspring. A seed lot is also harvested after its parent; see [Dates](#dates).
 - Experimental units point to seed lots, not to germplasm. To find the germplasm of a unit, go through its seed lot.
 
 <sub>[↑ Back to contents](#contents)</sub>
@@ -641,23 +656,26 @@ A dataset follows the schema when all of the following hold.
 
 **All tables**
 
+- [ ] No row without values has rows after it.
 - [ ] Every required column has a value in every row (`NULL`, `NA`, `N/A`, `None` and `Not applicable` count as empty).
-- [ ] Every ID holds only the letters a–z and A–Z, the digits 0–9 and `_`.
+- [ ] Every ID holds only the letters a–z and A–Z, the digits 0–9 and `_`, and starts with a letter.
 - [ ] Every ID is unique within its table, ignoring case.
 - [ ] Every ID that refers to another table exists in that table, written exactly the same way.
+- [ ] Text holds only letters, the digits 0–9, spaces and the symbols of a US keyboard, apart from `;` and `=`, and long text line breaks too.
 
 **Values**
 
-- [ ] Dates are written `YYYY-MM-DD`.
+- [ ] Dates are written `YYYY-MM-DD`, and none is in the future.
 - [ ] Score columns hold only numbers, with `.` as the decimal mark.
+- [ ] Numbers are written with the digits 0–9, and none is so large that it is read as infinity.
 - [ ] Block, Column and Row are whole numbers.
-- [ ] GPS coordinates are written `latitude;longitude` in decimal degrees, without spaces.
+- [ ] GPS coordinates are written `latitude;longitude` in decimal degrees, without spaces, with latitude from −90 to 90 and longitude from −180 to 180.
 - [ ] The codes of every categorical score are explained in its DescriptionOfMethod.
 
 **Features**
 
 - [ ] Type is `c`, `i`, `d` or empty.
-- [ ] Vocabulary is a `;`-separated list for `c`, and a `min..max` range for `i` and `d`.
+- [ ] Vocabulary is a `;`-separated list for `c`, and a `min..max` range for `i` and `d`, where an end can be left blank.
 - [ ] Features cells are written `FTID1=value1;FTID2=value2`, with no spaces around `=` or `;`.
 - [ ] Every FTID in a Features cell exists in Features, and appears at most once in the cell.
 - [ ] Every feature value fits its feature's Type and, if given, its Vocabulary.
@@ -665,7 +683,11 @@ A dataset follows the schema when all of the following hold.
 **Specific tables**
 
 - [ ] In SeedLot, a ParentSLID that is filled in is an SLID in SeedLot.
+- [ ] Going back by ParentSLID never leads to the seed lot started from, and a seed lot is harvested after its ParentSLID.
 - [ ] Every experiment has at least one unit in ExperimentalUnit.
+- [ ] An experiment's StartDate is not after its EndDate.
+- [ ] Phenotype dates are not before their experiment's StartDate, and Management and Climate dates are not after its EndDate.
+- [ ] A unit is scored after the seed lot it was sown from was harvested.
 - [ ] In Climate, a UNID that is filled in belongs to the experiment given by EXPID.
 - [ ] In experiments with interventions, every unit has exactly one row in ExperimentIntervention.
 
