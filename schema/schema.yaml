@@ -128,11 +128,11 @@ tables:
       PlotSize:
         type: text
         description: Size of each plot or pot, with its unit.
-        example: 15 square metres
+        example: 3 x 5 metres (rows x columns)
       PlotSizeIncludingPath:
         type: text
         description: Size of each plot, including paths, with its unit.
-        example: 18 square metres
+        example: 3.2 x 6 metres (rows x columns)
       StartDate:
         type: date
         description: Start of the growing period.
