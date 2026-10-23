@@ -391,8 +391,8 @@ One trial or experiment: where and when it ran, and how it was set up. **One row
 |---|---|---|---|---|---|
 | EXPID | ID | Yes, unique | | Experiment ID. | `nordbean_irrigation_northfield_2025` |
 | GPSCoordinates | Coordinates | No | | Location of the experiment. | `56.091250;9.552040` |
-| PlotSize | Text | No | | Size of each plot or pot, with its unit. | 15 square metres |
-| PlotSizeIncludingPath | Text | No | | Size of each plot, including paths, with its unit. | 18 square metres |
+| PlotSize | Text | No | | Size of each plot or pot, with its unit. | 3 x 5 metres (rows x columns) |
+| PlotSizeIncludingPath | Text | No | | Size of each plot, including paths, with its unit. | 3.2 x 6 metres (rows x columns) |
 | StartDate | Date | No | | Start of the growing period. | `2025-04-08` |
 | EndDate | Date | No | | End of the growing period. | `2025-08-26` |
 | Description | Long text | No | | The site (address and field) or facility, growing conditions, trial size, plot layout, design and number of replicates, what the blocks are, any irrigation, which traits were tested, which factors are tested, and any other information relevant to this experiment. The levels of the factors are defined in ExperimentIntervention. See [Free text](#free-text). | |
