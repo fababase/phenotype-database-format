@@ -15,6 +15,9 @@ This repository describes and checks the format of the FabaBase phenotype databa
 | Collection sheet | A workbook with one sheet per table, for filling in by hand. Download a blank one from the [app](https://fababase.github.io/phenotype-database-format/). |
 | [app/](app/) | The validator. `validation.py` holds the checks and runs from the command line; `app.py` is the app around it; `collection_sheet.py` builds the blank collection sheet. |
 | [docs/datasets.md](docs/datasets.md) | Every known dataset in the format, by DOI. Look here for IDs to reuse. |
+| [docs/submit-data.md](docs/submit-data.md) | For contributors: how to convert your data into the format, with an AI or without, and hand it over. |
+| [docs/review-data.md](docs/review-data.md) | For reviewers: what a finished conversion is checked against, and its FAIR score. |
+| [conversion/AI_INSTRUCTIONS.md](conversion/AI_INSTRUCTIONS.md) | What the AI follows when it converts a contributor's data. |
 | [docs/deploy-app.md](docs/deploy-app.md) | How the app is published, and how to refresh it. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Decisions, planned work and open questions. |
 
@@ -44,12 +47,7 @@ python app/validation.py collection-sheet.xlsx --out path/to/new-folder
 
 ## Contributing data
 
-1. Read the [schema](schema/schema.md).
-2. Look up the IDs already used for your germplasm, seed lots, traits, climate variables and features in the [known datasets](docs/datasets.md) that you have access to, and reuse them.
-3. Fill in a collection sheet, which you can download from the [app](https://fababase.github.io/phenotype-database-format/), or convert your data into the same tables. The sheet's *READ ME 1st* explains how to fill it in.
-4. Check it with the [validation app](#checking-your-data) and fix what it reports.
-
-A step-by-step guide, including how to convert messy raw data with the help of an AI, is planned (see the [roadmap](docs/ROADMAP.md#phase-2-schema-doc-example-and-ai-kit)).
+Follow [docs/submit-data.md](docs/submit-data.md). It covers the three ways to make the tables, with an AI, with a script of your own, or with the collection sheet, and how to hand them over.
 
 ## Running locally
 
