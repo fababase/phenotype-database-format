@@ -363,7 +363,7 @@ Genetically distinct plant material, such as a variety or line. **One row per ge
 |---|---|---|---|---|---|
 | GPID | ID | Yes, unique | | Germplasm ID. | `vandrel` |
 | Name | Text | No | | Name of the variety or line. | Vandrel |
-| AlternativeName | Text | No | | Other names for the variety. Separate several names with `;`. | NB 117 |
+| AlternativeName | List | No | | Other names for the variety. | NB 117 |
 | Species | Text | No | | Species of the variety. | Vicia faba |
 | Donor | Text | No | | Donor or parent of the variety. | Nordbean breeding programme |
 | GeographicOrigin | Text | No | | Geographic origin of the variety. | Denmark |
@@ -577,7 +577,7 @@ Defines the extra annotations that can be attached to units and phenotype scores
 | FTID | ID | Yes, unique | | Feature ID, used as the key in Features cells. | `soil_type` |
 | Type | Text | No | | Kind of value, in lower case: `c` for text, `i` for whole numbers, `d` for real numbers. Empty means `c`. | c |
 | Unit | Text | No | | Unit of the values, mostly for numbers. | nm |
-| Vocabulary | Text | No | | Allowed values: a `;`-separated list for `c`, or a `min..max` range for `i` and `d`. | clay;loam;sandy loam |
+| Vocabulary | List | No | | Allowed values: a `;`-separated list for `c`, or a `min..max` range for `i` and `d`. Leave an end blank for no limit, as in `0..` for 0 or more. | clay;loam;sandy loam |
 | Description | Long text | Yes | | What the feature is and what its values mean. See [Free text](#free-text). | Texture class of the topsoil, from a soil map. |
 <!-- END columns of Features -->
 
