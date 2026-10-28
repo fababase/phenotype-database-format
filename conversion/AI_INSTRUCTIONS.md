@@ -38,13 +38,13 @@ Your most important job is to get everything that makes the data usable by other
 
 ## What you may see
 
-Before you open a data file, ask the contributor whether you may see everything in `raw_data/`, and if not, how much: only the headers and a few rows, or everything but some columns. Their answer goes in a file in `raw_data/notes/`, like any other answer.
+Before you open a data file, ask the contributor whether you may see everything in `raw_data/`, and if not, which part. Their answer goes in a file in `raw_data/notes/`, like any other answer.
 
 Keep to it in everything you run. Your inspection scripts, `summary.md` and the validator's messages all show you data: the validator quotes the value it stops at. When a step would show you more than you may see, say so, and let the contributor run it and tell you what you need.
 
 ## Look at everything
 
-Read everything you may see before you ask about it, including the documents: protocols, field plans and notebooks answer many questions. Don't ask what the files already answer, only if it is ambiguous.
+Read everything you may see before you ask about it, including the documents, which answer many questions. Don't ask what the files already answer, only if it is ambiguous.
 
 Look at every value, not just the first rows. For spreadsheets, use openpyxl, as pandas cannot see most of the following:
 
@@ -52,7 +52,7 @@ Look at every value, not just the first rows. For spreadsheets, use openpyxl, as
 - merged cells, headers over several rows, and notes or totals below a table;
 - cell and font colours, comments, and dropdown lists (data validation), which often define codes. Colours from conditional formatting are in its rules, not in the cells;
 - formulas as well as their values: load the workbook both with and without `data_only=True`;
-- numbers stored as text, decimal commas, units in cells or headers, and home-made markers for missing values, such as `-`, `x` or `.`;
+- numbers stored as text, decimal commas, units in cells or headers, and home-made markers for missing values;
 - dates stored as text, and dates whose day and month could be either way round.
 
 Other formats may need other packages, such as xlrd for old .xls files.
@@ -61,11 +61,11 @@ Files can be in any format, even raw text for metadata.
 
 For every column, look at its distinct values if it has few, its range if it holds numbers, and how many cells are empty.
 
-Check each source against the others: the data against the field plan and the protocol, sheet against sheet, plot numbers against the design, and dates against the growing season.
+Check each source against the others, and the data against everything known about the experiment.
 
-Ask about anything unexpected, ambiguous or weird, as a curiosity. This could be a gap in the plot numbers, a value far out of line, a format that changes halfway down a column, 39 plots where the design has 40, a code nobody has explained, a value that can be read two ways, a comment that is just too short.
+Ask about anything unexpected, ambiguous or weird, as a curiosity.
 
-Tell the contributor what you see as you go, such as the sheets, the traits, the number of plots and the dates, so that they can say at once when something is wrong.
+Tell the contributor in outline what you see as you go, so that they can say at once when something is wrong.
 
 Write your inspection scripts in `runs/<date>/scratch/`, and run them with uv, such as `uv run --no-project --python 3.12 --with openpyxl==3.1.5 runs/<date>/scratch/look.py`.
 
@@ -84,7 +84,7 @@ Write your inspection scripts in `runs/<date>/scratch/`, and run them with uv, s
 - **Find a place in the tables for everything in the raw data that people reusing it could want.** The contributor does not know the format well enough to say where something could go, so work it out from schema.md, and suggest it. Leave something out only when it is plainly of no use to them, or the contributor agrees. What the format cannot hold goes under Schema issues.
 - **Ask early who should be credited** if the data is published, as listed in submit-data.md. Ask it as that: never suggest the data is being published now.
 - **Leave the last word to the contributor.** When you still doubt something they confirmed, use their answer, and note the doubt under Doubtful.
-- **Never make up a value**, even to make the tables pass: a made-up value cannot be told from a real one. Leave an optional cell empty. In a required cell, say plainly what is known and that the rest is not, such as "How the plant height was measured is not known.", and note it under Missing. If the contributor asks for a placeholder, explain this, and do it this way. Try to avoid these bad values, especially in required cells.
+- **Never make up a value**, even to make the tables pass: a made-up value cannot be told from a real one. Leave an optional cell empty. In a required cell, say plainly what is known and that the rest is not, and note it under Missing. If the contributor asks for a placeholder, explain this, and do it this way. Try to avoid these bad values, especially in required cells.
 
 ## Write conversion.py
 
@@ -107,7 +107,7 @@ Write your inspection scripts in `runs/<date>/scratch/`, and run them with uv, s
 - **It checks the raw files first.** It lists every file in `raw_data/` that it reads or rests on, with its SHA-256 checksum, and stops with a clear message if one is missing or has changed. Add files to the list as the contributor adds them. When a file has changed, stop, and ask the contributor why.
 - **Every decision has a comment** saying what it does and what it rests on: a file in `raw_data/`, or what in the raw data shows it.
 - **It gives the same output every time**: rows in a fixed order, and no date or time of the run in what it writes.
-- **It keeps numbers as precise as the raw data**, no more and no less: no rounding, and no floating-point artefacts such as `0.30000000000000004`.
+- **It keeps numbers as precise as the raw data**, no more and no less: no rounding, and no floating-point artefacts.
 - **It writes the tables as in [Files](../schema/schema.md#files)**, and follows schema.md in everything else, such as [identifiers](../schema/schema.md#identifiers), [missing values](../schema/schema.md#missing-values) and [free text](../schema/schema.md#free-text).
 - **It reuses IDs** for germplasm, seed lots, traits, climate variables and features from the datasets in [datasets.md](../docs/datasets.md). Look them up there, and write the ones you reuse into the script, with the dataset's DOI. For restricted datasets, ask the contributor to add the files they have access to to `raw_data/` (only the relevant files), or, if possible, get them yourself from zenodo.
 - **It writes `summary.md` for the contributor**: the files and sheets it read, and those it left out; the number of rows in each table; for each trait, the number of scores and of units scored, the dates, and the lowest and highest score; the number of experiments, units, germplasm and seed lots; and how many rows of the raw data it left out, for each reason. Write it so that the contributor can check it against what they know.
@@ -121,7 +121,7 @@ Write your inspection scripts in `runs/<date>/scratch/`, and run them with uv, s
   ```
 
   It stops at the first error. Fix `conversion.py`, run it again, and validate again, until it says "Validation successful!".
-- **Ask the contributor to check `summary.md`**, and say what to compare: the number of plots with the field plan, the traits with the protocol, the dates with the season. Note the date in the notes.
+- **Ask the contributor to check `summary.md`**, and say what to compare each part of it with. Note the date in the notes.
 - **Passing the validator is not enough.** Before you call the run finished, go through the checks in [review-data.md](../docs/review-data.md) yourself.
 
 ## The notes
@@ -130,9 +130,7 @@ Keep `runs/<date>/conversion-notes.md` as you go, not at the end. The next sessi
 
 Keep the notes up to date, so that they say how things stand now, not how they got there. When something changes what an item says, rewrite the item; when it no longer holds, remove it. Refer only to files that last, never to the chat or to `scratch/`.
 
-Facts, and everything the decisions rest on, are in `raw_data/`, and `conversion.py` carries the decisions out. The notes can say briefly what was decided, but no decision rests on them. Start each item with the date you last changed it, such as:
-
-> - 2026-10-23: Plots 12 and 13 swapped back in sheet "Heights 2025", as the field plan has them the other way round. Rests on `raw_data/notes/2026-10-23_answers.txt` (perhaps answers is not the best filename).
+Facts, and everything the decisions rest on, are in `raw_data/`, and `conversion.py` carries the decisions out. The notes can say briefly what was decided, but no decision rests on them. Start each item with the date you last changed it, written YYYY-MM-DD.
 
 Start the notes from this template. Keep its fields, its headings and the line in italics under each heading as they are here, even when a section is empty, and write only the values and the items:
 
@@ -187,5 +185,5 @@ Write only in the current run's folder. When something blocks you, stop and ask;
 - edit the copy of this repository. What the format cannot hold goes under Schema issues;
 - install anything, anywhere. Everything runs through uv, with the versions in `conversion.py` or in `phenotype-database-format/app/requirements.txt`;
 - send data anywhere: no uploads, pushes, pull requests, issues, web forms or pastes into other services. Reading public pages, such as the Zenodo records in datasets.md, is fine;
-- save anything as AI memory: no memories, no memory files, and no files your tool reads when a session starts. What must last goes in the notes, or in a file you draft for `raw_data/`;
+- save anything as AI memory: no memories, no memory files, and no files your tool reads when a session starts. What must last goes in the notes, or in a file you draft for `raw_data/notes/`;
 - change or delete an earlier run.
