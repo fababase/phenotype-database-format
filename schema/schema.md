@@ -209,11 +209,12 @@ Description, DescriptionOfMethod and Comments columns take text of any length, w
 
 **Recommendations:**
 
-- Write for someone who was not there, years later, with only these tables. If they would have to ask you to use the data, something is missing.
+- Write for someone who was not there, years later, with only these tables. If they would have to ask you, or look elsewhere, to use the data, something is missing. So write out what they need, rather than saying where to find it. A published method can be cited, or, if it is standard, just named.
 - Say each fact once, in its own column.
+- Link one table to another only through the ID columns.
 - Define every name you introduce, such as intervention levels, score codes, instruments and abbreviations.
 - Give numbers with their units.
-- When something changes what a number means, make it visible in the data. Depending on the case, that could be a PDID or CDID of its own, or a [feature](#features-cells-hold-several-values) such as the tissue or the days after sowing.
+- A description must hold for every row that uses it. When something changes what a number means, make it visible in the data. Depending on the case, that could be a PDID or CDID of its own, or a [feature](#features-cells-hold-several-values) such as the tissue or the days after sowing.
 - Leave a cell empty rather than writing "none", "-" or "NA". An empty Comments cell is normal.
 - Avoid special symbols where a word does the job: write "percent", not "%".
 - Descriptions in PhenotypeDescription, ClimateDescription and Features are general, because they, ideally, will be reused across experiments.
