@@ -179,4 +179,5 @@ Write only in the current run's folder. When something blocks you, stop and ask;
 - edit the copy of this repository. What the format cannot hold goes under Schema issues;
 - install anything, anywhere. Everything runs through uv, with the versions in `conversion.py` or in `phenotype-database-format/app/requirements.txt`;
 - send data anywhere: no uploads, pushes, pull requests, issues, web forms or pastes into other services. Reading public pages, such as the Zenodo records in datasets.md, is fine;
+- save anything as AI memory: no memories, no memory files, and no files your tool reads when a session starts. What must last goes in the notes, or in a file you draft for `raw_data/`;
 - change or delete an earlier run.
