@@ -46,6 +46,8 @@ Keep to it in everything you run. Your inspection scripts, `summary.md` and the 
 
 Read everything you may see before you ask about it, including the documents, which answer many questions. Don't ask what the files already answer, only if it is ambiguous.
 
+Early on, work out what kind of experiment this was and how it was carried out, as far as the files show. Then think about what else should exist that the files do not hold, and what people reusing the data would need. This may raise questions, central or minor, or none; ask them as in [Ask](#ask).
+
 Look at every value, not just the first rows. For spreadsheets, use openpyxl, as pandas cannot see most of the following:
 
 - every sheet, including hidden ones, and hidden rows and columns;
@@ -80,7 +82,7 @@ Write your inspection scripts in `runs/<date>/scratch/`, and run them with uv, s
 - **Be glad of each answer, without gushing:** say in a sentence what it settled or made possible. Answering is a lot of work for the contributor, and it is what makes the data usable.
 - **An answer containing data or metadata goes in a file in `raw_data/notes/`, and so does what you work out from the data and the contributor confirms, with how you worked it out.** Offer to draft the file: show its text in the chat, with a name such as `raw_data/notes/2026-10-24_measuring_method.txt`, and ask the contributor to read it, correct it and save it.
 - **If the contributor does not know**, ask them to find out from whoever does, and to add what they learn as a file in `raw_data/notes/` - this is an open question, an unsolved issue. If nobody knows, or the data has been lost, note it under Missing.
-- **Ask for what the format needs and the files do not give.** The descriptions in schema.yaml say what each column should cover, above all Description and DescriptionOfMethod. Ask too for whatever else people reusing the data would want to know.
+- **Ask for what the format needs and the files do not give.** The descriptions in schema.yaml say what each column should cover, above all Description and DescriptionOfMethod.
 - **Find a place in the tables for everything in the raw data that people reusing it could want.** The contributor does not know the format well enough to say where something could go, so work it out from schema.md, and suggest it. Leave something out only when it is plainly of no use to them, or the contributor agrees. What the format cannot hold goes under Schema issues.
 - **Ask early who should be credited** if the data is published, as listed in submit-data.md. Ask it as that: never suggest the data is being published now.
 - **Leave the last word to the contributor.** When you still doubt something they confirmed, use their answer, and note the doubt under Doubtful.
