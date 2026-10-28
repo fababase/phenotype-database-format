@@ -38,7 +38,7 @@ Your most important job is to get everything that makes the data usable by other
 
 ## What you may see
 
-Before you open a data file, ask the contributor whether you may see everything in `raw_data/`, and if not, how much: only the headers and a few rows, or everything but some columns. Their answer can be saved in `conversion-notes.md` for future reference.
+Before you open a data file, ask the contributor whether you may see everything in `raw_data/`, and if not, how much: only the headers and a few rows, or everything but some columns. Their answer goes in a file in `raw_data/notes/`, like any other answer.
 
 Keep to it in everything you run. Your inspection scripts, `summary.md` and the validator's messages all show you data: the validator quotes the value it stops at. When a step would show you more than you may see, say so, and let the contributor run it and tell you what you need.
 
@@ -73,8 +73,8 @@ Write your inspection scripts in `runs/<date>/scratch/`, and run them with uv, s
 
 - **Ask as soon as a question comes up**, a few at a time, numbered and in plain words. Say where it comes from: the file, sheet, cell and value. For a value that can be read two ways, give every reading. When it is not obvious why a question matters, say so in a sentence.
 - **Carry on only with what does not depend on the answer**, never on a guess.
-- **An answer containing data or metadata should be stored for future purposes in `raw_data/`.** Offer to draft the file: show its text in the chat, with a name such as `raw_data/2026-10-24_measuring_method.txt`, and ask the contributor to read it, correct it and save it.
-- **If the contributor does not know**, ask them to find out from whoever does, and to add what they learn as a file - this is an open question, an unsolved issue. If nobody knows, or the data has been lost, note it under Missing.
+- **An answer containing data or metadata goes in a file in `raw_data/notes/`, and so does what you work out from the data and the contributor confirms.** Offer to draft the file: show its text in the chat, with a name such as `raw_data/notes/2026-10-24_measuring_method.txt`, and ask the contributor to read it, correct it and save it.
+- **If the contributor does not know**, ask them to find out from whoever does, and to add what they learn as a file in `raw_data/notes/` - this is an open question, an unsolved issue. If nobody knows, or the data has been lost, note it under Missing.
 - **Ask for what the format needs and the files do not give.** The descriptions in schema.yaml say what each column should cover, above all Description and DescriptionOfMethod. Ask too for whatever else people reusing the data would want to know.
 - **Ask early who should be credited** if the data is published, as listed in submit-data.md. Ask it as that: never suggest the data is being published now.
 - **Leave the last word to the contributor.** When you still doubt something they confirmed, use their answer, and note the doubt under Doubtful.
@@ -98,7 +98,7 @@ Write your inspection scripts in `runs/<date>/scratch/`, and run them with uv, s
   ```
 
   Run it with `uv run runs/<date>/conversion.py`. uv makes an environment of its own for it; nothing is installed anywhere else.
-- **It checks the raw files first.** It lists every file in `raw_data/` that it reads, with its SHA-256 checksum, and stops with a clear message if one is missing or has changed. Add files to the list as the contributor adds them. When a file has changed, stop, and ask the contributor why.
+- **It checks the raw files first.** It lists every file in `raw_data/` that it reads or rests on, with its SHA-256 checksum, and stops with a clear message if one is missing or has changed. Add files to the list as the contributor adds them. When a file has changed, stop, and ask the contributor why.
 - **Every decision has a comment** saying what it does and what it rests on: a file in `raw_data/`, or what in the raw data shows it.
 - **It gives the same output every time**: rows in a fixed order, and no date or time of the run in what it writes.
 - **It keeps numbers as precise as the raw data**, no more and no less: no rounding, and no floating-point artefacts such as `0.30000000000000004`.
@@ -122,9 +122,9 @@ Write your inspection scripts in `runs/<date>/scratch/`, and run them with uv, s
 
 Keep `runs/<date>/conversion-notes.md` as you go, not at the end. The next session, perhaps weeks later and without this chat, carries on from it, and the review reads it.
 
-Facts are in `raw_data/`, decisions in `conversion.py` or `conversion-notes.md`. Each item goes in one section only. Start each item with the date you wrote it, such as:
+Facts, and everything the decisions rest on, are in `raw_data/`, and `conversion.py` carries the decisions out. The notes can say briefly what was decided, but no decision rests on them. Start each item with the date you wrote it, such as:
 
-> - 2026-10-23: Plots 12 and 13 swapped back in sheet "Heights 2025", as the field plan has them the other way round. Rests on `raw_data/2026-10-23_answers.txt` (perhaps answers is not the best filename).
+> - 2026-10-23: Plots 12 and 13 swapped back in sheet "Heights 2025", as the field plan has them the other way round. Rests on `raw_data/notes/2026-10-23_answers.txt` (perhaps answers is not the best filename).
 
 Start the notes from this template:
 
@@ -141,7 +141,7 @@ Start the notes from this template:
 
 ## Open questions
 
-*Asked, and waiting for a file in raw_data/. An answer removes the question; "don't know" moves it to Missing. Empty once the run is finished, and any run ready for handover should have NO open questions.*
+*Asked, and waiting for a file in raw_data/notes/. An answer removes the question; "don't know" moves it to Missing. Empty once the run is finished, and any run ready for handover should have NO open questions.*
 
 ## Changed or left out
 

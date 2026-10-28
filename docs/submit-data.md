@@ -73,6 +73,7 @@ Make one folder for the data contribution, named after it, such as `nordbean_irr
 ```
 nordbean_irrigation_2025/
   raw_data/                      everything from you: data, documents, answers, in any format
+    notes/                       answers and notes written down during the conversion
   phenotype-database-format/     a copy of this repository
   runs/
     2026-10-22/                  one run per handover
@@ -89,7 +90,7 @@ nordbean_irrigation_2025/
    - Without either, download it as a ZIP (*Code* → *Download ZIP* on GitHub), unzip it into the folder, and rename `phenotype-database-format-main` to `phenotype-database-format`.
 
    To open a terminal in a folder on Windows, right-click inside the folder in File Explorer and choose *Open in Terminal*. On macOS and Linux, open a terminal, type `cd ` with a space after it, drag the folder onto the window, and press Enter.
-2. **Make a folder `raw_data`**, and copy into it your data files and the documents that describe them. Copy rather than move them, so that you keep your originals. Subfolders are fine.
+2. **Make a folder `raw_data`**, and copy into it your data files and the documents that describe them. Copy rather than move them, so that you keep your originals. Subfolders are fine. Make one called `notes` as well, for what is written down during the conversion.
 3. **Make the files in `raw_data` read-only**, so that nothing can change them by accident. Do it again whenever you add files.
    - Windows: right-click `raw_data`, choose *Properties*, tick *Read-only*, and apply it to all subfolders and files.
    - macOS and Linux: in a terminal, in the contribution folder, run `find raw_data -type f -exec chmod a-w {} +`.
@@ -102,7 +103,7 @@ nordbean_irrigation_2025/
 These apply to you and to the AI.
 
 - **Add to `raw_data`; don't change or delete what is there unless the mistake is clear.** If a file turns out to be wrong, prefer (within reason) adding a corrected copy under a new name, or a file that says what is wrong. `conversion.py` checks every file it reads, and stops if one has changed.
-- **Everything you tell the AI, or find out yourself, goes in a file in `raw_data`**, never only in a chat, as this cannot be saved for future runs. This includes answers to questions, corrections, how things were measured, what the AI may see. Plain text is fine. Optionally, start the file's name with the date, such as `2026-10-24_measuring_method.txt`. A chat is gone when the session ends, the files stay, so that the conversion can be repeated if another issue is spotted down the line.
+- **Everything you tell the AI, or find out yourself, goes in a file in `raw_data/notes`**, never only in a chat, as this cannot be saved for future runs. This includes answers to questions, corrections, how things were measured, what the AI may see. Plain text is fine. Optionally, start the file's name with the date, such as `2026-10-24_measuring_method.txt`. A chat is gone when the session ends, the files stay, so that the conversion can be repeated if another issue is spotted down the line.
 - **Only `conversion.py` writes the tables.** Don't edit them by hand, as the edit will be lost the next time the tables are written, and nobody can tell it was made.
 - **Don't edit the copy of this repository.** It is the version of the format your data is converted to.
 - **One run per handover.** A run ends *stopped*, waiting for something you have to find, or *finished*. A stopped run is carried on in the same folder. A new run is only started for a new handover: corrections or more data after the last one, or a new version of the format.
@@ -130,7 +131,7 @@ This step takes the most time, and matters most. You are the only one who can gi
 
 Before it opens your data, the AI asks what it may see: everything in `raw_data`, or only part of it. It reads everything it may see, and asks about what it cannot account for, a few questions at a time, as they come up.
 
-Save each answer in a file in `raw_data`, as the rules of the folder say. The AI can draft the file in the chat, but you save it, after reading it and correcting what is wrong. If you don't know an answer, try to find out, from a colleague, the person who ran the trial, a notebook or a protocol, and add what you find as a file. If nobody knows, or the data has been lost, it is noted as missing, and it lowers the FAIR score in the review.
+Save each answer in a file in `raw_data/notes`, as the rules of the folder say. The AI can draft the file in the chat, but you save it, after reading it and correcting what is wrong. If you don't know an answer, try to find out, from a colleague, the person who ran the trial, a notebook or a protocol, and add what you find as a file. If nobody knows, or the data has been lost, it is noted as missing, and it lowers the FAIR score in the review.
 
 When the AI needs something you have to find or ask for, it stops and notes what it is waiting for. Come back with the same line when you have it.
 
@@ -141,7 +142,7 @@ You have the last word: if the AI still doubts something you confirmed, it notes
 
 ### Who to credit
 
-When the data is eventually published, the people behind it should be credited. For this reason, give the name, ORCID and affiliation of each person, contact information, and the funding. Save them in a file in `raw_data`, like any other answer. They go into the Description of the Experiment table. The AI asks for these early.
+When the data is eventually published, the people behind it should be credited. For this reason, give the name, ORCID and affiliation of each person, contact information, and the funding. Save them in a file in `raw_data/notes`, like any other answer. They go into the Description of the Experiment table. The AI asks for these early.
 
 ## 7. Make the tables
 
