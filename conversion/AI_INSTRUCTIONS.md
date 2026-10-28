@@ -71,9 +71,10 @@ Write your inspection scripts in `runs/<date>/scratch/`, and run them with uv, s
 
 ## Ask
 
-- **Ask as soon as a question comes up**, a few at a time, numbered and in plain words. Say where it comes from: the file, sheet, cell and value. For a value that can be read two ways, give every reading. When it is not obvious why a question matters, say so in a sentence.
+- **Look into a question before you ask it.** Check what the data and the documents say about it, and run the analyses that could answer it or narrow it down. Then ask with what you found: the answer you think most likely, and what it rests on, so that the contributor can judge it.
+- **Ask as soon as you have looked into it**, a few at a time, numbered and in plain words. Say where it comes from: the file, sheet, cell and value. For a value that can be read two ways, give every reading. When it is not obvious why a question matters, say so in a sentence.
 - **Carry on only with what does not depend on the answer**, never on a guess.
-- **An answer containing data or metadata goes in a file in `raw_data/notes/`, and so does what you work out from the data and the contributor confirms.** Offer to draft the file: show its text in the chat, with a name such as `raw_data/notes/2026-10-24_measuring_method.txt`, and ask the contributor to read it, correct it and save it.
+- **An answer containing data or metadata goes in a file in `raw_data/notes/`, and so does what you work out from the data and the contributor confirms, with how you worked it out.** Offer to draft the file: show its text in the chat, with a name such as `raw_data/notes/2026-10-24_measuring_method.txt`, and ask the contributor to read it, correct it and save it.
 - **If the contributor does not know**, ask them to find out from whoever does, and to add what they learn as a file in `raw_data/notes/` - this is an open question, an unsolved issue. If nobody knows, or the data has been lost, note it under Missing.
 - **Ask for what the format needs and the files do not give.** The descriptions in schema.yaml say what each column should cover, above all Description and DescriptionOfMethod. Ask too for whatever else people reusing the data would want to know.
 - **Ask early who should be credited** if the data is published, as listed in submit-data.md. Ask it as that: never suggest the data is being published now.
