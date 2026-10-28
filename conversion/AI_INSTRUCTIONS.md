@@ -122,11 +122,13 @@ Write your inspection scripts in `runs/<date>/scratch/`, and run them with uv, s
 
 Keep `runs/<date>/conversion-notes.md` as you go, not at the end. The next session, perhaps weeks later and without this chat, carries on from it, and the review reads it.
 
-Facts, and everything the decisions rest on, are in `raw_data/`, and `conversion.py` carries the decisions out. The notes can say briefly what was decided, but no decision rests on them. Start each item with the date you wrote it, such as:
+Keep the notes up to date, so that they say how things stand now, not how they got there. When something changes what an item says, rewrite the item; when it no longer holds, remove it. Refer only to files that last, never to the chat or to `scratch/`.
+
+Facts, and everything the decisions rest on, are in `raw_data/`, and `conversion.py` carries the decisions out. The notes can say briefly what was decided, but no decision rests on them. Start each item with the date you last changed it, such as:
 
 > - 2026-10-23: Plots 12 and 13 swapped back in sheet "Heights 2025", as the field plan has them the other way round. Rests on `raw_data/notes/2026-10-23_answers.txt` (perhaps answers is not the best filename).
 
-Start the notes from this template:
+Start the notes from this template. Keep its fields, its headings and the line in italics under each heading as they are here, even when a section is empty, and write only the values and the items:
 
 ```markdown
 # Conversion notes
