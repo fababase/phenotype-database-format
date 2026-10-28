@@ -129,7 +129,7 @@ The tables need more than the numbers. Someone who wasn't there should be able t
 
 This step takes the most time, and matters most. You are the only one who can give this information, and it is much easier to get now than later.
 
-Before it opens your data, the AI asks what it may see: everything in `raw_data`, or only part of it. It reads everything it may see, and asks about what it cannot account for, a few questions at a time, as they come up.
+Before it opens your data, the AI asks what it may see: everything in `raw_data`, or only part of it. It reads everything it may see, and looks into what it cannot account for. Inconsistencies in how values are written, where the meaning is plain, it fixes itself and tells you. For the rest, it either drafts an answer for you to check and save, or asks you, one question at a time where it can and never more than three at once.
 
 Save each answer in a file in `raw_data/notes`, as the rules of the folder say. The AI can draft the file in the chat, but you save it, after reading it and correcting what is wrong. If you don't know an answer, try to find out, from a colleague, the person who ran the trial, a notebook or a protocol, and add what you find as a file. If nobody knows, or the data has been lost, it is noted as missing, and it lowers the FAIR score in the review.
 

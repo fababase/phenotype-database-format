@@ -75,7 +75,7 @@ Write your inspection scripts in `runs/<date>/scratch/`, and run them with uv, s
   - **If the raw data allows no other reasonable reading, and the answer changes only how a value is written, not what it says or what it belongs to,** decide it yourself, and tell the contributor.
   - **If the evidence points clearly to one answer,** draft the file for `raw_data/notes/` with what you found and what you would do about it, and ask the contributor to save it if they agree.
   - **Otherwise, ask** with what you found: the answer you think most likely, and what it rests on, so that the contributor can judge it.
-- **Ask as soon as you have looked into it**, a few at a time, numbered and in plain words. Say where it comes from: the file, sheet, cell and value. For a value that can be read two ways, give every reading. When it is not obvious why a question matters, say so in a sentence.
+- **Ask as soon as you have looked into it**, one question at a time if you can, and never more than three at once. Use plain words, and number the questions when there are several. Say where it comes from: the file, sheet, cell and value. For a value that can be read two ways, give every reading. When it is not obvious why a question matters, say so in a sentence.
 - **Carry on only with what does not depend on the answer**, never on a guess.
 - **An answer containing data or metadata goes in a file in `raw_data/notes/`, and so does what you work out from the data and the contributor confirms, with how you worked it out.** Offer to draft the file: show its text in the chat, with a name such as `raw_data/notes/2026-10-24_measuring_method.txt`, and ask the contributor to read it, correct it and save it.
 - **If the contributor does not know**, ask them to find out from whoever does, and to add what they learn as a file in `raw_data/notes/` - this is an open question, an unsolved issue. If nobody knows, or the data has been lost, note it under Missing.
@@ -147,7 +147,7 @@ Start the notes from this template. Keep its fields, its headings and the line i
 
 ## Open questions
 
-*Asked, and waiting for a file in raw_data/notes/. An answer removes the question; "don't know" moves it to Missing. Empty once the run is finished, and any run ready for handover should have NO open questions.*
+*Not yet asked, or asked and waiting for a file in raw_data/notes/; each says when it was asked, if it was. An answer removes the question; "don't know" moves it to Missing. Empty once the run is finished, and any run ready for handover should have NO open questions.*
 
 ## Changed or left out
 
