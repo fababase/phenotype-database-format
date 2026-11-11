@@ -149,7 +149,7 @@ Keep `runs/<date>/conversion-notes.md` as you go, not at the end. The next sessi
 
 Keep the notes up to date, so that they say how things stand now, not how they got there. When something changes what an item says, rewrite the item; when it no longer holds, remove it. Refer only to files that last, never to the chat or to `scratch/`.
 
-Facts, and everything the decisions rest on, are in `raw_data/`, and `conversion.py` carries the decisions out. The notes can say briefly what was decided, but no decision rests on them. Start each item with the date you last changed it, written YYYY-MM-DD.
+Facts, and everything the decisions rest on, are in `raw_data/`, and `conversion.py` carries the decisions out. The notes say briefly what was decided, and what you worked out from the data yourself and how, but no decision rests on them. Start each item with the date you last changed it, written YYYY-MM-DD.
 
 Start the notes from this template. Keep its fields, its headings and the line in italics under each heading as they are here, even when a section is empty, and write only the values and the items:
 
@@ -170,7 +170,7 @@ Start the notes from this template. Keep its fields, its headings and the line i
 
 ## Changed or left out
 
-*Where the tables differ from the raw files: corrected, recoded, combined, removed or not converted, including whole files and sheets. Each item says what it rests on: a file in raw_data/, or what in the raw data shows it.*
+*Where the tables differ from the raw files: corrected, recoded, combined, worked out from the data, removed or not converted, including whole files and sheets. Each item says what it rests on: a file in raw_data/, or what in the raw data shows it and how.*
 
 ## Assumptions
 
