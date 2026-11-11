@@ -126,6 +126,7 @@ Each time `conversion.py` has written the tables, go through every column of eve
 - **Repair values that earlier programs have damaged**, when what they were is plain.
 - **Put each thing in the column made for it**, and only one kind of thing in a column.
 - **Account for every optional column that is empty in some rows or in all**: the value does not apply, is not known, or can be worked out. Fill in what can be worked out from the rest of the tables, the raw data and the format, and ask for what is not known.
+- **Make every cell stand on its own.** A reader has only the tables and what is published, so cite what is published so that anyone can find it, a paper by its DOI, and refer to nothing else: no file, script or document that is not published, no earlier version of the data, and nothing from the chat. Write out what the reader needs instead. A comment in the raw data meant for the people who filled it in, such as a question, a reminder or a pointer to something else, is looked into as in [Ask](#ask), and replaced by what it means, or left out.
 
 Classifying and standardising is not making up a value: it puts what is already known into the format's terms. A value that says something new about the experiment, the material or the methods still comes from the raw data or the contributor.
 

@@ -209,7 +209,7 @@ Description, DescriptionOfMethod and Comments columns take text of any length, w
 
 **Recommendations:**
 
-- Write for someone who was not there, years later, with only these tables. If they would have to ask you, or look elsewhere, to use the data, something is missing. So write out what they need, rather than saying where to find it. A published method can be cited, or, if it is standard, just named.
+- Write for someone who was not there, years later, with only these tables. If they would have to ask you, or look elsewhere, to use the data, something is missing. So write out what they need, rather than saying where to find it. Refer to nothing that is not published. A published method can be cited, by its DOI if it has one, or, if it is standard, just named.
 - Say each fact once, in its own column.
 - Link one table to another only through the ID columns.
 - Define every name you introduce, such as intervention levels, score codes, instruments and abbreviations.
