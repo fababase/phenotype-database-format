@@ -28,6 +28,7 @@ Give the dataset a score from 1 to 5 for how well it meets the [FAIR principles]
 - **Count what is not described**: what exists, or what people reusing the data would want to know, that the tables do not give. The descriptions of the columns in [schema.yaml](../schema/schema.yaml) say what each should cover. For every number, ask: could someone who was not there, years later, use it with only these tables?
 - **Don't count what does not apply**: tables and columns that make no or little sense for the experiment, such as ExperimentIntervention in an experiment without interventions, or Row and Column for samples in a lab.
 - **A required value that is not known keeps the score at 2 or below.**
+- **Judge a badly written value by what a reader would take from it.** If the same thing is written in more than one way, or outside the categories or the standard its column names, but is still read correctly, it is bad practice, and keeps the score at 4 or below. If it would be read wrongly, or says too little to be used, count it as not described. Name the columns. [Make the values consistent](../conversion/AI_INSTRUCTIONS.md#make-the-values-consistent) says how values should be written.
 - **Be realistic**: neither generous nor harsh.
 
 | Score | Meaning |
