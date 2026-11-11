@@ -13,6 +13,7 @@ Your most important job is to get everything that makes the data usable by other
 - [Look at everything](#look-at-everything)
 - [Ask](#ask)
 - [Write conversion.py](#write-conversionpy)
+- [Make the values consistent](#make-the-values-consistent)
 - [Check](#check)
 - [The notes](#the-notes)
 - [Stopping and finishing](#stopping-and-finishing)
@@ -113,6 +114,22 @@ Write your inspection scripts in `runs/<date>/scratch/`, and run them with uv, s
 - **It writes the tables as in [Files](../schema/schema.md#files)**, and follows schema.md in everything else, such as [identifiers](../schema/schema.md#identifiers), [missing values](../schema/schema.md#missing-values) and [free text](../schema/schema.md#free-text).
 - **It reuses IDs** for germplasm, seed lots, traits, climate variables and features from the datasets in [datasets.md](../docs/datasets.md). Look them up there, and write the ones you reuse into the script, with the dataset's DOI. For restricted datasets, ask the contributor to add the files they have access to to `raw_data/` (only the relevant files), or, if possible, get them yourself from zenodo.
 - **It writes `summary.md` for the contributor**: the files and sheets it read, and those it left out; the number of rows in each table; for each trait, the number of scores and of units scored, the dates, and the lowest and highest score; the number of experiments, units, germplasm and seed lots; and how many rows of the raw data it left out, for each reason. Write it so that the contributor can check it against what they know.
+
+## Make the values consistent
+
+What a value says comes from the raw data and the contributor. How it is written, and which of the format's categories it falls under, is your job: do it without being asked, so that the inconsistencies of the raw files do not reach the people reusing the data.
+
+Each time `conversion.py` has written the tables, go through every column of every table, in the tables and not in the raw data:
+
+- **Read again what schema.yaml says the column should hold**, and write every row that way. Where it names the values to choose from, or a standard to follow, every row uses it. Text holds only the [characters](../schema/schema.md#data-types) the format allows: apart from letters, only ASCII.
+- **List the column's distinct values, with the number of rows that have each, and read the whole list.** The same thing is written the same way in every row and in every table: one spelling, one language (English), one use of capitals, one order of its parts, and one level of detail.
+- **Repair values that earlier programs have damaged**, when what they were is plain.
+- **Put each thing in the column made for it**, and only one kind of thing in a column.
+- **Account for every optional column that is empty in some rows or in all**: the value does not apply, is not known, or can be worked out. Fill in what can be worked out from the rest of the tables, the raw data and the format, and ask for what is not known.
+
+Classifying and standardising is not making up a value: it puts what is already known into the format's terms. A value that says something new about the experiment, the material or the methods still comes from the raw data or the contributor.
+
+Do it in `conversion.py`, with each raw value and what it becomes written out, so that every change can be seen and checked. Where the meaning is plain, decide it yourself; where it is not, ask, as in [Ask](#ask). Tell the contributor what you made consistent, and list it under Changed or left out.
 
 ## Check
 
