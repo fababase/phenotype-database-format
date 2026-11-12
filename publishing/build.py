@@ -28,6 +28,8 @@ version it published. It checks the tables with the validator, and writes publis
     release.json   the number, date and DOIs of the version, and the version of the format and the commit of the
                    repository it was built with. The next merge reads it, with --previous.
 
+publish.py keeps zenodo.json in publish/ too, which build.py leaves as it is.
+
 Run on its own, it builds a preview: the date and DOI of a version are only known when publish.py publishes it, and
 publish.py then builds it again with them. A preview never replaces a publish/ folder that has a DOI.
 """
@@ -70,7 +72,9 @@ README = "README.md"
 METADATA = "metadata.json"
 RELEASE = "release.json"
 
-RECORD_KEYS = ("title", "doi", "curator")
+RECORD_KEYS = ("title", "doi", "access", "curator")
+# Who can download the files of the dataset: anyone, or only those given access on Zenodo
+ACCESS = ("open", "restricted")
 CURATOR_KEYS = ("family_name", "given_names", "orcid", "affiliations")
 RENAMES_HEADER = ["Table", "OldID", "NewID"]
 DOI = re.compile(r"10\.[0-9]{4,9}/\S+")
@@ -97,6 +101,7 @@ class Record:
     """The dataset, from record.yaml."""
     title: str
     doi: str | None  # the DOI of all versions; None until the first version is published
+    access: str      # one of ACCESS
     curator: Person  # who looks after the dataset, with no experiments
 
 
@@ -123,11 +128,12 @@ class Previous:
 
 def read_record(path: Path) -> Record:
     """
-    record.yaml, which says what the dataset is called, its DOI of all versions, and who looks after it, in the same
-    way as a person in contributors.yaml, without experiments:
+    record.yaml, which says what the dataset is called, its DOI of all versions, who can download its files, and who
+    looks after it, in the same way as a person in contributors.yaml, without experiments:
 
         title: <title>
         doi: <DOI of all versions, or none before the first version is published>
+        access: <open, for anyone, or restricted, for only those given access on Zenodo>
         curator:
           family_name: …
           given_names: …
@@ -153,6 +159,10 @@ def read_record(path: Path) -> Record:
                 raise BuildError(f"{at(RECORD, node)}: '{doi}' is not a DOI, which starts with 10. and a '/'. Write "
                                  "it without https://doi.org/ in front, or write none before the first version is "
                                  "published.")
+        access = yaml_text(RECORD, values["access"], "access")
+        if access not in ACCESS:
+            raise BuildError(f"{at(RECORD, values['access'])}: '{access}' is not a kind of access. Write open, if "
+                             "anyone may download the files, or restricted, if only those given access on Zenodo may.")
         person = yaml_mapping(RECORD, values["curator"], CURATOR_KEYS, "the curator")
         curator = Person(yaml_text(RECORD, person["family_name"], "family_name"),
                          yaml_text(RECORD, person["given_names"], "given_names"),
@@ -160,7 +170,7 @@ def read_record(path: Path) -> Record:
                          read_affiliations(RECORD, person["affiliations"]), [])
     except ValidationError as e:
         raise BuildError(str(e)) from None
-    return Record(title, doi, curator)
+    return Record(title, doi, access, curator)
 
 
 def read_csv(path: Path) -> pd.DataFrame:
@@ -733,7 +743,7 @@ def as_json(data: dict) -> str:
 
 def build(merge: Path, commit: str, previous: Path | None = None, release: Release | None = None,
           notice: Callable[[str], None] = lambda message: None,
-          warning: Callable[[str], None] = lambda message: None) -> list[str]:
+          warning: Callable[[str], None] = lambda message: None, out: Path | None = None) -> list[str]:
     """
     Builds publish/ in the merge folder, and returns lines saying what it built.
     Parameters:
@@ -742,6 +752,7 @@ def build(merge: Path, commit: str, previous: Path | None = None, release: Relea
         previous: the folder of the last merge, which published the last version; None for the first version.
         release: the date and DOIs of this version, which publish.py gives; None for a preview.
         notice, warning: called with the validator's notices and warnings.
+        out: the folder to build in, in place of publish/; publish.py builds in another one first, as a check.
     Raises:
         ValidationError: if the tables or contributors.yaml do not pass the validator.
         BuildError: if something else is missing or does not fit together.
@@ -776,7 +787,7 @@ def build(merge: Path, commit: str, previous: Path | None = None, release: Relea
     funding = checked.contributors.funding
     renames = read_renames(merge / RENAMES, schema, last.tables, frames) if last else {}
 
-    out = merge / PUBLISH
+    out = out or merge / PUBLISH
     if not release and (out / RELEASE).is_file() and json.loads((out / RELEASE).read_text(encoding="utf-8"))["doi"]:
         raise BuildError(f"{out} holds a version with a DOI, which a preview would replace. It is kept as it is, "
                          "as the next merge compares with it. Build a new version in a new merge folder.")
@@ -811,8 +822,11 @@ def build(merge: Path, commit: str, previous: Path | None = None, release: Relea
     readme = render(TEMPLATE.read_text(encoding="utf-8"), values)
     description = description_html(readme, glance, schema, diagram)
 
-    if out.exists():
-        shutil.rmtree(out)
+    # Only what it writes is replaced: publish.py keeps zenodo.json here too
+    if (out / FILES).exists():
+        shutil.rmtree(out / FILES)
+    for name in (METADATA, RELEASE):
+        (out / name).unlink(missing_ok=True)
     (out / FILES).mkdir(parents=True)
     for name, frame in frames.items():
         (out / FILES / f"{name}.csv").write_text(frame.to_csv(index=False, lineterminator="\n"), encoding="utf-8",

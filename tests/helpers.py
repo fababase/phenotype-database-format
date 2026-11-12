@@ -7,6 +7,7 @@ examples in schema.yaml and of the worked example in schema.md, which are copied
 """
 import csv
 import io
+import json
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +15,7 @@ from pathlib import Path
 import openpyxl
 import pytest
 
+import build
 import collection_sheet
 from validation import CONTRIBUTORS_FILE, DATE, Checked, Table, ValidationError, cell_text, load_schema, validate_files
 
@@ -30,6 +32,9 @@ SCORE = f"{TRIAL}_000001"
 GREENHOUSE = "nordbean_leaf_spectra_greenhouse_2025"
 POT = f"{GREENHOUSE}_pot01"
 SPECTRUM = f"{GREENHOUSE}_000005"  # a Phenotype row with Features wavelength=1450;tissue=young leaf
+
+# The commit that a merge is built with in the tests
+COMMIT = "0123456789abcdef0123456789abcdef01234567"
 
 # Read once rather than for every test, which is slow when the repository is on a network drive
 VALID_FILES = {path.name: path.read_bytes() for path in VALID.iterdir()}
@@ -241,3 +246,61 @@ def fails(files: list[tuple[str, Path]], message: str) -> None:
 def as_csv(tables: dict[str, Table]) -> dict[str, str]:
     """Each table as the CSV text the validator writes, to compare tables read from different files."""
     return {name: table.to_csv() for name, table in tables.items()}
+
+
+# The record.yaml of a merge
+RECORD = """\
+title: Nordbean test dataset
+doi: {doi}
+access: {access}
+curator:
+  family_name: Keeper
+  given_names: Dana
+  orcid: {orcid}
+  affiliations:
+    - name: Northfield Agricultural College
+      ror: none
+"""
+
+
+class Merge:
+    """A merge folder: the valid dataset as its merged tables, and record.yaml."""
+
+    def __init__(self, folder: Path, doi: str = "none", orcid: str = "none", access: str = "open"):
+        folder.mkdir()
+        self.folder = folder
+        self.tables = Dataset(folder / "tables")
+        self.record = folder / "record.yaml"
+        self.record.write_text(RECORD.format(doi=doi, orcid=orcid, access=access), encoding="utf-8")
+
+    @property
+    def files(self) -> Path:
+        return self.folder / "publish" / "files"
+
+    def run(self, previous: "Merge | None" = None, release: build.Release | None = None,
+            out: Path | None = None) -> list[str]:
+        return build.build(self.folder, COMMIT, previous.folder if previous else None, release, out=out)
+
+    def renames(self, *rows: tuple[str, str, str], header: tuple[str, ...] = ("Table", "OldID", "NewID")) -> None:
+        with (self.folder / "renames.csv").open("w", encoding="utf-8", newline="") as f:
+            csv.writer(f, lineterminator="\n").writerows([header, *rows])
+
+    def readme(self) -> str:
+        return (self.files / "README.md").read_text(encoding="utf-8")
+
+    def section(self, heading: str) -> str:
+        """The text under a heading of the README, '## heading', up to the next such heading."""
+        text = self.readme()
+        start = text.index(f"\n## {heading}\n\n") + len(heading) + 6
+        end = text.find("\n## ", start)
+        return text[start:end if end >= 0 else None].strip()
+
+    def metadata(self) -> dict:
+        return json.loads((self.folder / "publish" / "metadata.json").read_text(encoding="utf-8"))
+
+    def release(self) -> dict:
+        return json.loads((self.folder / "publish" / "release.json").read_text(encoding="utf-8"))
+
+    def rows(self, table: str) -> list[dict[str, str]]:
+        with (self.files / f"{table}.csv").open(encoding="utf-8", newline="") as f:
+            return list(csv.DictReader(f))

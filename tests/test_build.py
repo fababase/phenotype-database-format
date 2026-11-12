@@ -14,70 +14,14 @@ from pathlib import Path
 import pytest
 
 import build
-from helpers import GREENHOUSE, ROOT, SCHEMA, SCORE, TRIAL, Dataset
+from helpers import COMMIT, GREENHOUSE, ROOT, SCHEMA, SCORE, TRIAL, Merge
 import validation
 from validation import CONTRIBUTORS_FILE, ValidationError
 
-COMMIT = "0123456789abcdef0123456789abcdef01234567"
 CONCEPT = "10.5281/zenodo.100"
 FIRST = build.Release("2026-11-01", "10.5281/zenodo.101", CONCEPT)
 SECOND = build.Release("2026-12-01", "10.5281/zenodo.102", CONCEPT)
 HEIGHT = "plant_height_mean_of_5_plants_cm"
-RECORD = """\
-title: Nordbean test dataset
-doi: {doi}
-curator:
-  family_name: Keeper
-  given_names: Dana
-  orcid: {orcid}
-  affiliations:
-    - name: Northfield Agricultural College
-      ror: none
-"""
-
-
-class Merge:
-    """A merge folder: the valid dataset as its merged tables, and record.yaml."""
-
-    def __init__(self, folder: Path, doi: str = "none", orcid: str = "none"):
-        folder.mkdir()
-        self.folder = folder
-        self.tables = Dataset(folder / "tables")
-        self.record = folder / "record.yaml"
-        self.record.write_text(RECORD.format(doi=doi, orcid=orcid), encoding="utf-8")
-
-    @property
-    def files(self) -> Path:
-        return self.folder / "publish" / "files"
-
-    def run(self, previous: "Merge | None" = None, release: build.Release | None = None) -> list[str]:
-        return build.build(self.folder, COMMIT, previous.folder if previous else None, release)
-
-    def renames(self, *rows: tuple[str, str, str], header: tuple[str, ...] = ("Table", "OldID", "NewID")) -> None:
-        with (self.folder / "renames.csv").open("w", encoding="utf-8", newline="") as f:
-            csv.writer(f, lineterminator="\n").writerows([header, *rows])
-
-    def readme(self) -> str:
-        return (self.files / "README.md").read_text(encoding="utf-8")
-
-    def section(self, heading: str) -> str:
-        """The text under a heading of the README, '## heading', up to the next such heading."""
-        text = self.readme()
-        start = text.index(f"\n## {heading}\n\n") + len(heading) + 6
-        end = text.find("\n## ", start)
-        return text[start:end if end >= 0 else None].strip()
-
-    def metadata(self) -> dict:
-        return json.loads((self.folder / "publish" / "metadata.json").read_text(encoding="utf-8"))
-
-    def release(self) -> dict:
-        return json.loads((self.folder / "publish" / "release.json").read_text(encoding="utf-8"))
-
-    def rows(self, table: str) -> list[dict[str, str]]:
-        with (self.files / f"{table}.csv").open(encoding="utf-8", newline="") as f:
-            return list(csv.DictReader(f))
-
-
 @pytest.fixture
 def merge(tmp_path: Path) -> Merge:
     return Merge(tmp_path / "merge")
@@ -533,8 +477,12 @@ def test_no_record(merge):
     ("doi: none", "doi: https://doi.org/10.5281/zenodo.100",
      "record.yaml, line 2: 'https://doi.org/10.5281/zenodo.100' is not a DOI, which starts with 10. and a '/'. "
      "Write it without https://doi.org/ in front, or write none before the first version is published."),
+    ("access: open\n", "", "record.yaml, line 1: the file has no 'access'. Add it."),
+    ("access: open", "access: public",
+     "record.yaml, line 3: 'public' is not a kind of access. Write open, if anyone may download the files, or "
+     "restricted, if only those given access on Zenodo may."),
     ("orcid: none", "orcid: 0000-0002-1825-0098",
-     "record.yaml, line 6: '0000-0002-1825-0098' is not an ORCID iD: its last character, which checks the others, "
+     "record.yaml, line 7: '0000-0002-1825-0098' is not an ORCID iD: its last character, which checks the others, "
      "does not fit them. Copy it again from orcid.org."),
 ])
 def test_record_that_does_not_fit_its_format(merge, old, new, message):
@@ -640,6 +588,26 @@ def test_a_preview_keeps_what_was_published(tmp_path):
     assert first.readme() == readme
     first.run(release=FIRST)
     assert first.readme() == readme
+
+
+def test_what_publish_py_keeps_in_publish_is_left_as_it_is(merge):
+    merge.run()
+    kept = merge.folder / "publish" / "zenodo.json"
+    kept.write_text('{"https://zenodo.org": "101"}\n', encoding="utf-8")
+    merge.run(release=FIRST)
+    assert kept.read_text(encoding="utf-8") == '{"https://zenodo.org": "101"}\n'
+
+
+def test_building_in_another_folder(merge, tmp_path):
+    merge.run(release=FIRST)
+    published = merge.readme()
+    assert merge.run(out=tmp_path / "check") == [
+        f"Built version 1 of Nordbean test dataset, in schema version 1.0.0, in {tmp_path / 'check'}.",
+        "It is the first version.",
+        "It is a preview: the date and DOI of the version are set when publish.py publishes it.",
+    ]
+    assert (tmp_path / "check" / "files" / "README.md").is_file()
+    assert merge.readme() == published
 
 
 # ---------------------------------------------------------------- Running it
