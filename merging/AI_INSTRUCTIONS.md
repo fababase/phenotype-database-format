@@ -2,7 +2,7 @@
 
 This file is for the AI that merges the tables of several contributions into one set of tables in the FabaBase phenotype [format](../schema/schema.md), to be published on Zenodo, as a public record or as a restricted record of a project. Both are merged the same way. You work for the data manager, who tells you which contributions to merge.
 
-You work only from tables: those of each contribution, and those of the last merge for the same record, if there is one. Nothing else is part of a merge.
+You work only from what is in the `tables/` folders: the tables and `contributors.md` of each contribution, and those of the last merge for the same record, if there is one. Nothing else is part of a merge.
 
 Your job is to find where the contributions overlap, or write the same thing in different ways, and to propose what to change. The data manager decides every change: you make none without their yes.
 
@@ -24,13 +24,14 @@ Your job is to find where the contributions overlap, or write the same thing in 
 1. **Read these in full:**
    - [schema/schema.md](../schema/schema.md): the format. [schema/schema.yaml](../schema/schema.yaml) holds the same in machine-readable form, and the description of each column says what it should hold.
    - [Make the values consistent](../conversion/AI_INSTRUCTIONS.md#make-the-values-consistent), in the instructions for converting: how values are written.
+   - [Who to credit](../docs/submit-data.md#who-to-credit), in the guide for contributors: what `contributors.md` holds, and its template.
 2. **Check that uv works** (`uv --version`). If it doesn't, ask the data manager to install it.
 3. **Ask the data manager what you cannot tell from the folder you are in:**
    - which contributions to merge, and where their tables are;
    - whether the record has been merged before, and where that last merge is;
    - which folder this merge is written in. These instructions call it the merge folder, and everything you write goes in it.
-4. **If there was a last merge,** start from copies of its `merge.py` and `merge-notes.md`. Its decisions are carried out again without asking, unless a table that a decision rests on has changed. Then ask about that decision again.
-5. **Validate each contribution's tables on their own**, as in [Check](#check). If one fails, stop, and tell the data manager which one fails and why. It may have been made for an older version of the format.
+4. **If there was a last merge,** start from copies of its `merge.py` and `merge-notes.md`. Its decisions are carried out again without asking, unless a file that a decision rests on has changed. Then ask about that decision again.
+5. **Validate each contribution's tables on their own**, as in [Check](#check), and check that its `contributors.md` follows the template. If one fails, stop, and tell the data manager which one fails and why. It may have been made for an older version of the format.
 
 Write your scripts for looking at the tables in `scratch/`, in the merge folder, and run them with uv.
 
@@ -64,29 +65,39 @@ SLIDs, in SeedLot, are handled in the same way.
 
 The IDs of Experiment, ExperimentalUnit, ExperimentIntervention, Management, Phenotype and Climate each belong to one contribution. When one is in more than one contribution, ignoring case, show the data manager the rows, say whether they look like the same thing, and ask.
 
+### People and funding
+
+Compare the `contributors.md` of the contributions with each other, and with that of the last merge.
+
+- **People with the same ORCID** are one person. Propose one entry, and ask about each difference in how they are written.
+- **A person keeps every affiliation** they have in any of the contributions, each once. Institutions with the same ROR ID are one institution: where they are written differently, ask which way to write them.
+- **Grants with the same funder and grant number** are one grant. Propose one entry, and ask about each difference in how they are written.
+- **People, institutions and grants that may be the same**, without an ORCID, a ROR ID or a grant number to show it: show both, and ask whether they are one.
+
 ## Ask
 
-- **Ask about every change before you make it**, unless merge-notes.md already holds the answer: every ID you would change, every two rows you would make one, every score you would convert, and every value you would write differently. Without the data manager's yes, nothing changes.
+- **Ask about every change before you make it**, unless merge-notes.md already holds the answer: every ID you would change, every two rows, people, institutions or grants you would make one, every score you would convert, and every value you would write differently. Without the data manager's yes, nothing changes.
 - **Look into a question before you ask it.** Check what the tables say about it, and run the analyses that could answer it or narrow it down.
 - **Say what you propose, and what it rests on:** the contribution, table, column, ID and value; what you would change it to; and what in the tables shows it. When two rows may be the same thing, show both.
 - **Ask in plain words, and number the questions. Never ask more than three at once.** Changes of the same kind that one answer settles can be one question, as long as each of them is listed in it.
 - **Carry on only with what does not depend on the answer**, never on a guess.
 - **Write every answer in merge-notes.md**, yes or no, so that it is not asked again.
 - **When the data manager does not know, change nothing.**
-- **Never write anything the tables do not say**, even to make two rows fit together.
+- **Never write anything the contributions do not say**, even to make two rows fit together.
 
 ## Write merge.py
 
-`merge.py` turns the contributions' tables into the merged tables. Every decision is in it, so that the merge can be repeated and checked.
+`merge.py` turns the contributions' tables and `contributors.md` into the merged ones. Every decision is in it, so that the merge can be repeated and checked.
 
-- **It reads only the contributions' tables, and writes only `tables/` and `crosswalk.csv`**, next to itself in the merge folder, or in the folder given with `--out`. It finds the tables it reads from its own location, so that it runs from any folder.
+- **It reads only the contributions' `tables/` folders, and writes only `tables/` and `crosswalk.csv`**, next to itself in the merge folder, or in the folder given with `--out`. It finds the files it reads from its own location, so that it runs from any folder.
 - **It starts with the Python version and the exact version of every package it needs**, in the form uv reads, as in [Write conversion.py](../conversion/AI_INSTRUCTIONS.md#write-conversionpy). Run it with `uv run`.
-- **It checks the tables first.** It lists every table it reads, with its SHA-256 checksum, and stops with a clear message if one is missing or has changed. When one has changed, stop, and ask the data manager why.
+- **It checks what it reads first.** It lists every table and `contributors.md` it reads, with its SHA-256 checksum, and stops with a clear message if one is missing or has changed. When one has changed, stop, and ask the data manager why.
 - **Every decision has a comment** saying what it does, and the number of the decision in merge-notes.md that it carries out.
 - **When it changes an ID, it changes every reference to it**: in every column that links to that table, as schema.yaml gives them, and in the FTIDs inside Features cells.
 - **It keeps every score as the contribution gives it**, except where a decision converts it. Then it converts it exactly, in decimal arithmetic: no rounding, and no floating-point artefacts.
 - **It gives the same output every time**: rows in a fixed order, and no date or time of the run in what it writes.
 - **It writes the tables as in [Files](../schema/schema.md#files)**, and follows schema.md in everything else.
+- **It writes `tables/contributors.md`** in the template in [Who to credit](../docs/submit-data.md#who-to-credit), with every person and every grant once: the people in alphabetical order of family name, then given names, and the grants in alphabetical order of funder, then grant number. Each person and each grant ends with a line `- **Experiments:** …`, which lists the EXPIDs, as in the merged tables, of the experiments in the contributions they are in.
 - **It writes `crosswalk.csv`**, with one row for every ID it changed in every contribution, and the columns Contribution, Table, OldID and NewID.
 
 ## Make the values consistent
@@ -105,8 +116,8 @@ A merge changes only how a value is written, never what it says, and fills in no
 
   It stops at the first error. Fix `merge.py`, run it again, and validate again, until it says "Validation successful!".
 - **Run `merge.py` again**, into `scratch/` with `--out`, and check that it writes the same files, byte for byte.
-- **No row is lost.** Every row of every contribution is in the merged tables, or was made one with another row by a decision in merge-notes.md.
-- **Nothing in the last merge changes unnoticed.** Every ID in the tables of the last merge should still be in the merged tables, with the same row, unless a decision in merge-notes.md changed it. Tell the data manager about every one that is not.
+- **Nothing is lost.** Every row of every contribution is in the merged tables, and every person and grant in its `contributors.md` is in the merged one, or was made one with another by a decision in merge-notes.md.
+- **Nothing in the last merge changes unnoticed.** Every ID in the tables of the last merge should still be in the merged tables, with the same row, and every person and grant in its `contributors.md` should still be in the merged one, unless a decision in merge-notes.md changed it. Tell the data manager about every one that is not.
 
 ## merge-notes.md
 
@@ -130,7 +141,7 @@ Start from this template. Keep its fields, its heading and the line in italics a
 
 ## The Zenodo README
 
-**Not written yet: skip this section.** The README template for the Zenodo record is still to be made. Once it is, this section says how to fill it in from the merged tables, with nothing the tables do not say.
+**Not written yet: skip this section.** The README template for the Zenodo record is still to be made. Once it is, this section says how to fill it in from the merged tables and `contributors.md`, with nothing they do not say.
 
 ## Finishing
 
@@ -142,7 +153,7 @@ The merge is finished when every change has been asked about and answered, the c
 
 Write only in the merge folder. When something blocks you, stop and ask; never work around it. Never:
 
-- change the tables of a contribution, or anything of an earlier merge;
+- change anything in a contribution's `tables/` folder, or anything of an earlier merge;
 - make a change the data manager has not said yes to;
 - change a GPID or an SLID, or make two of them one;
 - change a score, except by an exact conversion the data manager has said yes to;

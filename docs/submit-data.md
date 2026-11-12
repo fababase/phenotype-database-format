@@ -81,7 +81,7 @@ nordbean_irrigation_2025/
       conversion-notes.md        the notes: what was changed, what is missing, what is doubtful
       summary.md                 what the tables hold, written by conversion.py each time it runs
       review.md                  the review: what it found, and the FAIR score
-      tables/                    Germplasm.csv … Features.csv
+      tables/                    Germplasm.csv … Features.csv, and contributors.md: who to credit
 ```
 
 1. **Copy this repository into the folder**, as `phenotype-database-format`.
@@ -104,7 +104,7 @@ These apply to you and to the AI.
 
 - **Add to `raw_data`; don't change or delete what is there unless the mistake is clear.** If a file outside `raw_data/notes` turns out to be wrong, prefer (within reason) adding a corrected copy under a new name, or a file that says what is wrong. `conversion.py` checks every file it reads, and stops if one has changed.
 - **Everything you tell the AI, or find out yourself, goes in a file in `raw_data/notes`**, never only in a chat, as this cannot be saved for future runs. This includes answers to questions, corrections, how things were measured, what the AI may see. Plain text is fine. Give each file one subject, name it after that, and number its sections. When something in it changes or turns out wrong, correct that file, rather than adding one that says so: when files disagree, the AI cannot tell which is right. A chat is gone when the session ends, the files stay, so that the conversion can be repeated if another issue is spotted down the line.
-- **Only `conversion.py` writes the tables.** Don't edit them by hand, as the edit will be lost the next time the tables are written, and nobody can tell it was made.
+- **Only `conversion.py` writes in `tables/`.** Don't edit what is there by hand, as the edit will be lost the next time `conversion.py` runs, and nobody can tell it was made.
 - **Don't edit the copy of this repository.** It is the version of the format your data is converted to.
 - **One run per handover.** A run ends *stopped*, waiting for something you have to find, or *finished*. A stopped run is carried on in the same folder. A new run is only started for a new handover: corrections or more data after the last one, or a new version of the format.
 
@@ -142,7 +142,38 @@ You have the last word: if the AI still doubts something you confirmed, it notes
 
 ### Who to credit
 
-When the data is eventually published, the people behind it should be credited. For this reason, give the name, ORCID and affiliation of each person, contact information, and the funding. Save them in a file in `raw_data/notes`, like any other answer. They go into the Description of the Experiment table. The AI asks for these early.
+When the data is eventually published, the people behind it should be credited, and so should its funding. The AI asks for these details early. Save them in a file in `raw_data/notes`, like any other answer. `conversion.py` writes them into `tables/contributors.md`, which is handed over with the tables. Credit goes only there, not in the Description of the Experiment table.
+
+If the data is published, everyone in `contributors.md` is named as a creator of the dataset on Zenodo, in alphabetical order of family name, so that they are cited with it. Its funding is listed there too.
+
+`contributors.md` follows this template:
+
+```markdown
+# Contributors
+
+## People
+
+### <family name>, <given names>
+- **ORCID:** …
+- **Affiliations:**
+  - <institution> (<ROR ID>)
+
+## Funding
+
+### <funder> (<ROR ID>)
+- **Grant number:** …
+- **Grant title:** …
+```
+
+- **People:** everyone who should be credited for this data, each under a heading of their own. Check with each of them that they agree to be listed with these details.
+- **Names:** the family name and the given names apart, as the person writes them. Zenodo and citations need them apart, and no program can split a name reliably.
+- **ORCID:** the person's ORCID iD, from [orcid.org](https://orcid.org). The AI checks each one against its public record.
+- **Affiliations:** where the person worked when the work on this data was done, not where they are now: one or more, each on a line of its own. Write each institution as [ROR](https://ror.org), the registry of research organisations, names it, followed by its ROR ID. Only institutions, not departments. The AI can look up the ROR IDs.
+- **Funding:** every grant that paid for the work on this data, each under a heading of its own: the funder as ROR names it, followed by its ROR ID, and the grant's number and title.
+- **Write `none` where something does not exist:** for a person without an ORCID, an institution or funder without a ROR ID, a grant without a number or a title, and under Funding when there was no specific funding. Then it can be told from something forgotten.
+
+> [!NOTE]
+> **Without an AI**, your `conversion.py` writes `contributors.md` in the same way. With the [collection sheet](#the-collection-sheet), you write it by hand.
 
 ## 7. Make the tables
 
@@ -155,13 +186,15 @@ In practice, steps 6, 7 and 8 go back and forth: making the tables raises new qu
 >
 > To write `conversion.py` yourself, follow these sections of the AI's instructions. They are written to the AI, but the rules are the same for you.
 >
-> - [Write conversion.py](../conversion/AI_INSTRUCTIONS.md#write-conversionpy): what the script reads and writes, the versions it needs, the checksums of the raw files, and `summary.md`.
+> - [Write conversion.py](../conversion/AI_INSTRUCTIONS.md#write-conversionpy): what the script reads and writes, the versions it needs, the checksums of the raw files, `summary.md` and `contributors.md`.
 > - [Check](../conversion/AI_INSTRUCTIONS.md#check): how to run the validator.
 > - [The notes](../conversion/AI_INSTRUCTIONS.md#the-notes): what goes in `conversion-notes.md`, with a template.
 
 ## 8. Check the result
 
 The AI asks you to check `summary.md`, and says what to compare it with. `conversion.py` writes it each time it runs. It says what the tables hold: the traits and how many scores each has, the units, experiments and germplasm, the dates, and the range of each trait. Compare it with what you know. It could show a wrong number of plots, or a trait with impossible values.
+
+The AI asks you to read `tables/contributors.md` too: check every name, ORCID, affiliation and grant in it.
 
 ## 9. Have it reviewed
 
@@ -189,5 +222,6 @@ The collection sheet is no longer the recommended way to contribute data, but it
 1. Download a blank sheet from the [app](https://fababase.github.io/phenotype-database-format/), and fill it in as its *READ ME 1st* sheet says.
 2. Check it in the app, and fix what it reports, until it passes.
 3. Download the tables from the app (*Download tables as CSV*).
-4. (Optionally) Have a colleague review your filled in collection sheet.
-5. Hand over data, as detailed in step 10 of the above guide.
+4. Write `contributors.md` by hand, as in [Who to credit](#who-to-credit), and keep it with the tables.
+5. (Optionally) Have a colleague review your filled in collection sheet.
+6. Hand over data, as detailed in step 10 of the above guide.

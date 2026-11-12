@@ -19,7 +19,7 @@ This guide is for data reviewers. A review checks a finished run of a conversion
 6. **Every fact is in `raw_data/`.** Read every free-text cell, such as Description, DescriptionOfMethod and Comments, and check each fact in it against the raw files. Nothing may come from the chat, from guessing, or from what is usual but not absolutely standard in such experiments. No cell may refer to anything that a reader of the published tables cannot find.
 7. **The notes hold up.** Each item under Changed or left out rests on a file or on the raw data, as it says. Each assumption says why it could not be asked, and the reason holds. Each item under Missing says when it was asked.
 8. **The IDs are right.** IDs follow [Identifiers](../schema/schema.md#identifiers). New IDs in Germplasm, SeedLot, PhenotypeDescription, ClimateDescription and Features were checked against the datasets in [datasets.md](datasets.md), and none is a near-copy of an existing one, such as `hedin2` beside `hedin_2`.
-9. **The details of who to credit are there**, as listed in [submit-data.md](submit-data.md#who-to-credit): in a file in `raw_data/`, and in the Description of the Experiment table.
+9. **The credit is there.** `tables/contributors.md` follows the template and the rules in [Who to credit](submit-data.md#who-to-credit), and every name, ORCID, affiliation and grant in it is in a file in `raw_data/`.
 
 ## FAIR score
 
