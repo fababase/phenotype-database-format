@@ -3,7 +3,8 @@
 # the diagram and the tables in schema.md that list the tables and columns are made from it too. An Action writes
 # the tables in schema.md, with schema/schema_md.py, on every push to main.
 
-version: "1.0.0"
+# The version of the format, major.minor, in quotes so that 1.10 stays 1.10. See CHANGELOG.md.
+version: "1.0"
 
 # Cell values that mean "no value", besides an empty cell. Compared ignoring case and surrounding spaces.
 missing_values: ["NULL", "NA", "N/A", "None", "Not applicable"]

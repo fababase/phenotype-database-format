@@ -6,7 +6,7 @@ to the app:
 
 Writes into the folder an interactive page, index.html, that holds every version of the schema. It opens at the
 latest version; a menu switches to another, and so does the version after # in the address, as in
-index.html#1.0.0. The tables can be dragged around and clicked to highlight their links, and pointing at a column,
+index.html#1.0. The tables can be dragged around and clicked to highlight their links, and pointing at a column,
 table or link says what it is. Also writes pictures of each version as first laid out, in a folder named after the
 version: diagram.svg, which keeps what the page says as tooltips, and diagram.png. Those of the latest version are
 written in the folder itself too.
@@ -31,7 +31,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(ROOT / "app"))
 
-from validation import Schema, help_text, load_schema  # noqa: E402
+from validation import Schema, help_text, load_schema, same_version  # noqa: E402
 
 PAGE = HERE / "diagram.html"
 # Where diagram.html takes the versions
@@ -69,6 +69,9 @@ def version_commits(repository: Path = ROOT) -> list[tuple[str, str | None]]:
     the same version may have changed other files, such as schema.md. Only the commits of the branch itself count;
     those of a branch merged into it count as its merge commit.
 
+    A version written another way, such as 1.0.0 for 1.0, is the same version, as in same_version, and is named as
+    the latest commit that had it writes it.
+
     A commit whose schema.yaml cannot be read, or whose version is not digits and dots, is passed over, as it did
     not pass the tests, so it was never published. Raises ValueError if schema.yaml as it is now is like that, or
     if the history is not all there.
@@ -84,12 +87,12 @@ def version_commits(repository: Path = ROOT) -> list[tuple[str, str | None]]:
     latest = schema_version((repository / SCHEMA_PATH).read_text(encoding="utf-8"))
     if latest is None:
         raise ValueError(f"Either {SCHEMA_PATH} cannot be read, or its version is not digits and dots, such as "
-                         "1.0.0, which a version has to be, as it names a folder of the diagram.")
+                         "1.0, which a version has to be, as it names a folder of the diagram.")
     versions = {latest: None}
     last = "HEAD"  # the last commit that had the schema.yaml of the commit looked at
     for commit in git(repository, "log", "--first-parent", "--format=%H", "--", SCHEMA_PATH).split():
         version = schema_version(git(repository, "show", f"{commit}:{SCHEMA_PATH}"))
-        if version and version not in versions:
+        if version and not any(same_version(version, known) for known in versions):
             versions[version] = git(repository, "rev-parse", last).strip()
         last = f"{commit}^"
     return list(versions.items())

@@ -193,11 +193,11 @@ def test_row_2_that_is_not_help_text_is_data(dataset, tmp_path):
 def test_collection_sheet_of_another_version(dataset, tmp_path):
     """It is checked before anything else, as the columns may have changed since that version."""
     def older(wb):
-        wb[READ_ME_SHEET]["A1"] = READ_ME_TITLE.format(version="0.9.0")
+        wb[READ_ME_SHEET]["A1"] = READ_ME_TITLE.format(version="0.9")
     dataset.set("Phenotype", SCORE, "Score", "n.a.")
     workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
     edit_workbook(workbook, older)
-    fails([("sheet.xlsx", workbook)], f"sheet.xlsx is a collection sheet for schema version 0.9.0, but it is checked "
+    fails([("sheet.xlsx", workbook)], f"sheet.xlsx is a collection sheet for schema version 0.9, but it is checked "
                                       f"against schema version {SCHEMA.version}. Download a new blank collection "
                                       "sheet, and copy your data into it.")
 

@@ -4,7 +4,7 @@ The phenotype database schema is a set of 11 linked tables for phenotype data fr
 
 This document describes every table and column, the conventions that apply throughout, and the few places where the schema does not behave like an ordinary relational database.
 
-This is **version 1.0.0** of the schema. [schema.yaml](schema.yaml) is a machine-readable copy, which the validator checks data against. The tables in this document that list the tables and their columns are written from it.
+This is **version 1.0** of the schema. [schema.yaml](schema.yaml) is a machine-readable copy, which the validator checks data against. The tables in this document that list the tables and their columns are written from it.
 
 > [!NOTE]
 > **In short:** the tables are linked by IDs, and every measured value is a row of its own. Scores are plain numbers, and description tables say what they mean. Two things need special handling: an empty UNID in Climate means *all units*, and Features cells hold lists like `FTID1=value1;FTID2=value2`.

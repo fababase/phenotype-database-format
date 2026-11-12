@@ -58,7 +58,7 @@ Only upgrade when there is a reason to, such as a fix in Shiny that the app need
 The diagram of how the tables link is at **<https://fababase.github.io/phenotype-database-format/diagram/>**. [schema/diagram.py](../schema/diagram.py) draws it each time the app is published, with every version of the schema:
 
 - It opens at the latest version. The menu at the top switches to an earlier one.
-- An address can name a version after `#`, as in `diagram/#1.0.0`, to open the diagram at that version. Link this way wherever the version matters: the *READ ME 1st* sheet of the collection sheet does, and so will the README of the Zenodo record.
+- An address can name a version after `#`, as in `diagram/#1.0`, to open the diagram at that version. Link this way wherever the version matters: the *READ ME 1st* sheet of the collection sheet does, and so will the README of the Zenodo record.
 - Pictures of each version are at `diagram/<version>/diagram.png` and `diagram/<version>/diagram.svg`, and those of the latest also at `diagram/diagram.png` and `diagram/diagram.svg`.
 
 ### Where the versions come from
@@ -69,6 +69,7 @@ So:
 
 - **A version stays in the diagram for good once a commit with it is pushed.** Change the version in `schema.yaml` only when the format changes, and commit it only when the new version is final.
 - **Never rewrite the history of `main`**, for example by force-pushing, or by squashing commits that are pushed: the earlier versions are in it.
+- **A version written with zeros at the end is the same version.** Version 1.0 was first written 1.0.0, so the diagram shows the two as one, named as the latest commit writes it, and an address with either opens it.
 - **The code has to read every earlier version.** A test reads each version in the history with today's `load_schema`. If a change to the code, or to how `schema.yaml` is laid out, makes an earlier version unreadable, that test fails, and nothing is published. Then make the code read the earlier version too; never leave it out.
 
 The diagram needs the whole history, so the Actions fetch all of it (`fetch-depth: 0` in the workflows), and `diagram.py` will not run in a clone that holds only part of it.

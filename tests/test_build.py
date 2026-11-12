@@ -46,7 +46,7 @@ def fails(merge: Merge, previous: Merge | None = None, release: build.Release | 
 
 def test_preview_of_the_first_version(merge):
     assert merge.run() == [
-        f"Built version 1 of Nordbean test dataset, in schema version 1.0.0, in {merge.folder / 'publish'}.",
+        f"Built version 1 of Nordbean test dataset, in schema version 1.0, in {merge.folder / 'publish'}.",
         "It is the first version.",
         "It is a preview: the date and DOI of the version are set when publish.py publishes it.",
     ]
@@ -105,7 +105,7 @@ def test_every_place_in_the_template_is_filled_in(merge):
     assert "<!--" not in readme
     assert readme.endswith(f"[https://github.com/fababase/phenotype-database-format]"
                            f"(https://github.com/fababase/phenotype-database-format/tree/{COMMIT}).\n")
-    assert "[diagram](https://fababase.github.io/phenotype-database-format/diagram/#1.0.0)" in readme
+    assert "[diagram](https://fababase.github.io/phenotype-database-format/diagram/#1.0)" in readme
 
 
 def test_at_a_glance(merge):
@@ -438,11 +438,22 @@ def test_people_and_funding_that_left(tmp_path):
     ]
 
 
+def test_the_version_of_the_format_with_a_zero_at_the_end_is_the_same(tmp_path):
+    """The last version was published when version 1.0 of the format was written 1.0.0."""
+    first = published(tmp_path)
+    path = first.folder / "publish" / "release.json"
+    release = json.loads(path.read_text(encoding="utf-8")) | {"schema_version": f"{SCHEMA.version}.0"}
+    path.write_text(json.dumps(release), encoding="utf-8")
+    second = Merge(tmp_path / "second", doi=CONCEPT)
+    second.run(first)
+    assert "The format changed" not in second.readme()
+
+
 def test_a_new_version_of_the_format(tmp_path):
     """The last version followed another version of the format, which had a column that is gone, and not one."""
     first = published(tmp_path)
     path = first.folder / "publish" / "release.json"
-    path.write_text(json.dumps(json.loads(path.read_text(encoding="utf-8")) | {"schema_version": "0.9.0"}),
+    path.write_text(json.dumps(json.loads(path.read_text(encoding="utf-8")) | {"schema_version": "0.9"}),
                     encoding="utf-8")
     germplasm = first.files / "Germplasm.csv"
     with germplasm.open(encoding="utf-8", newline="") as f:
@@ -455,8 +466,8 @@ def test_a_new_version_of_the_format(tmp_path):
     second = Merge(tmp_path / "second", doi=CONCEPT)
     second.run(first)
     assert second.section("What changed in this version").split("\n\n")[1:] == [
-        "The format changed from version 0.9.0 to version 1.0.0. The [diagram]"
-        "(https://fababase.github.io/phenotype-database-format/diagram/#1.0.0) shows each version: choose one in its "
+        "The format changed from version 0.9 to version 1.0. The [diagram]"
+        "(https://fababase.github.io/phenotype-database-format/diagram/#1.0) shows each version: choose one in its "
         "menu.",
         "| Table | Added | Changed | Renamed | Removed |\n|---|---|---|---|---|\n| Germplasm | 0 | 0 | 0 | 0 |",
         "- **Germplasm.** New columns: Maintaining. Columns no longer in the format: Pedigree.",
@@ -669,7 +680,7 @@ def test_building_in_another_folder(merge, tmp_path):
     merge.run(release=FIRST)
     published = merge.readme()
     assert merge.run(out=tmp_path / "check") == [
-        f"Built version 1 of Nordbean test dataset, in schema version 1.0.0, in {tmp_path / 'check'}.",
+        f"Built version 1 of Nordbean test dataset, in schema version 1.0, in {tmp_path / 'check'}.",
         "It is the first version.",
         "It is a preview: the date and DOI of the version are set when publish.py publishes it.",
     ]

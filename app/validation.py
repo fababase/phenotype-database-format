@@ -120,6 +120,21 @@ class Schema:
         return None
 
 
+def same_version(a: str, b: str) -> bool:
+    """
+    Whether two versions of the format are the same. A version is major.minor, as in 1.0. Versions were once written
+    with a third number, always 0, so the numbers are compared, and zeros at the end do not count: 1.0.0 is 1.0.
+    """
+    def numbers(version: str) -> tuple[int, ...] | str:
+        if not re.fullmatch(r"[0-9]+(?:\.[0-9]+)*", version):
+            return version
+        found = [int(number) for number in version.split(".")]
+        while found and found[-1] == 0:
+            found.pop()
+        return tuple(found)
+    return numbers(a) == numbers(b)
+
+
 def load_schema(path: Path = SCHEMA_FILE) -> Schema:
     """Reads the schema from schema.yaml. Raises ValueError if the file itself is inconsistent."""
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -293,11 +308,11 @@ def read_csv(name: str, path: Path, notice: Callable[[str], None]) -> RawTable:
 def check_version(name: str, ws, schema: Schema) -> None:
     """
     A collection sheet has to be for the schema version it is checked against. Its READ ME 1st sheet says which
-    version it is for; if it does not, nothing is checked.
+    version it is for; if it does not, nothing is checked. A sheet for 1.0.0 is for 1.0, as in same_version.
     """
     first_row = next(ws.iter_rows(max_row=1, max_col=1, values_only=True), ())
     match = SHEET_VERSION.search(cell_text(first_row[0]) if first_row else "")
-    if match and match[1] != schema.version:
+    if match and not same_version(match[1], schema.version):
         raise ValidationError(f"{name} is a collection sheet for schema version {match[1]}, but it is checked "
                               f"against schema version {schema.version}. Download a new blank collection sheet, "
                               "and copy your data into it.")

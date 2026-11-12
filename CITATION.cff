@@ -22,7 +22,7 @@ authors:
     given-names: Stig
     orcid: https://orcid.org/0000-0003-3632-5213
     affiliation: Aarhus University
-version: 1.0.0
+version: "1.0"
 date-released: 2026-11-12
 url: https://fababase.github.io/phenotype-database-format/
 repository-code: https://github.com/fababase/phenotype-database-format

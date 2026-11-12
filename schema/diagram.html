@@ -2,7 +2,7 @@
 <!--
   The interactive diagram of how the tables link, for every version of the schema. schema/diagram.py fills in the
   versions and publishes it with the app, so open the published page, not this file. It opens at the latest
-  version, or at the one after # in the address, as in index.html#1.0.0; a menu switches to another. The tables are
+  version, or at the one after # in the address, as in index.html#1.0; a menu switches to another. The tables are
   laid out by ELK; the links are routed here, around the tables, and routed again whenever a table is moved.
 -->
 <html lang="en">
@@ -669,10 +669,19 @@ function diagramSvg() {
 
 const menu = document.getElementById("version"), notice = document.getElementById("notice");
 
+// Whether two versions are the same. Versions were once written with a third number, always 0, so the numbers are
+// compared, and zeros at the end do not count: 1.0.0 is 1.0, as in same_version in app/validation.py.
+function sameVersion(a, b) {
+  const numbers = version => /^[0-9]+(\.[0-9]+)*$/.test(version)
+    ? version.split(".").map(Number).join(".").replace(/(\.0)+$/, "").replace(/^0$/, "")
+    : `not a version: ${version}`;
+  return numbers(a) === numbers(b);
+}
+
 // The version named after # in the address, or the latest if the address names none or one that does not exist
 function chosen() {
   const name = location.hash.slice(1);
-  return {name, spec: VERSIONS.find(spec => spec.version === name) || VERSIONS[0]};
+  return {name, spec: (name && VERSIONS.find(spec => sameVersion(spec.version, name))) || VERSIONS[0]};
 }
 
 // Says which version is shown, and whether it is the latest, and links to its schema description
@@ -680,7 +689,7 @@ function describe(spec, name) {
   menu.value = spec.version;
   document.getElementById("doc").href = `${REPOSITORY}/blob/${spec.commit || "main"}/schema/schema.md`;
   notice.replaceChildren();
-  if (name && name !== spec.version) {
+  if (name && !sameVersion(name, spec.version)) {
     notice.textContent = `There is no version ${name} of the schema, so this is the latest.`;
   } else if (spec !== VERSIONS[0]) {
     const latest = document.createElement("a");

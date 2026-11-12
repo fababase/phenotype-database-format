@@ -8,14 +8,14 @@ import pytest
 
 from helpers import (OPTIONAL_TABLES, SCHEMA, SCORE, TRIAL, UNIT, as_csv, check, edit_workbook, make_workbook, passes,
                      rename_sheet, set_sheet_cell)
-from validation import READ_ME_SHEET, cell_text, help_text, summary
+from validation import READ_ME_SHEET, READ_ME_TITLE, cell_text, help_text, summary
 
 
 def test_csv_files_pass(dataset):
     checked, notices = check(dataset.files())
     assert notices == []
     assert summary(checked, SCHEMA) == [
-        "Validation successful! All 11 tables pass schema version 1.0.0.",
+        "Validation successful! All 11 tables pass schema version 1.0.",
         "Germplasm: 3 rows, from Germplasm.csv",
         "SeedLot: 4 rows, from SeedLot.csv",
         "Experiment: 2 rows, from Experiment.csv",
@@ -101,6 +101,15 @@ def test_sheet_named_after_table_or_code(dataset, tmp_path, title):
 def test_read_me_sheet_ignored_in_any_case(dataset, tmp_path):
     workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
     rename_sheet(workbook, "READ ME 1st", "read me 1st")
+    passes([("sheet.xlsx", workbook)])
+
+
+def test_collection_sheet_for_the_version_with_a_zero_at_the_end(dataset, tmp_path):
+    """Version 1.0 was first written 1.0.0, and blank sheets downloaded then say so."""
+    def zero_at_the_end(wb):
+        wb[READ_ME_SHEET]["A1"] = READ_ME_TITLE.format(version=f"{SCHEMA.version}.0")
+    workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
+    edit_workbook(workbook, zero_at_the_end)
     passes([("sheet.xlsx", workbook)])
 
 

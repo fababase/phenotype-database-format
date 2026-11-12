@@ -4,6 +4,9 @@ the schema in the git history. The drawing itself happens in a browser, when the
 schema/diagram.py.
 """
 import json
+import os
+import re
+import shutil
 import subprocess
 from dataclasses import replace
 from pathlib import Path
@@ -12,7 +15,7 @@ import pytest
 
 from diagram import PLACEHOLDER, SCHEMA_PATH, diagram_data, load_versions, page_html, version_commits
 from helpers import ROOT, SCHEMA
-from validation import help_text
+from validation import help_text, same_version
 
 
 def test_diagram_has_every_table_column_and_link():
@@ -43,7 +46,7 @@ def test_diagram_says_what_each_table_and_column_is():
 
 
 def test_diagram_page_has_every_version():
-    versions = [diagram_data(SCHEMA), diagram_data(replace(SCHEMA, version="0.9.0"), "0" * 40)]
+    versions = [diagram_data(SCHEMA), diagram_data(replace(SCHEMA, version="0.9"), "0" * 40)]
     page = page_html(versions)
     assert PLACEHOLDER not in page
     assert json.dumps(versions) in page
@@ -59,6 +62,41 @@ def test_every_version_in_the_history_can_be_drawn():
     assert versions[0][0].version == SCHEMA.version and versions[0][1] is None
     for schema, commit in versions:
         diagram_data(schema, commit)
+
+
+
+@pytest.mark.skipif(not (ROOT / ".git").exists(), reason="not a clone of the repository, so it has no history")
+def test_version_1_0_0_in_the_history_is_drawn_as_1_0():
+    """
+    Version 1.0 was first written 1.0.0, and the commits from then are in the history. The diagram draws them as
+    version 1.0, and draws no version twice under two ways of writing it.
+    """
+    versions = [version for version, _ in version_commits()]
+    assert "1.0" in versions and "1.0.0" not in versions
+    assert not any(same_version(a, b) for i, a in enumerate(versions) for b in versions[i + 1:])
+
+
+def test_the_page_compares_versions_as_the_validator_does(tmp_path):
+    """
+    diagram.html compares versions in JavaScript, so that an address that names 1.0.0 opens version 1.0. It has to
+    answer as same_version does. Node runs it; GitHub's runners have it.
+    """
+    node = shutil.which("node")
+    if not node:
+        if os.environ.get("CI"):
+            pytest.fail("Node is not installed, so the JavaScript of diagram.html cannot be run.")
+        pytest.skip("Node is not installed")
+    page = (ROOT / "schema" / "diagram.html").read_text(encoding="utf-8")
+    function = re.search(r"^function sameVersion\(a, b\) \{\n.*?^\}\n", page, re.MULTILINE | re.DOTALL)[0]
+    cases = [["1.0", "1.0.0"], ["1.0.0", "1.0"], ["1.1", "1.1.0"], ["1.0", "1.1"], ["1.10", "1.1"], ["2.0", "1.0"],
+             ["1.0", "1.0 beta"], ["1.0 beta", "1.0 beta"], ["1.0", ""]]
+    script = tmp_path / "same_version.js"
+    answers = f"console.log(JSON.stringify({json.dumps(cases)}.map(([a, b]) => sameVersion(a, b))));\n"
+    script.write_text(function + answers, encoding="utf-8")
+    result = subprocess.run([node, str(script)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == [same_version(a, b) for a, b in cases]
+    assert json.loads(result.stdout)[:3] == [True, True, True]
 
 
 class History:
@@ -108,24 +146,34 @@ def test_versions_come_from_the_history(tmp_path):
     one before schema.yaml changed to a newer version, even if that commit changed another file.
     """
     history = History(tmp_path / "repository")
-    history.commit("1.0.0")
-    history.commit("1.0.0")
-    last_of_1_0_0 = history.commit()
-    history.commit("1.1.0")
+    history.commit("1.0")
+    history.commit("1.0")
+    last_of_1_0 = history.commit()
+    history.commit("1.1")
     head = history.commit()
-    assert version_commits(history.folder) == [("1.1.0", None), ("1.0.0", last_of_1_0_0)]
+    assert version_commits(history.folder) == [("1.1", None), ("1.0", last_of_1_0)]
     # A new version that is not committed yet is the latest, and the one before it is the last commit's
-    history.set_version("2.0.0")
-    assert version_commits(history.folder) == [("2.0.0", None), ("1.1.0", head), ("1.0.0", last_of_1_0_0)]
+    history.set_version("2.0")
+    assert version_commits(history.folder) == [("2.0", None), ("1.1", head), ("1.0", last_of_1_0)]
+
+
+def test_a_version_with_a_zero_at_the_end_is_the_same(tmp_path):
+    """Version 1.0 was first written 1.0.0: the two are one version, named as the latest commit that had it."""
+    history = History(tmp_path / "repository")
+    history.commit("1.0.0")
+    last_of_1_0 = history.commit("1.0")
+    assert version_commits(history.folder) == [("1.0", None)]
+    history.commit("1.1")
+    assert version_commits(history.folder) == [("1.1", None), ("1.0", last_of_1_0)]
 
 
 def test_a_version_that_comes_back_is_the_latest(tmp_path):
     history = History(tmp_path / "repository")
-    history.commit("1.0.0")
-    history.commit("1.1.0")
-    last_of_1_1_0 = history.commit()
-    history.commit("1.0.0")
-    assert version_commits(history.folder) == [("1.0.0", None), ("1.1.0", last_of_1_1_0)]
+    history.commit("1.0")
+    history.commit("1.1")
+    last_of_1_1 = history.commit()
+    history.commit("1.0")
+    assert version_commits(history.folder) == [("1.0", None), ("1.1", last_of_1_1)]
 
 
 def test_commits_that_failed_the_tests_are_passed_over(tmp_path):
@@ -134,18 +182,18 @@ def test_commits_that_failed_the_tests_are_passed_over(tmp_path):
     never published.
     """
     history = History(tmp_path / "repository")
-    last_of_1_0_0 = history.commit("1.0.0")
-    history.commit(text='version: "1.1.0\n')
-    history.commit("1.1.0 beta")
-    history.commit("1.1.0")
-    assert version_commits(history.folder) == [("1.1.0", None), ("1.0.0", last_of_1_0_0)]
+    last_of_1_0 = history.commit("1.0")
+    history.commit(text='version: "1.1\n')
+    history.commit("1.1 beta")
+    history.commit("1.1")
+    assert version_commits(history.folder) == [("1.1", None), ("1.0", last_of_1_0)]
 
 
-@pytest.mark.parametrize("text", ['version: "1.1.0 beta"\n', 'version: "1.1.0\n', "tables: {}\n"])
+@pytest.mark.parametrize("text", ['version: "1.1 beta"\n', 'version: "1.1\n', "tables: {}\n"])
 def test_the_latest_version_has_to_be_digits_and_dots(tmp_path, text):
     """A version names a folder of the diagram."""
     history = History(tmp_path / "repository")
-    history.commit("1.0.0")
+    history.commit("1.0")
     history.write(text)
     with pytest.raises(ValueError, match="digits and dots"):
         version_commits(history.folder)
@@ -154,8 +202,8 @@ def test_the_latest_version_has_to_be_digits_and_dots(tmp_path, text):
 def test_a_shallow_clone_is_refused(tmp_path):
     """It lacks the earlier commits, so the earlier versions would be left out."""
     history = History(tmp_path / "repository")
-    history.commit("1.0.0")
-    history.commit("1.1.0")
+    history.commit("1.0")
+    history.commit("1.1")
     clone = tmp_path / "clone"
     subprocess.run(["git", "clone", "--quiet", "--depth", "1", history.folder.as_uri(), str(clone)],
                    capture_output=True, check=True)
@@ -166,7 +214,7 @@ def test_a_shallow_clone_is_refused(tmp_path):
 def test_a_folder_outside_git_is_refused(tmp_path, monkeypatch):
     folder = tmp_path / "copy"
     (folder / "schema").mkdir(parents=True)
-    (folder / SCHEMA_PATH).write_text('version: "1.0.0"\n', encoding="utf-8")
+    (folder / SCHEMA_PATH).write_text('version: "1.0"\n', encoding="utf-8")
     # git does not look for a repository above the folder
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
     with pytest.raises(ValueError, match="not a git repository"):

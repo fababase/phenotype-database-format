@@ -3,6 +3,7 @@ The schema itself: there is exactly one schema.yaml, mistakes in it are reported
 collection sheet and the tables in schema.md, matches it.
 """
 import io
+import re
 import os
 import shutil
 import subprocess
@@ -16,7 +17,7 @@ from openpyxl.utils import get_column_letter
 import collection_sheet
 import schema_md
 from helpers import BLANK_SHEET, ROOT, SCHEMA, VALID
-from validation import READ_ME_SHEET, SCHEMA_FILE, TYPE_PROBLEMS, cell_text, help_text, load_schema
+from validation import READ_ME_SHEET, SCHEMA_FILE, TYPE_PROBLEMS, cell_text, help_text, load_schema, same_version
 
 TEXT_HINT = "Letters, the digits 0-9, spaces and the symbols of a US keyboard except ; and =."
 LONG_TEXT_HINT = "Letters, the digits 0-9, spaces, line breaks and the symbols of a US keyboard except ; and =."
@@ -105,6 +106,34 @@ def test_collection_sheet_formats():
         assert {str(validation.sqref): validation.formula1 for validation in validations} == lists, name
         assert not any(validation.showErrorMessage for validation in validations), name
     wb.close()
+
+
+def test_the_version_is_major_and_minor():
+    """Two numbers, as CHANGELOG.md says, in quotes in schema.yaml, so that 1.10 is not read as the number 1.1."""
+    assert re.fullmatch(r"[0-9]+\.[0-9]+", SCHEMA.version)
+    assert f'version: "{SCHEMA.version}"' in SCHEMA_FILE.read_text(encoding="utf-8")
+
+
+def test_the_changelog_and_the_citation_give_the_version():
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert re.search(rf"^## {re.escape(SCHEMA.version)} – [0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$", changelog, re.MULTILINE)
+    citation = yaml.safe_load((ROOT / "CITATION.cff").read_text(encoding="utf-8"))
+    assert citation["version"] == SCHEMA.version
+
+
+@pytest.mark.parametrize("a, b, same", [
+    ("1.0", "1.0.0", True),
+    ("1.0.0", "1.0", True),
+    ("1.1", "1.1.0", True),
+    ("1.0", "1.1", False),
+    ("1.10", "1.1", False),
+    ("2.0", "1.0", False),
+    ("1.0", "1.0 beta", False),
+    ("1.0 beta", "1.0 beta", True),
+])
+def test_versions_with_zeros_at_the_end_are_the_same(a, b, same):
+    """Version 1.0 was first written 1.0.0."""
+    assert same_version(a, b) is same
 
 
 def test_read_me_sheet_lists_the_version_and_the_tables():

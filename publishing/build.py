@@ -57,8 +57,8 @@ sys.path.insert(0, str(REPOSITORY_FOLDER / "schema"))
 from collection_sheet import REPOSITORY, SITE  # noqa: E402
 from schema_md import TYPE_NAMES, link, markdown_table  # noqa: E402
 from validation import (CONTRIBUTORS_FILE, NONE, Checked, Grant, Person, Schema, TableDef,  # noqa: E402
-                        ValidationError, at, load_schema, orcid_problem, read_affiliations, read_yaml, validate_files,
-                        yaml_id, yaml_mapping, yaml_text)
+                        ValidationError, at, load_schema, orcid_problem, read_affiliations, read_yaml, same_version,
+                        validate_files, yaml_id, yaml_mapping, yaml_text)
 
 TEMPLATE = HERE / "README_TEMPLATE.md"
 
@@ -607,7 +607,7 @@ def changes_text(last: Previous | None, frames: dict[str, pd.DataFrame], schema:
     if last is None:
         return "This is the first version."
     parts = [f"Compared with version {last.version}, published {last.publication_date}: {doi_link(last.doi)}."]
-    if last.schema_version != schema.version:
+    if not same_version(last.schema_version, schema.version):
         parts.append(f"The format changed from version {last.schema_version} to version {schema.version}. The "
                      f"[diagram]({diagram}) shows each version: choose one in its menu.")
 
