@@ -141,13 +141,21 @@ Start from this template. Keep its fields, its heading and the line in italics a
 
 ## The Zenodo README
 
-**Not written yet: skip this section.** The README template for the Zenodo record is still to be made. Once it is, this section says how to fill it in from the merged tables and `contributors.yaml`, with nothing they do not say.
+You don't write the README of the dataset, or its metadata on Zenodo: `publishing/build.py` builds them from the merged tables, `contributors.yaml`, `crosswalk.csv` and `record.yaml`. `record.yaml`, in the merge folder, gives the dataset's title, its DOI of all versions, who may download its files, and who looks after it. Copy it from the last merge. For the first version, ask the data manager to write it, as the docstring of `read_record` in build.py says.
+
+Once the checks pass, build a preview of the version:
+
+```
+uv run <repository>/publishing/build.py --merge <merge folder> --previous <last merge folder>
+```
+
+Leave out `--previous` for the first version. Read `publish/files/README.md` in full. Under *What changed in this version*, every ID that a decision in merge-notes.md changed is renamed, and nothing is renamed or removed that no decision explains. Tell the data manager about anything in the README that is wrong or looks odd.
 
 ## Finishing
 
 Whenever you stop, finished or not, update merge-notes.md, and delete `scratch/`.
 
-The merge is finished when every change has been asked about and answered, the checks pass, and merge-notes.md is up to date. Then tell the data manager that the merge is finished, and point them to the command that publishes it on Zenodo. **Not written yet:** until that command exists, tell them that the merged tables are ready to publish.
+The merge is finished when every change has been asked about and answered, the checks pass, you have read the README, and merge-notes.md is up to date. Then tell the data manager that the merge is finished, and point them to `publishing/publish.py`, whose docstring says how to run it. It uploads the version to a draft on Zenodo with their Zenodo token, so they run it, never you.
 
 ## Never
 

@@ -34,7 +34,6 @@ Your most important job is to get everything that makes the data usable by other
    - If the latest run has not been handed over, carry on with it: read its `conversion-notes.md`, and its `review.md` if there is one, and fix what the review found. If you cannot tell whether it was handed over, ask.
    - If it has been handed over, and the contributor brings corrections or more data, or the format has a new version, start a new run but from copies of the last run's `conversion.py` and `conversion-notes.md`.
    - Starting a new run: Make `runs/<today's date>/`, such as `runs/2026-10-22/`, and start its `conversion-notes.md` from [the template](#the-notes). Tell the contributor in a few lines how the work will go.
-   - You might need to ask the contributor about this, if you don't know the answers to the above questions.
 4. **Check that the files in `raw_data/` are read-only.** If some are not, ask the contributor to make them so, as in submit-data.md.
 
 ## What you may see
@@ -113,7 +112,7 @@ Write your inspection scripts in `runs/<date>/scratch/`, and run them with uv, s
 - **It keeps numbers as precise as the raw data**, no more and no less: no rounding, and no floating-point artefacts.
 - **It writes the tables as in [Files](../schema/schema.md#files)**, and follows schema.md in everything else, such as [identifiers](../schema/schema.md#identifiers), [missing values](../schema/schema.md#missing-values) and [free text](../schema/schema.md#free-text).
 - **It writes `tables/contributors.yaml`** from the answers about who to credit, in the template and by the rules in [Who to credit](../docs/submit-data.md#who-to-credit). Under each person and grant, it lists every experiment in the tables, unless the answers say which ones they are behind.
-- **It reuses IDs** for germplasm, seed lots, traits, climate variables and features from the datasets in [datasets.md](../docs/datasets.md). Look them up there, and write the ones you reuse into the script, with the dataset's DOI. For restricted datasets, ask the contributor to add the files they have access to to `raw_data/` (only the relevant files), or, if possible, get them yourself from zenodo.
+- **It reuses IDs** for germplasm, seed lots, traits, climate variables and features from the datasets in [datasets.md](../docs/datasets.md). Look them up there, and write the ones you reuse into the script, with the dataset's DOI. For restricted datasets, ask the contributor to add the files they have access to to `raw_data/` (only the relevant files), or, if possible, get them yourself from Zenodo.
 - **It writes `summary.md` for the contributor**: the files and sheets it read, and those it left out; the number of rows in each table; for each trait, the number of scores and of units scored, the dates, and the lowest and highest score; the number of experiments, units, germplasm and seed lots; and how many rows of the raw data it left out, for each reason. Write it so that the contributor can check it against what they know.
 
 ## Make the values consistent
@@ -168,7 +167,7 @@ Start the notes from this template. Keep its fields, its headings and the line i
 
 ## Open questions
 
-*Not yet asked, or asked and waiting for a file in raw_data/notes/; each says when it was asked, if it was. An answer removes the question; "don't know" moves it to Missing. Empty once the run is finished, and any run ready for handover should have NO open questions.*
+*Not yet asked, or asked and waiting for a file in raw_data/notes/; each says when it was asked, if it was. An answer removes the question; "don't know" moves it to Missing. Empty once the run is finished.*
 
 ## Changed or left out
 

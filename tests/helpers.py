@@ -2,8 +2,10 @@
 Helpers shared by the tests.
 
 valid/ holds one valid dataset, one CSV file per table, and contributors.yaml. Each test works on a copy of it, and a
-broken dataset is that copy with one thing changed, so that it breaks exactly one rule. The dataset is also the source of the
-examples in schema.yaml and of the worked example in schema.md, which are copied from it: change them with it.
+broken dataset is that copy with one thing changed, so that it breaks exactly one rule. The dataset is also the source
+of the examples in schema.yaml and of the worked example in schema.md, which are copied from it: change them with it.
+
+Merge is a merge folder whose merged tables are a copy of it, for the tests of publishing/.
 """
 import csv
 import io
@@ -226,7 +228,9 @@ def check(files: list[tuple[str, Path]], warnings: tuple[str, ...] = ()) -> tupl
 
 
 def passes(files: list[tuple[str, Path]], warnings: tuple[str, ...] = ()) -> tuple[dict[str, Table], list[str]]:
-    """Validates the files, which have to pass with exactly these warnings. Returns the checked tables and the notices."""
+    """
+    Validates the files, which have to pass with exactly these warnings. Returns the checked tables and the notices.
+    """
     checked, notices = check(files, warnings)
     return checked.tables, notices
 

@@ -1,9 +1,6 @@
 # FabaBase phenotype database: format and validation
 
-This repository describes and checks the format of the FabaBase phenotype database: a set of linked tables for phenotype data from plant experiments. It holds the schema, a collection sheet for filling in by hand, and an app that checks data against the schema. The data itself is not stored here; it will be published on Zenodo.
-
-> [!NOTE]
-> This repository is being restructured. See the [roadmap](docs/ROADMAP.md) for what is planned and what is done.
+This repository describes and checks the format of the FabaBase phenotype database: a set of linked tables for phenotype data from plant experiments. It holds the schema, the validator and its app, and the guides and scripts that take data from a contributor's files to Zenodo. The data itself is not stored here, but on Zenodo: see [docs/datasets.md](docs/datasets.md).
 
 ## What is here
 
@@ -18,6 +15,8 @@ This repository describes and checks the format of the FabaBase phenotype databa
 | [docs/submit-data.md](docs/submit-data.md) | For contributors: how to convert your data into the format, with an AI or without, and hand it over. |
 | [docs/review-data.md](docs/review-data.md) | For reviewers: what a finished conversion is checked against, and its FAIR score. |
 | [conversion/AI_INSTRUCTIONS.md](conversion/AI_INSTRUCTIONS.md) | What the AI follows when it converts a contributor's data. |
+| [merging/AI_INSTRUCTIONS.md](merging/AI_INSTRUCTIONS.md) | What the AI follows when it merges contributions into one set of tables, for the data manager. |
+| [publishing/](publishing/) | Publishing on Zenodo. `build.py` builds the README and the metadata of a version from a merge, from `README_TEMPLATE.md`, and `publish.py` uploads them to a draft on Zenodo. |
 | [docs/deploy-app.md](docs/deploy-app.md) | How the app is published, and how to refresh it. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Decisions, planned work and open questions. |
 
@@ -36,7 +35,7 @@ It stops at the first problem it finds and says where it is and sometimes how to
 Climate.csv, row 2, column Score: '11,7167' has ','. Numbers have '.' as the decimal mark and no thousands separator, so write 11.7167
 ```
 
-When everything passes, it can hand back the tables as clean CSV files, with `contributors.yaml` as it was given, (hopefully) ready for upload to the database.
+When everything passes, it can hand back the tables as clean CSV files, with `contributors.yaml` as it was given.
 
 **From the command line** (see [Running locally](#running-locally) for the setup):
 
@@ -47,9 +46,13 @@ python app/validation.py collection-sheet.xlsx --out path/to/new-folder
 
 **In the app**: <https://fababase.github.io/phenotype-database-format/>. It runs in your browser, so your data never leaves your computer. The first visit takes a while, as your browser downloads what the app needs to run.
 
-## Contributing data
+## How data gets to Zenodo
 
-Follow [docs/submit-data.md](docs/submit-data.md). It covers the three ways to make the tables, with an AI, with a script of your own, or with the collection sheet, and how to hand them over.
+1. **Convert.** A contributor turns their files into the tables, with an AI, with a script of their own, or with the collection sheet, as in [docs/submit-data.md](docs/submit-data.md).
+2. **Review.** A fresh AI session or a colleague checks the result and gives it a FAIR score, as in [docs/review-data.md](docs/review-data.md).
+3. **Hand over.** How is still to be decided.
+4. **Merge.** An AI merges the contributions into one set of tables for the data manager, as in [merging/AI_INSTRUCTIONS.md](merging/AI_INSTRUCTIONS.md).
+5. **Publish.** The scripts in [publishing/](publishing/) build the README and upload it with the tables to Zenodo, as a new version of the public dataset or of a project's restricted one.
 
 ## Running locally
 
@@ -67,5 +70,5 @@ After you push a change to `schema/schema.yaml`, the *Update schema.md* Action w
 
 ## Licences
 
-- **Code** (everything in `app/`, and future scripts and tests): GPL-3.0, see [LICENSE](LICENSE).
+- **Code** (the scripts in `app/`, `schema/` and `publishing/`, and the tests): GPL-3.0, see [LICENSE](LICENSE).
 - **Content** (the schema documentation and diagram, the collection sheet and the published data): CC-BY-4.0, see [LICENSE-CONTENT](LICENSE-CONTENT).

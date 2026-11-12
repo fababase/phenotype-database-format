@@ -62,7 +62,7 @@ If you would rather not use a terminal, [GitHub Desktop](https://desktop.github.
 
 Collect your data files, and everything that describes them: protocols, field plans, lab notebooks, reports, theses, papers. They answer many of the questions in step 6, and the tables are checked against them.
 
-The AI can only use what you give it. Every document, note or sheet it can read is a question it does not have to ask, saving you the time or hassle.
+The AI can only use what you give it. Every document, note or sheet it can read is a question it does not have to ask.
 
 ## 4. Set up the folder
 
@@ -102,8 +102,8 @@ nordbean_irrigation_2025/
 
 These apply to you and to the AI.
 
-- **Add to `raw_data`; don't change or delete what is there unless the mistake is clear.** If a file outside `raw_data/notes` turns out to be wrong, prefer (within reason) adding a corrected copy under a new name, or a file that says what is wrong. `conversion.py` checks every file it reads, and stops if one has changed.
-- **Everything you tell the AI, or find out yourself, goes in a file in `raw_data/notes`**, never only in a chat, as this cannot be saved for future runs. This includes answers to questions, corrections, how things were measured, what the AI may see. Plain text is fine. Give each file one subject, name it after that, and number its sections. When something in it changes or turns out wrong, correct that file, rather than adding one that says so: when files disagree, the AI cannot tell which is right. A chat is gone when the session ends, the files stay, so that the conversion can be repeated if another issue is spotted down the line.
+- **Add to `raw_data`; don't change or delete what is there unless the mistake is clear.** If a file outside `raw_data/notes` turns out to be wrong, add a corrected copy under a new name, or a file that says what is wrong. `conversion.py` checks every file it reads, and stops if one has changed.
+- **Everything you tell the AI, or find out yourself, goes in a file in `raw_data/notes`**, never only in a chat: a chat is gone when the session ends, while the files stay, so that the conversion can be repeated. This includes answers to questions, corrections, how things were measured, and what the AI may see. Plain text is fine. Give each file one subject, name it after that, and number its sections. When something in it changes or turns out wrong, correct that file, rather than adding one that says so: when files disagree, the AI cannot tell which is right.
 - **Only `conversion.py` writes in `tables/`.** Don't edit what is there by hand, as the edit will be lost the next time `conversion.py` runs, and nobody can tell it was made.
 - **Don't edit the copy of this repository.** It is the version of the format your data is converted to.
 - **One run per handover.** A run ends *stopped*, waiting for something you have to find, or *finished*. A stopped run is carried on in the same folder. A new run is only started for a new handover: corrections or more data after the last one, or a new version of the format.
@@ -237,5 +237,5 @@ The collection sheet is no longer the recommended way to contribute data, but it
 2. Write `contributors.yaml` by hand, as in [Who to credit](#who-to-credit), in a plain-text editor such as Notepad, not Word.
 3. Check both in the app, uploaded together, and fix what it reports, until they pass.
 4. Download the tables from the app (*Download tables as CSV*). `contributors.yaml` comes with them.
-5. (Optionally) Have a colleague review your filled in collection sheet.
-6. Hand over data, as detailed in step 10 of the above guide.
+5. If you can, have a colleague review the filled-in sheet.
+6. Hand over, as in [step 10](#10-hand-over).

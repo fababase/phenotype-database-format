@@ -1,6 +1,6 @@
 # Reviewing a contribution
 
-This guide is for data reviewers. A review checks a finished run of a conversion before its tables are handed over, and gives the dataset a FAIR score. A person or a fresh AI session can do it. As of now, started by the contributor as in [submit-data.md](submit-data.md#9-have-it-reviewed). The AI that does the conversion reads this guide too.
+This guide is for data reviewers. A review checks a finished run of a conversion before its tables are handed over, and gives the dataset a FAIR score. A person or a fresh AI session can do it. For now, the contributor starts it, as in [submit-data.md](submit-data.md#9-have-it-reviewed). The AI that does the conversion reads this guide too.
 
 ## How to review
 

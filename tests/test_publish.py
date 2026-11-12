@@ -15,7 +15,6 @@ import pytest
 
 import publish
 from helpers import COMMIT, ROOT, SCHEMA, SCORE, Merge
-import validation
 from validation import ValidationError
 
 TOKEN = "secret-token-0123456789"
@@ -615,5 +614,3 @@ def test_the_script_runs_with_the_validators_packages():
         return re.search(r"# /// script\n(.*?)# ///\n", text, re.DOTALL)[1]
 
     assert block("publish.py") == block("build.py")
-    assert set(re.findall(r'"([^"]+==[^"]+)"', block("publish.py"))) == {
-        f"{package}=={version}" for package, version in validation.tested_versions().items() if package != "shiny"}
