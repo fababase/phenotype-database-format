@@ -62,7 +62,7 @@ This is **version 1.0.0** of the schema. [schema.yaml](schema.yaml) is a machine
 
 ![Relationships between the tables](https://fababase.github.io/phenotype-database-format/diagram/diagram.png)
 
-In the [interactive diagram](https://fababase.github.io/phenotype-database-format/diagram/), the tables can be dragged around, and clicking a table highlights its links.
+In the [interactive diagram](https://fababase.github.io/phenotype-database-format/diagram/), the tables can be dragged around, and clicking a table highlights its links. Earlier versions of the schema can be chosen at the top.
 
 **Plant material.** A [Germplasm](#germplasm) row describes a variety, line or other genetically distinct material. A [SeedLot](#seedlot) is a physical batch of seed of one germplasm, harvested at a given time and place. A seed lot can point to the seed lot it was grown from, so seed can be traced back through generations.
 

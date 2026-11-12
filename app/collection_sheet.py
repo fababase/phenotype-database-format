@@ -15,6 +15,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.worksheet.hyperlink import Hyperlink
 
 from validation import FEATURE_TYPES, READ_ME_SHEET, READ_ME_TITLE, Column, Schema, TableDef, help_text, load_schema
 
@@ -56,14 +57,17 @@ def add_read_me(ws, schema: Schema) -> None:
         ("", None, None),
         ("To read more", BOLD, None),
         ("Every table and column, and the rules they follow:", None, SCHEMA_DOC),
-        ("How the tables link:", None, f"{SITE}diagram/"),
+        # The diagram of this version, so that a sheet made for an earlier version shows its own tables
+        ("How the tables link:", None, f"{SITE}diagram/#{schema.version}"),
         ("", None, None),
         ("The tables", BOLD, None),
     ]
     for row, (text, font, link) in enumerate(lines, start=1):
         cell = ws.cell(row, 1, f"{text} {link}" if link else text or None)
         if link:
-            cell.hyperlink = link
+            # Written as Excel writes a link itself, with what follows # apart, as the place in the page to open at
+            address, _, place = link.partition("#")
+            cell.hyperlink = Hyperlink(ref=cell.coordinate, target=address, location=place or None)
             font = LINK
         if font:
             cell.font = font

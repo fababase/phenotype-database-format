@@ -1,8 +1,9 @@
 <!doctype html>
 <!--
-  The interactive diagram of how the tables link. schema/diagram.py fills in the schema and publishes it with the
-  app, so open the published page, not this file. The tables are laid out by ELK; the links are routed here, around
-  the tables, and routed again whenever a table is moved.
+  The interactive diagram of how the tables link, for every version of the schema. schema/diagram.py fills in the
+  versions and publishes it with the app, so open the published page, not this file. It opens at the latest
+  version, or at the one after # in the address, as in index.html#1.0.0; a menu switches to another. The tables are
+  laid out by ELK; the links are routed here, around the tables, and routed again whenever a table is moved.
 -->
 <html lang="en">
 <head>
@@ -31,6 +32,12 @@
     border: 1px solid #c3cbd6; border-radius: 6px; cursor: pointer;
   }
   button:hover { background: #f1f4f8; }
+  select {
+    font: inherit; padding: 1px 4px; color: inherit; background: #fff;
+    border: 1px solid #c3cbd6; border-radius: 6px; cursor: pointer;
+  }
+  #notice { color: #9a3412; }
+  #notice a { color: inherit; }
   #canvas { flex: 1; min-height: 0; width: 100%; display: block; touch-action: none; user-select: none; cursor: grab; }
   #canvas.panning { cursor: grabbing; }
   #tip {
@@ -45,11 +52,11 @@
 <header>
   <div>
     <h1>How the tables link</h1>
-    <p id="about"></p>
+    <p>FabaBase phenotype database, <label for="version">schema version</label> <select id="version"></select>
+      <span id="notice"></span></p>
     <p>Point at a column, a table's name or a link to see what it is. Drag a table to move it. Click a table or a
       link to highlight it; click empty space to clear.
-      See also the <a href="https://github.com/fababase/phenotype-database-format/blob/main/schema/schema.md">schema
-      description</a> and the <a href="../">validation app</a>.</p>
+      See also the <a id="doc">schema description</a> and the <a href="../">validation app</a>.</p>
   </div>
   <svg id="legend" aria-label="Legend"></svg>
   <div class="tools">
@@ -91,7 +98,11 @@
 </svg>
 <div id="tip" role="tooltip"></div>
 <script>
-const DATA = /* schema */ null;
+// Every version of the schema, the latest first: {version, commit, tables, links}. The commit is the one the
+// version was read from, or null for the latest.
+const VERSIONS = /* versions */ null;
+// Where the schema description of each version is. It holds the repository's name, so it changes if that does.
+const REPOSITORY = "https://github.com/fababase/phenotype-database-format";
 
 const NS = "http://www.w3.org/2000/svg";
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
@@ -109,6 +120,8 @@ const svg = document.getElementById("canvas");
 const view = {x: 0, y: 0, k: 1, el: document.getElementById("view")};
 const linkLayer = document.getElementById("links"), tableLayer = document.getElementById("tables");
 const tables = new Map(), links = [], linkOf = new Map();
+let shown = null;                    // the version drawn, one of VERSIONS
+let drawing = 0;                     // drawings started, so that the layout of one no longer wanted is dropped
 let initial;                         // where the layout put each table
 let picked = null, hovered = null;   // what is highlighted, if no table is held: {table: name} or {link}
 let press = null;  // the pointer held down: on a table (drag it), a link, or empty space (pan)
@@ -200,7 +213,7 @@ const stubX = (table, side) => side === "L" ? table.x - STUB : table.x + table.w
 const placeTable = table => table.el.setAttribute("transform", `translate(${table.x},${table.y})`);
 
 // Lays out the tables left to right, each table to the left of the tables that link to it, with the linked rows
-// lined up where possible.
+// lined up where possible. Returns where each table goes, by its name.
 async function layout() {
   const port = (end, side) => `${end.table}.${end.column}.${side}`;
   const ports = new Map([...tables.keys()].map(name => [name, new Map()]));
@@ -232,7 +245,7 @@ async function layout() {
     })),
     edges,
   });
-  for (const node of graph.children) Object.assign(tables.get(node.id), {x: node.x, y: node.y});
+  return new Map(graph.children.map(node => [node.id, {x: node.x, y: node.y}]));
 }
 
 // ---------------------------------------------------------------- Routing links around the tables
@@ -601,7 +614,7 @@ document.getElementById("reset").onclick = () => {
 document.getElementById("save").onclick = () => {
   const url = URL.createObjectURL(new Blob([diagramSvg()], {type: "image/svg+xml"}));
   const a = document.createElement("a");
-  a.href = url; a.download = "fababase-schema.svg"; a.click();
+  a.href = url; a.download = `fababase-schema-${shown.version}.svg`; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
@@ -634,7 +647,7 @@ function diagramSvg() {
   picked = hovered = null;
   applyFocus();
   const b = bounds(), margin = 24;
-  const caption = `FabaBase phenotype database: how the tables link. Schema version ${DATA.version}.`;
+  const caption = `FabaBase phenotype database: how the tables link. Schema version ${shown.version}.`;
   const footer = make("g", {transform: `translate(${b.x},${b.y + b.h + 32})`});
   make("text", {class: "caption", dy: ".35em"}, footer).textContent = caption;
   const legendWidth = drawLegend(make("g", {transform: "translate(0,28)"}, footer));
@@ -652,30 +665,91 @@ function diagramSvg() {
   return new XMLSerializer().serializeToString(picture);
 }
 
-// ---------------------------------------------------------------- Start
+// ---------------------------------------------------------------- Versions and start
 
-async function start() {
-  document.getElementById("about").textContent = `FabaBase phenotype database, schema version ${DATA.version}.`;
+const menu = document.getElementById("version"), notice = document.getElementById("notice");
+
+// The version named after # in the address, or the latest if the address names none or one that does not exist
+function chosen() {
+  const name = location.hash.slice(1);
+  return {name, spec: VERSIONS.find(spec => spec.version === name) || VERSIONS[0]};
+}
+
+// Says which version is shown, and whether it is the latest, and links to its schema description
+function describe(spec, name) {
+  menu.value = spec.version;
+  document.getElementById("doc").href = `${REPOSITORY}/blob/${spec.commit || "main"}/schema/schema.md`;
+  notice.replaceChildren();
+  if (name && name !== spec.version) {
+    notice.textContent = `There is no version ${name} of the schema, so this is the latest.`;
+  } else if (spec !== VERSIONS[0]) {
+    const latest = document.createElement("a");
+    latest.href = `#${VERSIONS[0].version}`;
+    latest.textContent = VERSIONS[0].version;
+    notice.append("This is an earlier version. The latest is ", latest, ".");
+  }
+}
+
+// Draws a version of the schema in place of the one drawn before
+async function draw(spec) {
+  const run = ++drawing;
+  window.diagramReady = null;
+  shown = spec;
+  tableLayer.replaceChildren();
+  linkLayer.replaceChildren();
+  tables.clear(); links.length = 0; linkOf.clear();
+  picked = hovered = press = null;
+  svg.classList.remove("panning");
+  hideTip();
+  spec.links.forEach(addLink);
+  spec.tables.forEach(addTable);
+  const places = await layout();
+  if (run !== drawing) return;  // another version was chosen while this one was laid out
+  for (const [name, place] of places) Object.assign(tables.get(name), place);
+  initial = new Map([...tables.values()].map(table => [table.name, {x: table.x, y: table.y}]));
+  tables.forEach(placeTable);
+  routeLinks();
+  drawLinks();
+  applyFocus();
+  fit();
+  window.diagramReady = spec.version;  // tells schema/diagram.py that this version is drawn
+}
+
+function fail(error) {
+  window.diagramError = String(error);
+  notice.textContent = `The diagram could not be drawn: ${error}`;
+}
+
+// Draws the version the address names
+function show() {
+  const {name, spec} = chosen();
+  describe(spec, name);
+  draw(spec).catch(fail);
+}
+
+function start() {
   const legend = document.getElementById("legend");
   const legendWidth = Math.ceil(drawLegend(make("g", {transform: "translate(1,10)"}, legend))) + 2;
   for (const [key, value] of Object.entries({width: legendWidth, height: 20, viewBox: `0 0 ${legendWidth} 20`})) {
     legend.setAttribute(key, value);
   }
-  DATA.links.forEach(addLink);
-  DATA.tables.forEach(addTable);
-  await layout();
-  initial = new Map([...tables.values()].map(table => [table.name, {x: table.x, y: table.y}]));
-  tables.forEach(placeTable);
-  routeLinks();
-  drawLinks();
-  fit();
-  window.diagramSvg = diagramSvg;  // also tells schema/diagram.py that the diagram is ready
+  VERSIONS.forEach((spec, i) => {
+    const option = document.createElement("option");
+    option.value = spec.version;
+    option.textContent = i ? spec.version : `${spec.version} (latest)`;
+    menu.appendChild(option);
+  });
+  // Choosing a version puts it in the address, which draws it, so that the address always says what is shown
+  menu.onchange = () => { location.hash = menu.value; };
+  window.addEventListener("hashchange", show);
+  show();
 }
 
-start().catch(error => {
-  window.diagramError = String(error);
-  make("text", {x: 20, y: 40}, view.el).textContent = `The diagram could not be drawn: ${error}`;
-});
+try {
+  start();
+} catch (error) {
+  fail(error);
+}
 </script>
 </body>
 </html>

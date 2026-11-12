@@ -23,7 +23,10 @@ jobs:
     needs: tests
     runs-on: ubuntu-latest
     steps:
+      # The whole history, as the diagram shows every version of the schema in it
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v6
         with:
@@ -47,7 +50,8 @@ jobs:
           shinylive export "$RUNNER_TEMP/app" site
           rm -r site/edit
 
-      # Drawn from schema.yaml: the interactive diagram and its pictures, at diagram/ on the site
+      # Drawn from every version of schema.yaml in the history: the interactive diagram, and pictures of each
+      # version, at diagram/ on the site
       - name: Draw the schema diagram
         run: python schema/diagram.py site/diagram
 

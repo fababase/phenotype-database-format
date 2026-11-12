@@ -15,7 +15,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      # The whole history, as a test reads every version of the schema in it
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v6
         with:

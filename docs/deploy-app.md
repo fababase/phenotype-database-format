@@ -10,7 +10,7 @@ Commit and push to `main` in GitHub Desktop. The *Deploy app* Action ([.github/w
 
 1. runs the tests;
 2. builds the app from `app/` and `schema/schema.yaml`;
-3. draws the [schema diagram](#the-schema-diagram) from `schema/schema.yaml`;
+3. draws the [schema diagram](#the-schema-diagram), with every version of `schema/schema.yaml` in the history;
 4. opens the built app in a browser and checks it ([tests/check_browser_app.py](../tests/check_browser_app.py));
 5. publishes both.
 
@@ -23,7 +23,7 @@ To publish again without changing anything, go to **Actions → Deploy app → R
 ## What is checked before publishing
 
 - All tests pass.
-- The schema diagram is drawn without errors, and pointing at a column shows its description.
+- The schema diagram draws every version of the schema without errors, with all its tables and links. The menu and the address switch between versions, and pointing at a column shows its description.
 - The packages bundled with the app are the versions in `app/requirements.txt`.
 - The app starts in a browser and shows no notices, so it runs the package versions in `app/requirements.txt`.
 - The app hands out a blank collection sheet with the same contents as one built on the command line.
@@ -55,9 +55,25 @@ Only upgrade when there is a reason to, such as a fix in Shiny that the app need
 
 ## The schema diagram
 
-The diagram of how the tables link is at **<https://fababase.github.io/phenotype-database-format/diagram/>**, with pictures of it at `diagram/diagram.png` and `diagram/diagram.svg`. [schema/diagram.py](../schema/diagram.py) draws it from `schema.yaml` each time the app is published.
+The diagram of how the tables link is at **<https://fababase.github.io/phenotype-database-format/diagram/>**. [schema/diagram.py](../schema/diagram.py) draws it each time the app is published, with every version of the schema:
 
-To see a change before pushing it, draw the diagram on your own computer:
+- It opens at the latest version. The menu at the top switches to an earlier one.
+- An address can name a version after `#`, as in `diagram/#1.0.0`, to open the diagram at that version. Link this way wherever the version matters: the *READ ME 1st* sheet of the collection sheet does, and so will the README of the Zenodo record.
+- Pictures of each version are at `diagram/<version>/diagram.png` and `diagram/<version>/diagram.svg`, and those of the latest also at `diagram/diagram.png` and `diagram/diagram.svg`.
+
+### Where the versions come from
+
+No copy of an earlier version is kept: the versions come from the git history. The latest version is `schema/schema.yaml` as it is. Each earlier version is `schema.yaml` as it was in the last commit that had that version, so the changes pushed under a version, such as a reworded description, show in the diagram of that version. Every version is read and drawn with the code of today.
+
+So:
+
+- **A version stays in the diagram for good once a commit with it is pushed.** Change the version in `schema.yaml` only when the format changes, and commit it only when the new version is final.
+- **Never rewrite the history of `main`**, for example by force-pushing, or by squashing commits that are pushed: the earlier versions are in it.
+- **The code has to read every earlier version.** A test reads each version in the history with today's `load_schema`. If a change to the code, or to how `schema.yaml` is laid out, makes an earlier version unreadable, that test fails, and nothing is published. Then make the code read the earlier version too; never leave it out.
+
+The diagram needs the whole history, so the Actions fetch all of it (`fetch-depth: 0` in the workflows), and `diagram.py` will not run in a clone that holds only part of it.
+
+To see a change before pushing it, draw the diagram on your own computer, in a clone of the repository:
 
 ```
 pip install playwright==1.63.0
@@ -79,4 +95,4 @@ python app/collection_sheet.py collection-sheet.xlsx
 
 In the repository's **Settings → Pages**, under *Build and deployment*, *Source* is set to **GitHub Actions**. Only an admin of the repository can change this.
 
-The address contains the repository's name. If the repository is renamed, the address changes and the old one stops working, so update the links in `README.md`, this file, the *READ ME 1st* sheet (`SITE` and `SCHEMA_DOC` in `app/collection_sheet.py`) and anywhere else the address was shared.
+The address contains the repository's name. If the repository is renamed, the address changes and the old one stops working, so update the links in `README.md`, this file, the *READ ME 1st* sheet (`SITE` and `SCHEMA_DOC` in `app/collection_sheet.py`), the diagram (`REPOSITORY` in `schema/diagram.html`) and anywhere else the address was shared.

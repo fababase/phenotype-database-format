@@ -13,6 +13,7 @@ import pytest
 import yaml
 from openpyxl.utils import get_column_letter
 
+import collection_sheet
 import schema_md
 from helpers import BLANK_SHEET, ROOT, SCHEMA, VALID
 from validation import READ_ME_SHEET, SCHEMA_FILE, TYPE_PROBLEMS, cell_text, help_text, load_schema
@@ -113,6 +114,15 @@ def test_read_me_sheet_lists_the_version_and_the_tables():
     assert f"schema version {SCHEMA.version}" in rows[0][0]
     tables = rows[rows.index(["Sheet", "One row is", "Needed", "Filled in, relative to the experiment"]) + 1:]
     assert tables == [[t.name, t.one_row_is, t.needed, t.filled_in] for t in SCHEMA.tables.values()]
+
+
+def test_read_me_sheet_links_to_the_diagram_of_its_version():
+    """A sheet made for an earlier version opens the diagram at that version, with the tables it has."""
+    wb = openpyxl.load_workbook(io.BytesIO(BLANK_SHEET))
+    links = [(cell.hyperlink.target, cell.hyperlink.location)
+             for row in wb[READ_ME_SHEET].iter_rows() for cell in row if cell.hyperlink]
+    wb.close()
+    assert (f"{collection_sheet.SITE}diagram/", SCHEMA.version) in links
 
 
 @pytest.mark.parametrize("table, column, text", [
