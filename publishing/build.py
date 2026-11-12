@@ -17,11 +17,12 @@ Run it in the merge folder, which holds the copy of this repository:
 It reads, in the merge folder:
 
     tables/        the merged tables and contributors.yaml, written by merge.py
-    record.yaml    the dataset's title, its DOI of all versions, and who looks after it
-    renames.csv    the IDs of the last version that this merge changed, written by merge.py; only with --previous
+    record.yaml    the dataset's title, its DOI of all versions, its access, and who looks after it
+    crosswalk.csv  the IDs that merge.py changed in each contribution
 
-and, with --previous, the last merge's publish/ folder and tables/contributors.yaml, to say what changed since the
-version it published. It checks the tables with the validator, and writes publish/ in the merge folder:
+and, with --previous, the last merge's publish/ folder, tables/contributors.yaml and crosswalk.csv, to say what changed
+since the version it published. Which IDs of that version this merge changed follows from the two crosswalks. It checks
+the tables with the validator, and writes publish/ in the merge folder:
 
     files/         README.md and one CSV file per table: exactly what is uploaded
     metadata.json  the metadata of the record on Zenodo
@@ -64,7 +65,7 @@ TEMPLATE = HERE / "README_TEMPLATE.md"
 # In the merge folder
 TABLES = "tables"
 RECORD = "record.yaml"
-RENAMES = "renames.csv"
+CROSSWALK = "crosswalk.csv"
 PUBLISH = "publish"
 # In publish/
 FILES = "files"
@@ -76,7 +77,7 @@ RECORD_KEYS = ("title", "doi", "access", "curator")
 # Who can download the files of the dataset: anyone, or only those given access on Zenodo
 ACCESS = ("open", "restricted")
 CURATOR_KEYS = ("family_name", "given_names", "orcid", "affiliations")
-RENAMES_HEADER = ["Table", "OldID", "NewID"]
+CROSSWALK_HEADER = ["Contribution", "Table", "OldID", "NewID"]
 DOI = re.compile(r"10\.[0-9]{4,9}/\S+")
 
 # What a preview shows where the date or a DOI of the version will be
@@ -124,6 +125,7 @@ class Previous:
     tables: dict[str, pd.DataFrame]  # by the name of each CSV file, without .csv
     people: list[Person]             # from its contributors.yaml
     funding: list[Grant]
+    crosswalk: dict[tuple[str, str, str], str]  # from its crosswalk.csv, as read_crosswalk gives it
 
 
 def read_record(path: Path) -> Record:
@@ -179,7 +181,7 @@ def read_csv(path: Path) -> pd.DataFrame:
 
 
 def read_previous(folder: Path) -> Previous:
-    """The version that the merge in folder published: its release.json, tables and contributors.yaml."""
+    """The version that the merge in folder published: its release.json, tables, contributors.yaml and crosswalk."""
     release_path = folder / PUBLISH / RELEASE
     if not release_path.is_file():
         raise BuildError(f"{folder} has no {PUBLISH}/{RELEASE}, so it is not a merge that was published. Give "
@@ -202,43 +204,71 @@ def read_previous(folder: Path) -> Previous:
               for item in credit["people"]]
     funding = [Grant(item["funder"], text(item["ror"]), text(item["grant_number"]), text(item["grant_title"]), [])
                for item in ([] if credit["funding"] == NONE else credit["funding"])]
+    crosswalk = read_crosswalk(folder / CROSSWALK, str(folder / CROSSWALK), tables, "the last version")
     return Previous(release["version"], release["publication_date"], release["doi"], release["concept_doi"],
-                    release["schema_version"], tables, people, funding)
+                    release["schema_version"], tables, people, funding, crosswalk)
 
 
-def read_renames(path: Path, schema: Schema, old: dict[str, pd.DataFrame],
-                 new: dict[str, pd.DataFrame]) -> dict[str, dict[str, str]]:
+def read_crosswalk(path: Path, source: str, tables: dict[str, pd.DataFrame],
+                   which: str) -> dict[tuple[str, str, str], str]:
     """
-    renames.csv: the IDs of the last version that this merge changed, as table -> old ID -> new ID. Each old ID is in
-    the last version and not in the new one, and each new ID is in the new one. Several old IDs can become one.
+    The crosswalk.csv of a merge, which merge.py writes: the IDs it changed in each contribution, as (contribution,
+    table, the contribution's ID) -> the ID in the merged tables. Each new ID has to be in tables, the tables that
+    the merge made, which messages call which. source names the file in messages.
     """
     if not path.is_file():
-        raise BuildError(f"There is no {RENAMES} in {path.parent}. merge.py writes it, with one row for each ID of "
-                         f"the last version that this merge changed, and the columns {', '.join(RENAMES_HEADER)}. "
-                         "When it changed none, it holds only that first row.")
+        raise BuildError(f"There is no {CROSSWALK} in {path.parent}. merge.py writes it, with one row for each ID it "
+                         f"changed in each contribution, and the columns {', '.join(CROSSWALK_HEADER)}. When it "
+                         "changed none, it holds only that first row.")
     with path.open(encoding="utf-8-sig", newline="") as f:
         rows = list(csv.reader(f))
-    if not rows or rows[0] != RENAMES_HEADER:
-        raise BuildError(f"{RENAMES}: the first row has to be {','.join(RENAMES_HEADER)}.")
-    renames: dict[str, dict[str, str]] = {}
+    if not rows or rows[0] != CROSSWALK_HEADER:
+        raise BuildError(f"{source}: the first row has to be {','.join(CROSSWALK_HEADER)}.")
+    ids = {name: set(frame[frame.columns[0]]) for name, frame in tables.items()}
+    crosswalk = {}
     for number, row in enumerate(rows[1:], start=2):
-        where = f"{RENAMES}, row {number}"
-        if len(row) != len(RENAMES_HEADER):
-            raise BuildError(f"{where} has {len(row)} values, not {len(RENAMES_HEADER)}.")
-        table, old_id, new_id = row
-        if table not in schema.tables:
-            raise BuildError(f"{where}: '{table}' is not a table of the format.")
-        column = schema.tables[table].id_column
-        if table not in old or old_id not in set(old[table][column]):
-            raise BuildError(f"{where}: '{old_id}' is not a {column} in the last version.")
-        if old_id in set(new[table][column]):
-            raise BuildError(f"{where}: '{old_id}' is still a {column} in the merged tables, so it did not change.")
-        if new_id not in set(new[table][column]):
-            raise BuildError(f"{where}: '{new_id}' is not a {column} in the merged tables.")
-        if old_id in renames.setdefault(table, {}):
-            raise BuildError(f"{where}: '{old_id}' is listed twice. Keep only one.")
-        renames[table][old_id] = new_id
-    return renames
+        where = f"{source}, row {number}"
+        if len(row) != len(CROSSWALK_HEADER):
+            raise BuildError(f"{where} has {len(row)} values, not {len(CROSSWALK_HEADER)}.")
+        contribution, table, old_id, new_id = row
+        if not all(row):
+            raise BuildError(f"{where} has an empty value. Each row gives the contribution, the table, the ID in the "
+                             "contribution and the ID in the merged tables.")
+        if table not in tables:
+            raise BuildError(f"{where}: '{table}' is not a table in {which}.")
+        if new_id not in ids[table]:
+            raise BuildError(f"{where}: '{new_id}' is not a {tables[table].columns[0]} in {which}.")
+        if (contribution, table, old_id) in crosswalk:
+            raise BuildError(f"{where}: the {tables[table].columns[0]} '{old_id}' of {contribution} is listed twice. "
+                             "Keep only one.")
+        crosswalk[(contribution, table, old_id)] = new_id
+    return crosswalk
+
+
+def renames_since(last: Previous, crosswalk: dict[tuple[str, str, str], str],
+                  new: dict[str, pd.DataFrame]) -> dict[str, dict[str, str]]:
+    """
+    The IDs of the last version that this merge changed, as table -> old ID -> new ID, sorted by old ID, from the
+    crosswalks of the last merge and of this one. A row of a contribution had, in the last version, the ID that the
+    last crosswalk gave it, or its own ID if that crosswalk did not change it. Where that ID is gone from the merged
+    tables, the ID that this crosswalk gives the row took its place. Several old IDs can become one.
+
+    A row that this crosswalk does not change keeps its own ID. As a merge keeps the IDs of the last version, unless
+    it makes two of its rows one, each ID of it that changes is in this crosswalk.
+    """
+    old_ids = {name: set(frame[frame.columns[0]]) for name, frame in last.tables.items()}
+    new_ids = {name: set(frame[frame.columns[0]]) for name, frame in new.items()}
+    renames: dict[str, dict[str, str]] = {}
+    for (contribution, table, own_id), new_id in crosswalk.items():
+        before = last.crosswalk.get((contribution, table, own_id), own_id)
+        if before == new_id or before not in old_ids.get(table, set()) or before in new_ids[table]:
+            continue
+        found = renames.setdefault(table, {})
+        if found.get(before, new_id) != new_id:
+            raise BuildError(f"By the crosswalks, the {new[table].columns[0]} '{before}' of the last version became "
+                             f"both '{found[before]}' and '{new_id}'. An ID can become only one: correct merge.py.")
+        found[before] = new_id
+    return {table: dict(sorted(found.items())) for table, found in renames.items()}
 
 
 def repository_commit(repository: Path = REPOSITORY_FOLDER) -> str:
@@ -512,7 +542,7 @@ class TableChanges:
 
 
 def rename_links(definition: TableDef, frame: pd.DataFrame, renames: dict[str, dict[str, str]]) -> pd.DataFrame:
-    """The rows of the last version, with the IDs of other rows that they hold renamed as in renames.csv."""
+    """The rows of the last version, with the IDs of other rows that they hold renamed as this merge renamed them."""
     frame = frame.copy()
     features = renames.get("Features", {})
 
@@ -785,7 +815,8 @@ def build(merge: Path, commit: str, previous: Path | None = None, release: Relea
     people = sorted(checked.contributors.people,
                     key=lambda p: (p.family_name.casefold(), (p.given_names or "").casefold()))
     funding = checked.contributors.funding
-    renames = read_renames(merge / RENAMES, schema, last.tables, frames) if last else {}
+    crosswalk = read_crosswalk(merge / CROSSWALK, CROSSWALK, frames, "the merged tables")
+    renames = renames_since(last, crosswalk, frames) if last else {}
 
     out = out or merge / PUBLISH
     if not release and (out / RELEASE).is_file() and json.loads((out / RELEASE).read_text(encoding="utf-8"))["doi"]:

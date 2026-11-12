@@ -314,9 +314,7 @@ def published_first(tmp_path: Path, zenodo: FakeZenodo, access: str = "open") ->
 
 def next_merge(tmp_path: Path, access: str = "open") -> Merge:
     """The merge after the first version, with the DOI of all versions, and no IDs changed."""
-    merge = Merge(tmp_path / "next", doi=CONCEPT, access=access)
-    merge.renames()
-    return merge
+    return Merge(tmp_path / "next", doi=CONCEPT, access=access)
 
 
 # ---------------------------------------------------------------- The first version
@@ -457,7 +455,6 @@ def test_the_last_merge_was_not_published_with_publish_py(tmp_path, zenodo):
     first = Merge(tmp_path / "first")
     first.run(release=publish.Release("2026-11-01", "10.5072/zenodo.1", "10.5072/zenodo.0"))
     second = Merge(tmp_path / "next", doi="10.5072/zenodo.0")
-    second.renames()
     assert fails(second, zenodo, first) == (
         f"The last merge, in {first.folder}, has no draft on {zenodo.address} in publish/zenodo.json, so it was not "
         "published there with publish.py. Give the merge that was, with --previous.")

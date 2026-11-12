@@ -22,6 +22,8 @@ CONCEPT = "10.5281/zenodo.100"
 FIRST = build.Release("2026-11-01", "10.5281/zenodo.101", CONCEPT)
 SECOND = build.Release("2026-12-01", "10.5281/zenodo.102", CONCEPT)
 HEIGHT = "plant_height_mean_of_5_plants_cm"
+# The contribution the valid dataset comes from, as the crosswalk names it, by its folder
+NORDBEAN = "2026_10_01_nordbean"
 @pytest.fixture
 def merge(tmp_path: Path) -> Merge:
     return Merge(tmp_path / "merge")
@@ -359,7 +361,7 @@ def test_what_changed(tmp_path):
             tables.set("Phenotype", phid, "PDID", "plant_height_cm")
     tables.edit_contributors("\nfunding:", f"\n  - family_name: Nym\n    given_names: Ano\n    orcid: none\n"
                                            f"    affiliations: none\n    experiments:\n      - {TRIAL}\nfunding:")
-    second.renames(("PhenotypeDescription", HEIGHT, "plant_height_cm"))
+    second.crosswalk((NORDBEAN, "PhenotypeDescription", HEIGHT, "plant_height_cm"))
     assert second.run(first, SECOND)[1] == "Compared with version 1."
     assert second.release()["version"] == 2
     assert second.section("What changed in this version") == (
@@ -377,7 +379,6 @@ def test_what_changed(tmp_path):
 def test_nothing_changed(tmp_path):
     first = published(tmp_path)
     second = Merge(tmp_path / "second", doi=CONCEPT)
-    second.renames()
     second.run(first)
     assert second.section("What changed in this version") == (
         "Compared with version 1, published 2026-11-01: [10.5281/zenodo.101](https://doi.org/10.5281/zenodo.101).\n\n"
@@ -400,8 +401,8 @@ def test_two_rows_made_one_and_a_renamed_feature(tmp_path):
     for unid in tables.ids("ExperimentalUnit"):
         tables.set("ExperimentalUnit", unid, "Features",
                    tables.get("ExperimentalUnit", unid, "Features").replace("soil_ph=", "topsoil_ph="))
-    second.renames(("PhenotypeDescription", "flower_colour_visual_1to3", HEIGHT),
-                   ("Features", "soil_ph", "topsoil_ph"))
+    second.crosswalk((NORDBEAN, "PhenotypeDescription", "flower_colour_visual_1to3", HEIGHT),
+                     (NORDBEAN, "Features", "soil_ph", "topsoil_ph"))
     second.run(first)
     assert second.section("What changed in this version").split("\n\n")[1:] == [
         "| Table | Added | Changed | Renamed | Removed |\n|---|---|---|---|---|\n"
@@ -419,7 +420,6 @@ def test_many_changes_are_counted(tmp_path, monkeypatch):
     for phid in second.tables.ids("Phenotype")[:3]:
         second.tables.set("Phenotype", phid, "Comments", "Checked again.")
     second.tables.set("Phenotype", SCORE, "Score", "95")
-    second.renames()
     second.run(first)
     assert f"- **Phenotype.** Changed: Score in `{SCORE}`; Comments in 3 rows.\n" in second.readme()
 
@@ -430,7 +430,6 @@ def test_people_and_funding_that_left(tmp_path):
     text = second.tables.contributors.read_text(encoding="utf-8")
     text = text[:text.index("  - family_name: Ova")] + text[text.index("  - family_name: Plicate"):]
     second.tables.contributors.write_text(text[:text.index("funding:")] + "funding: none\n", encoding="utf-8")
-    second.renames()
     second.run(first)
     assert second.section("What changed in this version").split("\n\n")[1:] == [
         "The tables did not change.",
@@ -454,7 +453,6 @@ def test_a_new_version_of_the_format(tmp_path):
         writer.writeheader()
         writer.writerows(rows)
     second = Merge(tmp_path / "second", doi=CONCEPT)
-    second.renames()
     second.run(first)
     assert second.section("What changed in this version").split("\n\n")[1:] == [
         "The format changed from version 0.9.0 to version 1.0.0. The [diagram]"
@@ -535,7 +533,6 @@ def test_the_last_merge_has_no_contributors_file(tmp_path):
 def test_the_last_merge_is_of_another_dataset(tmp_path):
     first = published(tmp_path)
     merge = Merge(tmp_path / "merge", doi="10.5281/zenodo.200")
-    merge.renames()
     assert fails(merge, first) == (f"The last merge, in {first.folder}, published a version of {CONCEPT}, but "
                                    "record.yaml gives 10.5281/zenodo.200. Give the last merge of this dataset.")
 
@@ -543,40 +540,110 @@ def test_the_last_merge_is_of_another_dataset(tmp_path):
 def test_zenodo_has_another_doi_for_the_dataset(tmp_path):
     first = published(tmp_path)
     merge = Merge(tmp_path / "merge", doi=CONCEPT)
-    merge.renames()
     release = build.Release("2026-12-01", "10.5281/zenodo.202", "10.5281/zenodo.200")
     assert fails(merge, first, release) == (f"The DOI of all versions is 10.5281/zenodo.200 on Zenodo, but {CONCEPT} "
                                             "in record.yaml.")
 
 
 @pytest.mark.parametrize("rows, header, message", [
-    (None, None, "There is no renames.csv in {folder}. merge.py writes it, with one row for each ID of the last "
-                 "version that this merge changed, and the columns Table, OldID, NewID. When it changed none, it holds "
-                 "only that first row."),
-    ((), ("Table", "Old", "New"), "renames.csv: the first row has to be Table,OldID,NewID."),
-    ((("Germplasm", "ostrin"),), None, "renames.csv, row 2 has 2 values, not 3."),
-    ((("Seeds", "ostrin", "kelda"),), None, "renames.csv, row 2: 'Seeds' is not a table of the format."),
-    ((("Germplasm", "kelda", "ostrin"),), None, "renames.csv, row 2: 'kelda' is not a GPID in the last version."),
-    ((("Germplasm", "ostrin", "vandrel"),), None,
-     "renames.csv, row 2: 'ostrin' is still a GPID in the merged tables, so it did not change."),
+    (None, None, "There is no crosswalk.csv in {folder}. merge.py writes it, with one row for each ID it changed in "
+                 "each contribution, and the columns Contribution, Table, OldID, NewID. When it changed none, it "
+                 "holds only that first row."),
+    ((), ("Table", "OldID", "NewID"), "crosswalk.csv: the first row has to be Contribution,Table,OldID,NewID."),
+    (((NORDBEAN, "Germplasm", "ostrin"),), None, "crosswalk.csv, row 2 has 3 values, not 4."),
+    ((("", "Germplasm", "ostrin_1", "ostrin"),), None,
+     "crosswalk.csv, row 2 has an empty value. Each row gives the contribution, the table, the ID in the "
+     "contribution and the ID in the merged tables."),
+    (((NORDBEAN, "Seeds", "ostrin_1", "ostrin"),), None,
+     "crosswalk.csv, row 2: 'Seeds' is not a table in the merged tables."),
+    (((NORDBEAN, "Germplasm", "ostrin", "kelda"),), None,
+     "crosswalk.csv, row 2: 'kelda' is not a GPID in the merged tables."),
+    (((NORDBEAN, "Germplasm", "ostrin_1", "ostrin"), (NORDBEAN, "Germplasm", "ostrin_1", "vandrel")), None,
+     f"crosswalk.csv, row 3: the GPID 'ostrin_1' of {NORDBEAN} is listed twice. Keep only one."),
 ])
-def test_renames_that_do_not_fit(tmp_path, rows, header, message):
-    first = published(tmp_path)
-    merge = Merge(tmp_path / "merge", doi=CONCEPT)
-    if rows is not None:
-        merge.renames(*rows, **({"header": header} if header else {}))
-    assert fails(merge, first) == message.format(folder=merge.folder)
+def test_a_crosswalk_that_does_not_fit(merge, rows, header, message):
+    if rows is None:
+        (merge.folder / "crosswalk.csv").unlink()
+    else:
+        merge.crosswalk(*rows, **({"header": header} if header else {}))
+    assert fails(merge) == message.format(folder=merge.folder)
 
 
-def test_renamed_to_an_id_that_is_not_there(tmp_path):
+def test_the_last_merge_has_no_crosswalk(tmp_path):
     first = published(tmp_path)
+    (first.folder / "crosswalk.csv").unlink()
     merge = Merge(tmp_path / "merge", doi=CONCEPT)
-    merge.tables.delete_row("Germplasm", "ostrin")
-    for slid in merge.tables.ids("SeedLot"):
-        if merge.tables.get("SeedLot", slid, "GPID") == "ostrin":
-            merge.tables.set("SeedLot", slid, "GPID", "vandrel")
-    merge.renames(("Germplasm", "ostrin", "kelda"))
-    assert fails(merge, first) == "renames.csv, row 2: 'kelda' is not a GPID in the merged tables."
+    assert fails(merge, first).startswith(f"There is no crosswalk.csv in {first.folder}. merge.py writes it")
+
+
+def test_the_crosswalk_of_the_last_merge_does_not_fit(tmp_path):
+    first = published(tmp_path)
+    first.crosswalk((NORDBEAN, "Germplasm", "ostrin", "kelda"))
+    merge = Merge(tmp_path / "merge", doi=CONCEPT)
+    assert fails(merge, first) == (f"{first.folder / 'crosswalk.csv'}, row 2: 'kelda' is not a GPID in the last "
+                                   "version.")
+
+
+def test_an_id_renamed_again_is_followed_through_both_crosswalks(tmp_path):
+    """
+    The contribution's trait plant_height was published as HEIGHT, and this merge makes it plant_height_cm. What
+    changed is HEIGHT, not plant_height, which was never published.
+    """
+    first = Merge(tmp_path / "first")
+    first.crosswalk((NORDBEAN, "PhenotypeDescription", "plant_height", HEIGHT))
+    first.run(release=FIRST)
+    second = Merge(tmp_path / "second", doi=CONCEPT)
+    rename_trait(second, HEIGHT, "plant_height_cm")
+    second.crosswalk((NORDBEAN, "PhenotypeDescription", "plant_height", "plant_height_cm"))
+    second.run(first)
+    assert (f"- **PhenotypeDescription.** Renamed: `{HEIGHT}` to `plant_height_cm`."
+            in second.section("What changed in this version"))
+
+
+def test_an_id_changed_in_the_last_merge_only_did_not_change(tmp_path):
+    first = Merge(tmp_path / "first")
+    first.crosswalk((NORDBEAN, "PhenotypeDescription", "plant_height", HEIGHT))
+    first.run(release=FIRST)
+    second = Merge(tmp_path / "second", doi=CONCEPT)
+    second.crosswalk((NORDBEAN, "PhenotypeDescription", "plant_height", HEIGHT))
+    second.run(first)
+    assert second.section("What changed in this version").endswith("The tables did not change.")
+
+
+def test_a_new_contribution_with_an_id_of_the_last_version(tmp_path):
+    """
+    A new contribution has a trait with the ID of another trait of the last version, which keeps it, so the new one
+    gets another ID. Nothing of the last version was renamed: a trait was added.
+    """
+    first = published(tmp_path)
+    second = Merge(tmp_path / "second", doi=CONCEPT)
+    second.tables.add_row("PhenotypeDescription", PDID="plant_height_2", PhenotypeDescription="Plant height",
+                          Unit="cm", DescriptionOfMethod="Height of the main stem of one plant.")
+    second.crosswalk(("2026_11_01_faba", "PhenotypeDescription", HEIGHT, "plant_height_2"))
+    second.run(first)
+    assert second.section("What changed in this version").split("\n\n")[2] == (
+        "- **PhenotypeDescription.** Added: `plant_height_2`.")
+
+
+def test_an_id_that_becomes_two(tmp_path):
+    first = published(tmp_path)
+    second = Merge(tmp_path / "second", doi=CONCEPT)
+    rename_trait(second, HEIGHT, "plant_height_cm")
+    second.tables.add_row("PhenotypeDescription", PDID="plant_height_2", PhenotypeDescription="Plant height",
+                          Unit="cm", DescriptionOfMethod="Height of the main stem of one plant.")
+    second.crosswalk((NORDBEAN, "PhenotypeDescription", HEIGHT, "plant_height_cm"),
+                     ("2026_11_01_faba", "PhenotypeDescription", HEIGHT, "plant_height_2"))
+    assert fails(second, first) == (f"By the crosswalks, the PDID '{HEIGHT}' of the last version became both "
+                                    "'plant_height_cm' and 'plant_height_2'. An ID can become only one: correct "
+                                    "merge.py.")
+
+
+def rename_trait(merge: Merge, old: str, new: str) -> None:
+    """Gives a trait in the merged tables a new PDID, in PhenotypeDescription and in the scores."""
+    merge.tables.set("PhenotypeDescription", old, "PDID", new)
+    for phid in merge.tables.ids("Phenotype"):
+        if merge.tables.get("Phenotype", phid, "PDID") == old:
+            merge.tables.set("Phenotype", phid, "PDID", new)
 
 
 def test_a_preview_keeps_what_was_published(tmp_path):

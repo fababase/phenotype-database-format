@@ -264,7 +264,10 @@ curator:
 
 
 class Merge:
-    """A merge folder: the valid dataset as its merged tables, and record.yaml."""
+    """
+    A merge folder: the valid dataset as its merged tables, record.yaml, and a crosswalk.csv in which no ID was
+    changed.
+    """
 
     def __init__(self, folder: Path, doi: str = "none", orcid: str = "none", access: str = "open"):
         folder.mkdir()
@@ -272,6 +275,7 @@ class Merge:
         self.tables = Dataset(folder / "tables")
         self.record = folder / "record.yaml"
         self.record.write_text(RECORD.format(doi=doi, orcid=orcid, access=access), encoding="utf-8")
+        self.crosswalk()
 
     @property
     def files(self) -> Path:
@@ -281,8 +285,10 @@ class Merge:
             out: Path | None = None) -> list[str]:
         return build.build(self.folder, COMMIT, previous.folder if previous else None, release, out=out)
 
-    def renames(self, *rows: tuple[str, str, str], header: tuple[str, ...] = ("Table", "OldID", "NewID")) -> None:
-        with (self.folder / "renames.csv").open("w", encoding="utf-8", newline="") as f:
+    def crosswalk(self, *rows: tuple[str, ...],
+                  header: tuple[str, ...] = ("Contribution", "Table", "OldID", "NewID")) -> None:
+        """Writes crosswalk.csv, as merge.py does, with these rows."""
+        with (self.folder / "crosswalk.csv").open("w", encoding="utf-8", newline="") as f:
             csv.writer(f, lineterminator="\n").writerows([header, *rows])
 
     def readme(self) -> str:

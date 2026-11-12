@@ -98,7 +98,7 @@ Compare the `contributors.yaml` of the contributions with each other, and with t
 - **It gives the same output every time**: rows in a fixed order, and no date or time of the run in what it writes.
 - **It writes the tables as in [Files](../schema/schema.md#files)**, and follows schema.md in everything else.
 - **It writes `tables/contributors.yaml`** in the format in [Who to credit](../docs/submit-data.md#who-to-credit), the same as a contribution's, with the keys in the order of its template. It holds every person and every grant once: the people in alphabetical order of family name, then given names, and the grants in alphabetical order of funder, then grant number. The experiments of each are those it is behind in any of the contributions, each once, by its EXPID in the merged tables, in alphabetical order.
-- **It writes `crosswalk.csv`**, with one row for every ID it changed in every contribution, and the columns Contribution, Table, OldID and NewID.
+- **It writes `crosswalk.csv`**, with one row for every ID it changed in every contribution, and the columns Contribution, Table, OldID and NewID, and only the first row when it changed none. Contribution is the name of the contribution's folder, the one that holds `raw_data/` and `runs/`, written the same way in every merge: `publishing/build.py` follows each ID of the last version through the crosswalk of the last merge and of this one, to say which of them changed.
 
 ## Make the values consistent
 
