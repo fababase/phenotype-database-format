@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: If you use the FabaBase phenotype database format or its validator, please cite it as below.
+type: software
+title: FabaBase phenotype database format
+abstract: >-
+  A format of linked tables for phenotype data from plant experiments, with a validator, guides for converting
+  data into it, and scripts that publish datasets in it on Zenodo.
+authors:
+  - family-names: Wisén Mouritzen
+    given-names: Troels
+    orcid: https://orcid.org/0000-0003-0558-1425
+    affiliation: Aarhus University
+  - family-names: Skovbjerg
+    given-names: Cathrine Kiel
+    orcid: https://orcid.org/0000-0001-9780-2920
+    affiliation: Aarhus University
+  - family-names: Quilbe
+    given-names: Johan
+    orcid: https://orcid.org/0009-0002-5170-5628
+    affiliation: Aarhus University
+  - family-names: Andersen
+    given-names: Stig
+    orcid: https://orcid.org/0000-0003-3632-5213
+    affiliation: Aarhus University
+version: 1.0.0
+date-released: 2026-11-12
+url: https://fababase.github.io/phenotype-database-format/
+repository-code: https://github.com/fababase/phenotype-database-format
+license:
+  - GPL-3.0
+  - CC-BY-4.0
+keywords:
+  - phenotype data
+  - plant breeding
+  - data format
+  - Vicia faba

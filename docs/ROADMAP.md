@@ -26,7 +26,7 @@ The decisions behind this repository, the work still to do, and the questions st
 - [ ] Try `publish.py` on [sandbox.zenodo.org](https://sandbox.zenodo.org), then publish the first version of the public dataset.
 - [ ] Decide how contributors hand over their tables, and say so in step 10 of [submit-data.md](submit-data.md#10-hand-over).
 - [ ] Write `docs/release.md` for the data manager: how to merge, build and publish a version of a dataset, and how to release a new version of the format (`schema.yaml`, the hand-written parts of `schema.md`, `CHANGELOG.md`). At least two people should have access to GitHub and Zenodo.
-- [ ] Add `CHANGELOG.md`, with what changed in each version of the format, and `CITATION.cff`, with how to cite the format.
+- [ ] Add `CHANGELOG.md`, with what changed in each version of the format.
 
 ### Validator plots
 
