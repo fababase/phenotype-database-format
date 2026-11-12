@@ -19,9 +19,11 @@ from openpyxl.worksheet.hyperlink import Hyperlink
 
 from validation import FEATURE_TYPES, READ_ME_SHEET, READ_ME_TITLE, Column, Schema, TableDef, help_text, load_schema
 
-# Links in the READ ME 1st sheet. They hold the repository's name, so they change if it is renamed.
+# Links in the READ ME 1st sheet, and in the README of the datasets on Zenodo (publishing/build.py). They hold the
+# repository's name, so they change if it is renamed.
 SITE = "https://fababase.github.io/phenotype-database-format/"
-SCHEMA_DOC = "https://github.com/fababase/phenotype-database-format/blob/main/schema/schema.md"
+REPOSITORY = "https://github.com/fababase/phenotype-database-format"
+SCHEMA_DOC = f"{REPOSITORY}/blob/main/schema/schema.md"
 
 TITLE = Font(bold=True, size=14)
 BOLD = Font(bold=True)

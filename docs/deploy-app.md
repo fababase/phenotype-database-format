@@ -95,4 +95,4 @@ python app/collection_sheet.py collection-sheet.xlsx
 
 In the repository's **Settings → Pages**, under *Build and deployment*, *Source* is set to **GitHub Actions**. Only an admin of the repository can change this.
 
-The address contains the repository's name. If the repository is renamed, the address changes and the old one stops working, so update the links in `README.md`, this file, the *READ ME 1st* sheet (`SITE` and `SCHEMA_DOC` in `app/collection_sheet.py`), the diagram (`REPOSITORY` in `schema/diagram.html`) and anywhere else the address was shared.
+The address contains the repository's name. If the repository is renamed, the address changes and the old one stops working, so update the links in `README.md`, this file, the *READ ME 1st* sheet and the README of the datasets on Zenodo (`SITE` and `REPOSITORY` in `app/collection_sheet.py`), the diagram (`REPOSITORY` in `schema/diagram.html`) and anywhere else the address was shared.

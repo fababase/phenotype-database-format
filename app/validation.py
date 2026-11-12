@@ -1069,7 +1069,7 @@ def ror_problem(value: str) -> str | None:
 
 
 def at(source: str, node: yaml.Node) -> str:
-    """Where a value in contributors.yaml is, for messages."""
+    """Where a value in a YAML file is, for messages."""
     return f"{source}, line {node.start_mark.line + 1}"
 
 
@@ -1163,13 +1163,10 @@ def yaml_experiments(source: str, node: yaml.Node, experiments: Table) -> list[s
     return found
 
 
-def read_person(source: str, node: yaml.Node, experiments: Table) -> Person:
-    values = yaml_mapping(source, node, PERSON_KEYS, "a person")
-    family_name = yaml_text(source, values["family_name"], "family_name")
-    given_names = yaml_text(source, values["given_names"], "given_names")
-    orcid = yaml_id(source, values["orcid"], "orcid", orcid_problem)
+def read_affiliations(source: str, node: yaml.Node) -> list[Affiliation]:
+    """The affiliations of a person, each once. An empty list where they are none."""
     affiliations = []
-    for item in yaml_list(source, values["affiliations"], "affiliations"):
+    for item in yaml_list(source, node, "affiliations"):
         names = yaml_mapping(source, item, AFFILIATION_KEYS, "an affiliation")
         affiliation = Affiliation(yaml_text(source, names["name"], "name"),
                                   yaml_id(source, names["ror"], "ror", ror_problem))
@@ -1178,7 +1175,15 @@ def read_person(source: str, node: yaml.Node, experiments: Table) -> Person:
             raise ValidationError(f"{at(source, item)}: {affiliation.name} is listed twice for this person. "
                                   "Keep only one.")
         affiliations.append(affiliation)
-    return Person(family_name, given_names, orcid, affiliations,
+    return affiliations
+
+
+def read_person(source: str, node: yaml.Node, experiments: Table) -> Person:
+    values = yaml_mapping(source, node, PERSON_KEYS, "a person")
+    return Person(yaml_text(source, values["family_name"], "family_name"),
+                  yaml_text(source, values["given_names"], "given_names"),
+                  yaml_id(source, values["orcid"], "orcid", orcid_problem),
+                  read_affiliations(source, values["affiliations"]),
                   yaml_experiments(source, values["experiments"], experiments))
 
 
@@ -1189,6 +1194,24 @@ def read_grant(source: str, node: yaml.Node, experiments: Table) -> Grant:
                  yaml_text(source, values["grant_number"], "grant_number"),
                  yaml_text(source, values["grant_title"], "grant_title"),
                  yaml_experiments(source, values["experiments"], experiments))
+
+
+def read_yaml(source: str, content: bytes) -> tuple[str, yaml.Node | None]:
+    """
+    The text of a YAML file, and its root node, or None if it is empty. Nodes keep every value as text, as written,
+    and where it is in the file, for messages.
+    """
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise ValidationError(f"{source}: could not read the text of the file. Save it as UTF-8.") from None
+    try:
+        return text, yaml.compose(text, Loader=yaml.BaseLoader)
+    except yaml.YAMLError as e:
+        mark = getattr(e, "problem_mark", None)
+        where = f", line {mark.line + 1}" if mark else ""
+        problem = ", ".join(part for part in (getattr(e, "context", None), getattr(e, "problem", None)) if part)
+        raise ValidationError(f"{source}{where}: could not read it as YAML ({problem or e}). {YAML_HINT}") from None
 
 
 def check_contributors(source: str, content: bytes, experiments: Table) -> Contributors:
@@ -1202,17 +1225,7 @@ def check_contributors(source: str, content: bytes, experiments: Table) -> Contr
         content: the file's content.
         experiments: the Experiment table, checked.
     """
-    try:
-        text = content.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        raise ValidationError(f"{source}: could not read the text of the file. Save it as UTF-8.") from None
-    try:
-        root = yaml.compose(text, Loader=yaml.BaseLoader)
-    except yaml.YAMLError as e:
-        mark = getattr(e, "problem_mark", None)
-        where = f", line {mark.line + 1}" if mark else ""
-        problem = ", ".join(part for part in (getattr(e, "context", None), getattr(e, "problem", None)) if part)
-        raise ValidationError(f"{source}{where}: could not read it as YAML ({problem or e}). {YAML_HINT}") from None
+    text, root = read_yaml(source, content)
     if root is None:
         raise ValidationError(f"{source} is empty. Write who to credit in it: the people and the funding.")
     values = yaml_mapping(source, root, CONTRIBUTORS_KEYS, "the file")

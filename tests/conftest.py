@@ -1,5 +1,5 @@
 """
-Setup shared by all tests: makes the modules in app/ and schema/, and tests/helpers.py, importable, and
+Setup shared by all tests: makes the modules in app/, schema/ and publishing/, and tests/helpers.py, importable, and
 provides the `dataset` fixture, a copy of the valid dataset to change.
 """
 import sys
@@ -10,6 +10,7 @@ import pytest
 TESTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TESTS.parent / "app"))
 sys.path.insert(0, str(TESTS.parent / "schema"))
+sys.path.insert(0, str(TESTS.parent / "publishing"))
 sys.path.insert(0, str(TESTS))
 pytest.register_assert_rewrite("helpers")
 
