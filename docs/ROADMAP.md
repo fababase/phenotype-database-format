@@ -60,8 +60,12 @@ app/                  exactly what gets deployed
   requirements.txt    pinned versions
 conversion/
   AI_INSTRUCTIONS.md  Instructions for the AI in how to convert a contributors data into the format of the database schema
-zenodo/
-  README_TEMPLATE.md  README for the Zenodo record
+merging/
+  AI_INSTRUCTIONS.md  instructions for the AI that merges the contributions into one set of tables
+publishing/
+  README_TEMPLATE.md  the README of the dataset on Zenodo, for people using the data
+  build.py            fills in the README and the record's metadata from the merged tables
+  publish.py          uploads the files and metadata to Zenodo as a draft of a new version
 docs/
   ROADMAP.md          this file
   datasets.md         every known dataset in the format, by DOI, to reuse IDs from
@@ -147,7 +151,7 @@ Only the tables go to Zenodo.
 
 ## Phase 3: Publish on Zenodo
 
-- [ ] Write `zenodo/README_TEMPLATE.md` for the record, for people using the data, not for contributors or managers: what the database is; who made it, and the funding, from the final contributors file; the experiments and where they ran; the schema version, with a link to the diagram at that version (`diagram/#<version>`); every table and column, and how they link; how values are written; what changed since the last version, from the crosswalk; the licence; and how to cite. The restricted records of projects use the same template.
+- [ ] Write `publishing/README_TEMPLATE.md` for the record, for people using the data, not for contributors or managers: what the database is; who made it, and the funding, from the final contributors file; the experiments and where they ran; the schema version, with a link to the diagram at that version (`diagram/#<version>`); every table and column, and how they link; how values are written; what changed since the last version, from the crosswalk; the licence; and how to cite. The restricted records of projects use the same template.
 - [ ] Write a merge script that combines the tables of all contributions into one set of tables, and validate the merged set.
 - [x] Decide what goes into each version of the record: the merged tables and the README. See [Decisions](#decisions).
 - [x] Add the contributors file, as in [Decisions](#decisions): say in `docs/submit-data.md` and `conversion/AI_INSTRUCTIONS.md` how it is made and what goes in it, in `docs/review-data.md` that it is checked, and in `merging/AI_INSTRUCTIONS.md` how the final file is made from them.
