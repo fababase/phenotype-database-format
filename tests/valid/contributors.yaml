@@ -1,0 +1,29 @@
+# Who to credit for the valid test dataset. The people, institutions, funder and grant are made up. The ORCID iD
+# is the one ORCID uses in its own examples.
+people:
+  - family_name: Ova
+    given_names: Ann
+    orcid: none
+    affiliations:
+      - name: Northfield Agricultural College
+        ror: none
+    experiments:
+      - nordbean_leaf_spectra_greenhouse_2025
+  - family_name: Plicate
+    given_names: Rhea
+    orcid: 0000-0002-1825-0097
+    affiliations:
+      - name: Northfield Agricultural College
+        ror: none
+      - name: Nordbean Breeding Programme
+        ror: none
+    experiments:
+      - nordbean_irrigation_northfield_2025
+      - nordbean_leaf_spectra_greenhouse_2025
+funding:
+  - funder: Nordic Bean Foundation
+    ror: none
+    grant_number: NBF-2024-117
+    grant_title: Drought tolerance in faba bean
+    experiments:
+      - nordbean_irrigation_northfield_2025

@@ -112,7 +112,7 @@ Write your inspection scripts in `runs/<date>/scratch/`, and run them with uv, s
 - **It gives the same output every time**: rows in a fixed order, and no date or time of the run in what it writes.
 - **It keeps numbers as precise as the raw data**, no more and no less: no rounding, and no floating-point artefacts.
 - **It writes the tables as in [Files](../schema/schema.md#files)**, and follows schema.md in everything else, such as [identifiers](../schema/schema.md#identifiers), [missing values](../schema/schema.md#missing-values) and [free text](../schema/schema.md#free-text).
-- **It writes `tables/contributors.md`** from the answers about who to credit, in the template and by the rules in [Who to credit](../docs/submit-data.md#who-to-credit).
+- **It writes `tables/contributors.yaml`** from the answers about who to credit, in the template and by the rules in [Who to credit](../docs/submit-data.md#who-to-credit). Under each person and grant, it lists every experiment in the tables, unless the answers say which ones they are behind.
 - **It reuses IDs** for germplasm, seed lots, traits, climate variables and features from the datasets in [datasets.md](../docs/datasets.md). Look them up there, and write the ones you reuse into the script, with the dataset's DOI. For restricted datasets, ask the contributor to add the files they have access to to `raw_data/` (only the relevant files), or, if possible, get them yourself from zenodo.
 - **It writes `summary.md` for the contributor**: the files and sheets it read, and those it left out; the number of rows in each table; for each trait, the number of scores and of units scored, the dates, and the lowest and highest score; the number of experiments, units, germplasm and seed lots; and how many rows of the raw data it left out, for each reason. Write it so that the contributor can check it against what they know.
 
@@ -141,8 +141,8 @@ Do it in `conversion.py`, with each raw value and what it becomes written out, s
   uv run --no-project --python 3.12 --with-requirements phenotype-database-format/app/requirements.txt phenotype-database-format/app/validation.py runs/<date>/tables
   ```
 
-  It stops at the first error. Fix `conversion.py`, run it again, and validate again, until it says "Validation successful!".
-- **Ask the contributor to check `summary.md` and `tables/contributors.md`**, and say what to compare each part of them with. Note the date in the notes.
+  It checks `contributors.yaml` too, after the tables, and stops at the first error. Fix `conversion.py`, run it again, and validate again, until it says "Validation successful!".
+- **Ask the contributor to check `summary.md` and `tables/contributors.yaml`**, and say what to compare each part of them with. Note the date in the notes.
 - **Passing the validator is not enough.** Before you call the run finished, go through the checks in [review-data.md](../docs/review-data.md) yourself.
 
 ## The notes
@@ -164,7 +164,7 @@ Start the notes from this template. Keep its fields, its headings and the line i
 - **Version of the format:** the version in schema.yaml, and the commit if the copy of the repository is a git clone
 - **What the AI may see:** … (the file in raw_data/ that says so)
 - **Known datasets searched for IDs to reuse:** …
-- **Contributor last checked summary.md and contributors.md:** YYYY-MM-DD
+- **Contributor last checked summary.md and contributors.yaml:** YYYY-MM-DD
 
 ## Open questions
 
@@ -195,7 +195,7 @@ Start the notes from this template. Keep its fields, its headings and the line i
 
 Whenever you stop, finished or not, update the notes, above all the status and the open questions, and delete `scratch/`.
 
-The run is finished when every open question is answered or moved to Missing, the validator passes, `conversion.py` reruns to the same tables, the contributor has checked `summary.md` and `contributors.md`, and the checks in review-data.md hold as far as you can tell. Then set the status to finished, and ask the contributor to start the review in a fresh session, as in submit-data.md. Never review your own run.
+The run is finished when every open question is answered or moved to Missing, the validator passes, `conversion.py` reruns to the same tables, the contributor has checked `summary.md` and `contributors.yaml`, and the checks in review-data.md hold as far as you can tell. Then set the status to finished, and ask the contributor to start the review in a fresh session, as in submit-data.md. Never review your own run.
 
 ## Never
 

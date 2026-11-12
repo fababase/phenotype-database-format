@@ -27,7 +27,7 @@ To publish again without changing anything, go to **Actions → Deploy app → R
 - The packages bundled with the app are the versions in `app/requirements.txt`.
 - The app starts in a browser and shows no notices, so it runs the package versions in `app/requirements.txt`.
 - The app hands out a blank collection sheet with the same contents as one built on the command line.
-- The app gives the same messages as the command line for the valid test dataset and for that blank collection sheet, and the tables it hands back are the same.
+- The app gives the same messages as the command line for the valid test dataset, with its `contributors.yaml`, and for that blank collection sheet, and the files it hands back are the same.
 
 ## Package versions
 

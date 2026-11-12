@@ -1,21 +1,22 @@
 """
-The command line: python app/validation.py <CSV files, a folder of CSV files, or a .xlsx file> [--out FOLDER]
+The command line:
+python app/validation.py <CSV files, a folder of CSV files, or a .xlsx file, and contributors.yaml> [--out FOLDER]
 """
 import subprocess
 import sys
 
 import pytest
 
-from helpers import ROOT, SCHEMA, SCORE, as_csv, error, make_workbook, passes
-from validation import main, summary
+from helpers import ROOT, SCHEMA, SCORE, as_csv, check, error, make_workbook, passes
+from validation import CONTRIBUTORS_FILE, main, summary
 
 FIRST_LINE = f"Checking against schema version {SCHEMA.version}"
 
 
 def test_folder_that_passes(dataset, capsys):
-    tables, _ = passes(dataset.files())
+    checked, _ = check(dataset.files())
     assert main([str(dataset.folder)]) == 0
-    assert capsys.readouterr().out.splitlines() == [FIRST_LINE, *summary(tables, SCHEMA)]
+    assert capsys.readouterr().out.splitlines() == [FIRST_LINE, *summary(checked, SCHEMA)]
 
 
 def test_files_given_one_by_one(dataset, capsys):
@@ -23,9 +24,22 @@ def test_files_given_one_by_one(dataset, capsys):
 
 
 def test_collection_sheet(dataset, tmp_path, capsys):
-    tables, _ = passes([("sheet.xlsx", make_workbook(dataset, tmp_path / "sheet.xlsx"))])
-    assert main([str(tmp_path / "sheet.xlsx")]) == 0
-    assert capsys.readouterr().out.splitlines() == [FIRST_LINE, *summary(tables, SCHEMA)]
+    sheet = make_workbook(dataset, tmp_path / "sheet.xlsx")
+    checked, _ = check([("sheet.xlsx", sheet)] + dataset.credit())
+    assert main([str(sheet), str(dataset.contributors)]) == 0
+    assert capsys.readouterr().out.splitlines() == [FIRST_LINE, *summary(checked, SCHEMA)]
+
+
+def test_without_contributors(dataset, capsys):
+    dataset.contributors.unlink()
+    assert main([str(dataset.folder)]) == 0
+    assert capsys.readouterr().out.splitlines()[1] == ("Notice: There is no contributors.yaml, so who to credit "
+                                                       "was not checked.")
+
+
+def test_other_yaml_files_in_the_folder_are_skipped(dataset, capsys):
+    (dataset.folder / "settings.yaml").write_text("people: none")
+    assert main([str(dataset.folder)]) == 0
 
 
 def test_folder_that_fails(dataset, capsys):
@@ -64,15 +78,19 @@ def test_folder_without_tables(tmp_path, capsys):
 
 @pytest.mark.parametrize("source", ["CSV files", "collection sheet"])
 def test_out_writes_tables_that_pass_again_unchanged(dataset, tmp_path, capsys, source):
+    """contributors.yaml is written as it was given, byte for byte."""
     original, _ = passes(dataset.files())
-    path = dataset.folder if source == "CSV files" else make_workbook(dataset, tmp_path / "sheet.xlsx")
+    paths = ([dataset.folder] if source == "CSV files"
+             else [make_workbook(dataset, tmp_path / "sheet.xlsx"), dataset.contributors])
     out = tmp_path / "out" / "tables"
-    assert main([str(path), "--out", str(out)]) == 0
+    assert main([*map(str, paths), "--out", str(out)]) == 0
     assert capsys.readouterr().out.splitlines()[-1] == f"Wrote the tables to {out}"
-    assert sorted(path.name for path in out.iterdir()) == sorted(f"{name}.csv" for name in SCHEMA.tables)
+    assert sorted(path.name for path in out.iterdir()) == sorted([f"{name}.csv" for name in SCHEMA.tables]
+                                                                 + [CONTRIBUTORS_FILE])
     tables, notices = passes([(path.name, path) for path in out.iterdir()])
     assert notices == []
     assert as_csv(tables) == as_csv(original)
+    assert (out / CONTRIBUTORS_FILE).read_bytes() == dataset.contributors.read_bytes()
 
 
 def test_out_cannot_be_the_folder_read_from(dataset, capsys):

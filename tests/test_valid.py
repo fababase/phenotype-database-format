@@ -6,15 +6,15 @@ from datetime import date, datetime
 
 import pytest
 
-from helpers import (OPTIONAL_TABLES, SCHEMA, SCORE, TRIAL, UNIT, as_csv, edit_workbook, make_workbook, passes,
+from helpers import (OPTIONAL_TABLES, SCHEMA, SCORE, TRIAL, UNIT, as_csv, check, edit_workbook, make_workbook, passes,
                      rename_sheet, set_sheet_cell)
 from validation import READ_ME_SHEET, cell_text, help_text, summary
 
 
 def test_csv_files_pass(dataset):
-    tables, notices = passes(dataset.files())
+    checked, notices = check(dataset.files())
     assert notices == []
-    assert summary(tables, SCHEMA) == [
+    assert summary(checked, SCHEMA) == [
         "Validation successful! All 11 tables pass schema version 1.0.0.",
         "Germplasm: 3 rows, from Germplasm.csv",
         "SeedLot: 4 rows, from SeedLot.csv",
@@ -27,13 +27,14 @@ def test_csv_files_pass(dataset):
         "ClimateDescription: 4 rows, from ClimateDescription.csv",
         "Climate: 6 rows, from Climate.csv",
         "Features: 5 rows, from Features.csv",
+        "Who to credit: 2 people and 1 grant, from contributors.yaml",
     ]
 
 
 def test_summary_of_one_row(dataset):
     dataset.delete_row("Management", f"{TRIAL}_002")
-    tables, _ = passes(dataset.files())
-    assert "Management: 1 row, from Management.csv" in summary(tables, SCHEMA)
+    checked, _ = check(dataset.files())
+    assert "Management: 1 row, from Management.csv" in summary(checked, SCHEMA)
 
 
 def test_rows_without_values_at_the_end_are_dropped(dataset, tmp_path):
@@ -67,7 +68,7 @@ def test_missing_values_become_empty_cells(dataset, value):
 def test_collection_sheet_passes_with_the_same_tables(dataset, tmp_path, help_row):
     from_csv, _ = passes(dataset.files())
     workbook = make_workbook(dataset, tmp_path / "sheet.xlsx", help_row)
-    from_sheet, notices = passes([("sheet.xlsx", workbook)])
+    from_sheet, notices = passes([("sheet.xlsx", workbook)] + dataset.credit())
     assert notices == []
     assert as_csv(from_sheet) == as_csv(from_csv)
     offset = 1 if help_row else 0
@@ -118,7 +119,7 @@ def test_hidden_sheet_that_is_not_a_table_is_skipped(dataset, tmp_path):
         wb.create_sheet("Lists").sheet_state = "hidden"
     workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
     edit_workbook(workbook, add)
-    _, notices = passes([("sheet.xlsx", workbook)])
+    _, notices = passes([("sheet.xlsx", workbook)] + dataset.credit())
     assert notices == ["sheet 'Lists' is hidden and is not a table, so it was skipped."]
 
 
@@ -139,7 +140,7 @@ def test_collection_sheet_without_optional_tables(dataset, tmp_path):
     for table in ("ExperimentalUnit", "Phenotype"):
         dataset.drop_column(table, "Features")
     workbook = make_workbook(dataset, tmp_path / "sheet.xlsx")
-    tables, notices = passes([("sheet.xlsx", workbook)])
+    tables, notices = passes([("sheet.xlsx", workbook)] + dataset.credit())
     assert notices == []
     assert all(tables[table].data.empty for table in OPTIONAL_TABLES)
 
@@ -225,7 +226,7 @@ def test_semicolon_and_tab_separated_files(dataset, delimiter, word):
     for table in SCHEMA.tables:
         dataset.write(table, dataset.read(table), delimiter=delimiter)
     tables, notices = passes(dataset.files())
-    assert notices == [f"{name} is separated by {word}." for name, _ in dataset.files()]
+    assert notices == [f"{name} is separated by {word}." for name in sorted(f"{table}.csv" for table in SCHEMA.tables)]
     assert as_csv(tables) == as_csv(original)
 
 
@@ -324,6 +325,7 @@ def test_experiment_of_one_day(dataset):
     expid = "nordbean_sampling_northfield_2025"
     dataset.add_row("Experiment", EXPID=expid, StartDate="2025-07-01", EndDate="2025-07-01")
     dataset.add_row("ExperimentalUnit", UNID=f"{expid}_plot1", EXPID=expid, SLID="vandrel_northfield_2024")
+    dataset.credit_experiment(expid)
     passes(dataset.files())
 
 

@@ -1,8 +1,8 @@
 """
 Helpers shared by the tests.
 
-valid/ holds one valid dataset, one CSV file per table. Each test works on a copy of it, and a broken dataset
-is that copy with one thing changed, so that it breaks exactly one rule. The dataset is also the source of the
+valid/ holds one valid dataset, one CSV file per table, and contributors.yaml. Each test works on a copy of it, and a
+broken dataset is that copy with one thing changed, so that it breaks exactly one rule. The dataset is also the source of the
 examples in schema.yaml and of the worked example in schema.md, which are copied from it: change them with it.
 """
 import csv
@@ -15,7 +15,7 @@ import openpyxl
 import pytest
 
 import collection_sheet
-from validation import DATE, Table, ValidationError, cell_text, load_schema, validate_files
+from validation import CONTRIBUTORS_FILE, DATE, Checked, Table, ValidationError, cell_text, load_schema, validate_files
 
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA = load_schema()
@@ -119,6 +119,29 @@ class Dataset:
     def drop_table(self, table: str) -> None:
         self.path(table).unlink()
 
+    @property
+    def contributors(self) -> Path:
+        return self.folder / CONTRIBUTORS_FILE
+
+    def credit(self) -> list[tuple[str, Path]]:
+        """contributors.yaml, as validate_files takes it, to give with a collection sheet."""
+        return [(CONTRIBUTORS_FILE, self.contributors)]
+
+    def edit_contributors(self, old: str, new: str) -> None:
+        """Replaces the first occurrence of old in contributors.yaml with new."""
+        text = self.contributors.read_text(encoding="utf-8")
+        assert old in text, old
+        self.contributors.write_text(text.replace(old, new, 1), encoding="utf-8", newline="")
+
+    def credit_experiment(self, expid: str) -> None:
+        """Adds an experiment to the experiments of the last person in contributors.yaml."""
+        self.edit_contributors("\nfunding:", f"\n      - {expid}\nfunding:")
+
+    def line(self, text: str, occurrence: int = 1) -> int:
+        """The number of the line of contributors.yaml that holds text, the first one or a later one."""
+        lines = self.contributors.read_text(encoding="utf-8").splitlines()
+        return [number for number, line in enumerate(lines, start=1) if text in line][occurrence - 1]
+
 
 def excel_value(text: str, column_type: str):
     """
@@ -188,13 +211,19 @@ def rename_sheet(path: Path, old: str, new: str) -> None:
     edit_workbook(path, rename)
 
 
-def passes(files: list[tuple[str, Path]], warnings: tuple[str, ...] = ()) -> tuple[dict[str, Table], list[str]]:
-    """Validates the files, which have to pass with exactly these warnings. Returns the checked tables and the notices."""
+def check(files: list[tuple[str, Path]], warnings: tuple[str, ...] = ()) -> tuple[Checked, list[str]]:
+    """Validates the files, which have to pass with exactly these warnings. Returns what passed, and the notices."""
     notices = []
     warned = []
-    tables = validate_files(files, SCHEMA, notice=notices.append, warning=warned.append)
+    checked = validate_files(files, SCHEMA, notice=notices.append, warning=warned.append)
     assert warned == list(warnings)
-    return tables, notices
+    return checked, notices
+
+
+def passes(files: list[tuple[str, Path]], warnings: tuple[str, ...] = ()) -> tuple[dict[str, Table], list[str]]:
+    """Validates the files, which have to pass with exactly these warnings. Returns the checked tables and the notices."""
+    checked, notices = check(files, warnings)
+    return checked.tables, notices
 
 
 def error(files: list[tuple[str, Path]]) -> str:

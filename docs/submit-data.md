@@ -81,7 +81,7 @@ nordbean_irrigation_2025/
       conversion-notes.md        the notes: what was changed, what is missing, what is doubtful
       summary.md                 what the tables hold, written by conversion.py each time it runs
       review.md                  the review: what it found, and the FAIR score
-      tables/                    Germplasm.csv … Features.csv, and contributors.md: who to credit
+      tables/                    Germplasm.csv … Features.csv, and contributors.yaml: who to credit
 ```
 
 1. **Copy this repository into the folder**, as `phenotype-database-format`.
@@ -142,38 +142,52 @@ You have the last word: if the AI still doubts something you confirmed, it notes
 
 ### Who to credit
 
-When the data is eventually published, the people behind it should be credited, and so should its funding. The AI asks for these details early. Save them in a file in `raw_data/notes`, like any other answer. `conversion.py` writes them into `tables/contributors.md`, which is handed over with the tables. Credit goes only there, not in the Description of the Experiment table.
+When the data is eventually published, the people behind it should be credited, and so should its funding. The AI asks for these details early. Save them in a file in `raw_data/notes`, like any other answer. `conversion.py` writes them into `tables/contributors.yaml`, which is handed over with the tables. Credit goes only there, not in the Description of the Experiment table.
 
-If the data is published, everyone in `contributors.md` is named as a creator of the dataset on Zenodo, in alphabetical order of family name, so that they are cited with it. Its funding is listed there too.
+If the data is published, everyone in `contributors.yaml` is named as a creator of the dataset on Zenodo, in alphabetical order of family name, so that they are cited with it. Its funding is listed there too.
 
-`contributors.md` follows this template:
+`contributors.yaml` is written in [YAML](https://yaml.org), a plain-text format that programs read exactly, and follows this template:
 
-```markdown
-# Contributors
-
-## People
-
-### <family name>, <given names>
-- **ORCID:** …
-- **Affiliations:**
-  - <institution> (<ROR ID>)
-
-## Funding
-
-### <funder> (<ROR ID>)
-- **Grant number:** …
-- **Grant title:** …
+```yaml
+people:
+  - family_name: <family name>
+    given_names: <given names>
+    orcid: <ORCID iD>
+    affiliations:
+      - name: <institution>
+        ror: <ROR ID>
+    experiments:
+      - <EXPID>
+funding:
+  - funder: <funder>
+    ror: <ROR ID>
+    grant_number: <grant number>
+    grant_title: <grant title>
+    experiments:
+      - <EXPID>
 ```
 
-- **People:** everyone who should be credited for this data, each under a heading of their own. Check with each of them that they agree to be listed with these details.
+How it is written:
+
+- **`people:` and `funding:` appear once each.** Under them, each person and each grant starts with `- `. For another person or grant, repeat the lines from its `- ` down.
+- **`affiliations:` and `experiments:` are lists too**, with a line that starts with `- ` for each institution or experiment.
+- **The indentation shows what belongs to what.** Keep it as in the template, and make it with spaces, never tabs.
+- **Each value goes on the same line as its key**, after the `:` and a space. Put a value in double quotes if it holds `: ` or ` #`, or starts with a symbol. Everything after a ` #` that is not in quotes is a comment, which programs skip.
+
+What goes in it:
+
+- **People:** everyone who should be credited for this data. Check with each of them that they agree to be listed with these details.
 - **Names:** the family name and the given names apart, as the person writes them. Zenodo and citations need them apart, and no program can split a name reliably.
-- **ORCID:** the person's ORCID iD, from [orcid.org](https://orcid.org). The AI checks each one against its public record.
-- **Affiliations:** where the person worked when the work on this data was done, not where they are now: one or more, each on a line of its own. Write each institution as [ROR](https://ror.org), the registry of research organisations, names it, followed by its ROR ID. Only institutions, not departments. The AI can look up the ROR IDs.
-- **Funding:** every grant that paid for the work on this data, each under a heading of its own: the funder as ROR names it, followed by its ROR ID, and the grant's number and title.
-- **Write `none` where something does not exist:** for a person without an ORCID, an institution or funder without a ROR ID, a grant without a number or a title, and under Funding when there was no specific funding. Then it can be told from something forgotten.
+- **ORCID:** the person's ORCID iD, from [orcid.org](https://orcid.org), without `https://orcid.org/` in front of it. The AI checks each one against its public record.
+- **Affiliations:** where the person worked when the work on this data was done, not where they are now: one or more. Write each institution as [ROR](https://ror.org), the registry of research organisations, names it, and its ROR ID without `https://ror.org/` in front of it. Only institutions, not departments. The AI can look up the ROR IDs.
+- **Experiments:** the EXPIDs of the experiments, as in the Experiment table, that the person is behind, or that the grant paid for. Every experiment needs at least one person.
+- **Funding:** every grant that paid for the work on this data: the funder as ROR names it, its ROR ID, and the grant's number and title.
+- **Write `none` where something does not exist:** for a person without given names, an ORCID or an affiliation, an institution or funder without a ROR ID, a grant without a number or a title, and as `funding: none` when there was no specific funding. Then it can be told from something forgotten.
+
+The validator checks `contributors.yaml` along with the tables, and says what to fix. Give it to the validator with them: in the same folder, or uploaded with them in the app.
 
 > [!NOTE]
-> **Without an AI**, your `conversion.py` writes `contributors.md` in the same way. With the [collection sheet](#the-collection-sheet), you write it by hand.
+> **Without an AI**, your `conversion.py` writes `contributors.yaml` in the same way. With the [collection sheet](#the-collection-sheet), you write it by hand.
 
 ## 7. Make the tables
 
@@ -186,7 +200,7 @@ In practice, steps 6, 7 and 8 go back and forth: making the tables raises new qu
 >
 > To write `conversion.py` yourself, follow these sections of the AI's instructions. They are written to the AI, but the rules are the same for you.
 >
-> - [Write conversion.py](../conversion/AI_INSTRUCTIONS.md#write-conversionpy): what the script reads and writes, the versions it needs, the checksums of the raw files, `summary.md` and `contributors.md`.
+> - [Write conversion.py](../conversion/AI_INSTRUCTIONS.md#write-conversionpy): what the script reads and writes, the versions it needs, the checksums of the raw files, `summary.md` and `contributors.yaml`.
 > - [Check](../conversion/AI_INSTRUCTIONS.md#check): how to run the validator.
 > - [The notes](../conversion/AI_INSTRUCTIONS.md#the-notes): what goes in `conversion-notes.md`, with a template.
 
@@ -194,7 +208,7 @@ In practice, steps 6, 7 and 8 go back and forth: making the tables raises new qu
 
 The AI asks you to check `summary.md`, and says what to compare it with. `conversion.py` writes it each time it runs. It says what the tables hold: the traits and how many scores each has, the units, experiments and germplasm, the dates, and the range of each trait. Compare it with what you know. It could show a wrong number of plots, or a trait with impossible values.
 
-The AI asks you to read `tables/contributors.md` too: check every name, ORCID, affiliation and grant in it.
+The AI asks you to read `tables/contributors.yaml` too: check every name, ORCID, affiliation, grant and experiment in it.
 
 ## 9. Have it reviewed
 
@@ -220,8 +234,8 @@ Keep the folder after handing over, too: `raw_data`, the script and the notes ar
 The collection sheet is no longer the recommended way to contribute data, but it is still allowed. It is separate from the steps above: you fill in the tables by hand, with [schema.md](../schema/schema.md) as a guide, and reuse the IDs already used in the [known datasets](datasets.md) you have access to.
 
 1. Download a blank sheet from the [app](https://fababase.github.io/phenotype-database-format/), and fill it in as its *READ ME 1st* sheet says.
-2. Check it in the app, and fix what it reports, until it passes.
-3. Download the tables from the app (*Download tables as CSV*).
-4. Write `contributors.md` by hand, as in [Who to credit](#who-to-credit), and keep it with the tables.
+2. Write `contributors.yaml` by hand, as in [Who to credit](#who-to-credit), in a plain-text editor such as Notepad, not Word.
+3. Check both in the app, uploaded together, and fix what it reports, until they pass.
+4. Download the tables from the app (*Download tables as CSV*). `contributors.yaml` comes with them.
 5. (Optionally) Have a colleague review your filled in collection sheet.
 6. Hand over data, as detailed in step 10 of the above guide.

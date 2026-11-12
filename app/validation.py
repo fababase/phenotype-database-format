@@ -2,12 +2,12 @@
 Checks phenotype database tables against the schema in schema.yaml.
 
 The tables come either as CSV files, one per table and named after it (Germplasm.csv, SeedLot.csv, ...),
-or as one filled-in collection sheet (.xlsx). Checking stops at the first error, with a message that says
-where it is and how to fix it. Warnings point out what is allowed, but more often a mistake, such as a very early
-date; the tables pass with them.
+or as one filled-in collection sheet (.xlsx). With either can come contributors.yaml, which says who to credit, and
+is checked too. Checking stops at the first error, with a message that says where it is and how to fix it.
+Warnings point out what is allowed, but more often a mistake, such as a very early date; the tables pass with them.
 
 From the command line:
-    python validation.py <CSV files, a folder of CSV files, or a .xlsx file> [--out FOLDER]
+    python validation.py <CSV files, a folder of CSV files, or a .xlsx file, and contributors.yaml> [--out FOLDER]
 """
 import argparse
 import csv
@@ -351,7 +351,8 @@ def read_workbook(name: str, path: Path, schema: Schema, notice: Callable[[str],
 def load_files(files: list[tuple[str, Path]], schema: Schema, notice: Callable[[str], None],
                warning: Callable[[str], None]) -> dict[str, RawTable]:
     """
-    Reads the tables from CSV files or one collection sheet.
+    Reads the tables from CSV files or one collection sheet. contributors.yaml may be among the files, and is
+    left for `check_contributors`.
     Parameters:
         files: (file name, path) of each file. The file name says which table a CSV file is.
     Returns:
@@ -360,9 +361,16 @@ def load_files(files: list[tuple[str, Path]], schema: Schema, notice: Callable[[
     if not files:
         raise ValidationError("No files given.")
     for name, _ in files:
-        if Path(name).suffix.lower() not in (".csv", ".xlsx"):
-            raise ValidationError(f"{name} is not a CSV or .xlsx file. "
-                                  "Give one CSV file per table, or one collection sheet (.xlsx).")
+        suffix = Path(name).suffix.lower()
+        if suffix in (".yaml", ".yml") and not is_contributors_file(name):
+            raise ValidationError(f"{name}: the only YAML file the validator reads is {CONTRIBUTORS_FILE}, which "
+                                  "says who to credit. Name it so, or leave it out.")
+        if suffix not in (".csv", ".xlsx") and not is_contributors_file(name):
+            raise ValidationError(f"{name} is not a CSV or .xlsx file. Give one CSV file per table, or one "
+                                  f"collection sheet (.xlsx), and {CONTRIBUTORS_FILE}.")
+    files = [file for file in files if not is_contributors_file(file[0])]
+    if not files:
+        raise ValidationError("No tables given. Give one CSV file per table, or one collection sheet (.xlsx).")
     workbooks = [file for file in files if Path(file[0]).suffix.lower() == ".xlsx"]
     if workbooks and len(files) > 1:
         raise ValidationError("Give either one collection sheet (.xlsx) or CSV files, not both or several workbooks.")
@@ -484,10 +492,14 @@ def character_name(c: str) -> str:
     return f"the invisible character U+{ord(c):04X}" + (f" ({name.lower()})" if name else "")
 
 
+def joined(words: list[str] | tuple[str, ...]) -> str:
+    """Words joined as in a sentence, such as "a, b and c"."""
+    return words[0] if len(words) == 1 else f"{', '.join(words[:-1])} and {words[-1]}"
+
+
 def character_names(characters: list[str]) -> str:
     """Characters named in a list, such as "'-', '/' and a space"."""
-    names = [character_name(c) for c in characters]
-    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+    return joined([character_name(c) for c in characters])
 
 
 def id_problem(value: str) -> str | None:
@@ -954,6 +966,285 @@ RULES: dict[str, Callable[[dict[str, Table]], None]] = {
 }
 
 
+# ---------------------------------------------------------------- Who to credit
+
+# The file that says who to credit, handed over with the tables, in the format given in "Who to credit" in
+# docs/submit-data.md. A contribution and a merge of contributions have the same format.
+CONTRIBUTORS_FILE = "contributors.yaml"
+# Written where something does not exist, so that it can be told from something forgotten
+NONE = "none"
+# The keys of the file, and of each person, affiliation and grant in it
+CONTRIBUTORS_KEYS = ("people", "funding")
+PERSON_KEYS = ("family_name", "given_names", "orcid", "affiliations", "experiments")
+AFFILIATION_KEYS = ("name", "ror")
+GRANT_KEYS = ("funder", "ror", "grant_number", "grant_title", "experiments")
+# The keys that can be none
+CAN_BE_NONE = {"funding", "given_names", "orcid", "affiliations", "ror", "grant_number", "grant_title"}
+# An ORCID iD: four groups of four digits joined by '-', where the last is a check digit, which can be X
+ORCID = re.compile(r"[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]")
+# A ROR ID: 0, six characters of Crockford's base 32 in lower case, and two check digits
+CROCKFORD = "0123456789abcdefghjkmnpqrstvwxyz"
+ROR = re.compile(f"0[{CROCKFORD}]{{6}}[0-9]{{2}}")
+YAML_HINT = ("Check the indentation, which is with spaces, not tabs, and that each key ends with ':' and each item "
+             "of a list starts with '- '. Put a value in double quotes if it holds ': ' or ' #', or starts with a "
+             "symbol.")
+
+
+@dataclass
+class Affiliation:
+    name: str
+    ror: str | None  # None where the institution has no ROR ID
+
+
+@dataclass
+class Person:
+    family_name: str
+    given_names: str | None  # None where the person has none
+    orcid: str | None        # None where the person has no ORCID iD
+    affiliations: list[Affiliation]  # empty where the person has none
+    experiments: list[str]   # the EXPIDs of the experiments the person is behind
+
+
+@dataclass
+class Grant:
+    funder: str
+    ror: str | None          # None where the funder has no ROR ID
+    grant_number: str | None
+    grant_title: str | None
+    experiments: list[str]   # the EXPIDs of the experiments the grant paid for
+
+
+@dataclass
+class Contributors:
+    """Who to credit, as checked from contributors.yaml."""
+    source: str
+    text: str                # the file as given, which is written out unchanged
+    people: list[Person]
+    funding: list[Grant]     # empty where there was no specific funding
+
+
+def is_contributors_file(name: str) -> bool:
+    """Whether a file is contributors.yaml, with its name in any case."""
+    return Path(name).name.lower() == CONTRIBUTORS_FILE
+
+
+def orcid_problem(value: str) -> str | None:
+    """What is wrong with an ORCID iD, or None if nothing is. Its check digit is worked out as ISO 7064 11,2."""
+    if ORCID.fullmatch(value):
+        digits = value.replace("-", "")
+        total = 0
+        for digit in digits[:-1]:
+            total = (total + int(digit)) * 2
+        check = (12 - total % 11) % 11
+        if digits[-1] == ("X" if check == 10 else str(check)):
+            return None
+        return (f"'{value}' is not an ORCID iD: its last character, which checks the others, does not fit them. "
+                "Copy it again from orcid.org.")
+    bare = re.sub(r"^(https?://)?(www\.)?orcid\.org/", "", value)
+    if bare != value and orcid_problem(bare) is None:
+        return f"'{value}' is a link. Write the ORCID iD alone: {bare}"
+    if value != value.upper() and orcid_problem(value.upper()) is None:
+        return f"'{value}' ends in a small x. Write it as a capital: {value.upper()}"
+    return (f"'{value}' is not an ORCID iD, which is four groups of four digits joined by '-', where the last "
+            f"character can also be X. Write {NONE} if the person has none.")
+
+
+def ror_problem(value: str) -> str | None:
+    """What is wrong with a ROR ID, or None if nothing is. Its check digits are worked out as ISO 7064 97,10."""
+    if ROR.fullmatch(value):
+        number = 0
+        for c in value[1:7]:
+            number = number * 32 + CROCKFORD.index(c)
+        if int(value[7:]) == 98 - number * 100 % 97:
+            return None
+        return (f"'{value}' is not a ROR ID: its last two digits, which check the others, do not fit them. "
+                "Copy it again from ror.org.")
+    bare = re.sub(r"^(https?://)?(www\.)?ror\.org/", "", value)
+    if bare != value and ror_problem(bare) is None:
+        return f"'{value}' is a link. Write the ROR ID alone: {bare}"
+    if value != value.lower() and ror_problem(value.lower()) is None:
+        return f"'{value}' has capital letters. Write it in small letters: {value.lower()}"
+    return (f"'{value}' is not a ROR ID, which is 9 characters: 0, six letters and digits, and two digits. Look it "
+            f"up at ror.org, or write {NONE} if there is none.")
+
+
+def at(source: str, node: yaml.Node) -> str:
+    """Where a value in contributors.yaml is, for messages."""
+    return f"{source}, line {node.start_mark.line + 1}"
+
+
+def yaml_mapping(source: str, node: yaml.Node, keys: tuple[str, ...], what: str) -> dict[str, yaml.Node]:
+    """
+    The values of keys, which have to be there once each, in any order, with no other keys.
+    what names the thing they belong to in messages, such as "a person".
+    """
+    if not isinstance(node, yaml.MappingNode):
+        raise ValidationError(f"{at(source, node)}: {what} is not written as keys with their values. Write the keys "
+                              f"{joined(keys)}, each on a line of its own, followed by ':' and its value.")
+    found = {}
+    for key, value in node.value:
+        name = key.value if isinstance(key, yaml.ScalarNode) else ""
+        if name not in keys:
+            close = difflib.get_close_matches(name.lower(), keys, n=1)
+            hint = f"Did you mean '{close[0]}'?" if close else f"The keys of {what} are {joined(keys)}."
+            raise ValidationError(f"{at(source, key)}: '{name}' is not a key of {what}. {hint}")
+        if name in found:
+            raise ValidationError(f"{at(source, key)}: '{name}' appears twice in {what}. Keep only one.")
+        found[name] = value
+    for name in keys:
+        if name not in found:
+            hint = f", or write {name}: {NONE} if there is none" if name in CAN_BE_NONE else ""
+            raise ValidationError(f"{at(source, node)}: {what} has no '{name}'. Add it{hint}.")
+    return found
+
+
+def yaml_text(source: str, node: yaml.Node, key: str, what: str = "") -> str | None:
+    """
+    The value of key: one line of text, as written. None where it is none, if key can be none.
+    what names the value in messages, if not key.
+    """
+    what = what or key
+    if not isinstance(node, yaml.ScalarNode):
+        raise ValidationError(f"{at(source, node)}: {what} has to be one value, on the same line as '{key}:'.")
+    value = node.value
+    if value == NONE and key in CAN_BE_NONE:
+        return None
+    if not value.strip():
+        hint = f", or write {NONE} if there is none" if key in CAN_BE_NONE else ""
+        raise ValidationError(f"{at(source, node)}: {what} is empty. Fill it in{hint}.")
+    if value.lower() == NONE:
+        if key in CAN_BE_NONE:
+            raise ValidationError(f"{at(source, node)}: write '{value}' as {NONE}, in small letters.")
+        raise ValidationError(f"{at(source, node)}: {what} cannot be {NONE}. Fill it in.")
+    if value != value.strip():
+        raise ValidationError(f"{at(source, node)}: '{value}' has spaces before or after it. Remove them.")
+    bad = [c for c in dict.fromkeys(value) if not c.isprintable()]
+    if bad:
+        raise ValidationError(f"{at(source, node)}: {what} contains {character_names(bad)}. Write it on one line, "
+                              "without such characters.")
+    return value
+
+
+def yaml_list(source: str, node: yaml.Node, key: str) -> list[yaml.Node]:
+    """The items of the list that is the value of key. An empty list where it is none, if key can be none."""
+    if key in CAN_BE_NONE and isinstance(node, yaml.ScalarNode) and node.value == NONE:
+        return []
+    if not isinstance(node, yaml.SequenceNode) or not node.value:
+        hint = f", or {NONE} if there is none" if key in CAN_BE_NONE else ""
+        raise ValidationError(f"{at(source, node)}: {key} has to be a list of at least one item, each on a line of "
+                              f"its own that starts with '- '{hint}.")
+    return node.value
+
+
+def yaml_id(source: str, node: yaml.Node, key: str, problem: Callable[[str], str | None]) -> str | None:
+    """The value of key, an ORCID iD or a ROR ID, which problem checks. None where it is none."""
+    value = yaml_text(source, node, key)
+    message = value and problem(value)
+    if message:
+        raise ValidationError(f"{at(source, node)}: {message}")
+    return value
+
+
+def yaml_experiments(source: str, node: yaml.Node, experiments: Table) -> list[str]:
+    """The EXPIDs listed under experiments, each of which has to be in the Experiment table, once."""
+    expids = set(experiments.values("EXPID"))
+    loose = {expid.lower(): expid for expid in expids}
+    found = []
+    for item in yaml_list(source, node, "experiments"):
+        expid = yaml_text(source, item, "experiments", "an item of experiments")
+        if expid not in expids:
+            near = loose.get(expid.lower())
+            hint = f"Did you mean '{near}'?" if near else "Check the spelling."
+            raise ValidationError(f"{at(source, item)}: '{expid}' is not an EXPID in {experiments.source}. "
+                                  f"EXPIDs have to match exactly, character for character. {hint}")
+        if expid in found:
+            raise ValidationError(f"{at(source, item)}: '{expid}' is listed twice. Keep only one.")
+        found.append(expid)
+    return found
+
+
+def read_person(source: str, node: yaml.Node, experiments: Table) -> Person:
+    values = yaml_mapping(source, node, PERSON_KEYS, "a person")
+    family_name = yaml_text(source, values["family_name"], "family_name")
+    given_names = yaml_text(source, values["given_names"], "given_names")
+    orcid = yaml_id(source, values["orcid"], "orcid", orcid_problem)
+    affiliations = []
+    for item in yaml_list(source, values["affiliations"], "affiliations"):
+        names = yaml_mapping(source, item, AFFILIATION_KEYS, "an affiliation")
+        affiliation = Affiliation(yaml_text(source, names["name"], "name"),
+                                  yaml_id(source, names["ror"], "ror", ror_problem))
+        if any(other.name == affiliation.name or (affiliation.ror and other.ror == affiliation.ror)
+               for other in affiliations):
+            raise ValidationError(f"{at(source, item)}: {affiliation.name} is listed twice for this person. "
+                                  "Keep only one.")
+        affiliations.append(affiliation)
+    return Person(family_name, given_names, orcid, affiliations,
+                  yaml_experiments(source, values["experiments"], experiments))
+
+
+def read_grant(source: str, node: yaml.Node, experiments: Table) -> Grant:
+    values = yaml_mapping(source, node, GRANT_KEYS, "a grant")
+    return Grant(yaml_text(source, values["funder"], "funder"),
+                 yaml_id(source, values["ror"], "ror", ror_problem),
+                 yaml_text(source, values["grant_number"], "grant_number"),
+                 yaml_text(source, values["grant_title"], "grant_title"),
+                 yaml_experiments(source, values["experiments"], experiments))
+
+
+def check_contributors(source: str, content: bytes, experiments: Table) -> Contributors:
+    """
+    Checks contributors.yaml, which says who to credit, against its format, in "Who to credit" in
+    docs/submit-data.md. It is read as text throughout, so that YAML never turns a value into something else, such
+    as 0123 into 83 or no into false. Each experiment it lists has to be in the Experiment table, and each
+    experiment there needs at least one person.
+    Parameters:
+        source: the file's name, for messages.
+        content: the file's content.
+        experiments: the Experiment table, checked.
+    """
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise ValidationError(f"{source}: could not read the text of the file. Save it as UTF-8.") from None
+    try:
+        root = yaml.compose(text, Loader=yaml.BaseLoader)
+    except yaml.YAMLError as e:
+        mark = getattr(e, "problem_mark", None)
+        where = f", line {mark.line + 1}" if mark else ""
+        problem = ", ".join(part for part in (getattr(e, "context", None), getattr(e, "problem", None)) if part)
+        raise ValidationError(f"{source}{where}: could not read it as YAML ({problem or e}). {YAML_HINT}") from None
+    if root is None:
+        raise ValidationError(f"{source} is empty. Write who to credit in it: the people and the funding.")
+    values = yaml_mapping(source, root, CONTRIBUTORS_KEYS, "the file")
+
+    people = []
+    lines = {}  # ORCID iD -> the line its person starts on
+    for item in yaml_list(source, values["people"], "people"):
+        person = read_person(source, item, experiments)
+        if person.orcid in lines:
+            raise ValidationError(f"{at(source, item)}: the ORCID iD {person.orcid} is also that of the person on "
+                                  f"line {lines[person.orcid]}. List each person once.")
+        if person.orcid:
+            lines[person.orcid] = item.start_mark.line + 1
+        people.append(person)
+
+    funding = []
+    for item in yaml_list(source, values["funding"], "funding"):
+        grant = read_grant(source, item, experiments)
+        if grant.grant_number and any(other.funder == grant.funder and other.grant_number == grant.grant_number
+                                      for other in funding):
+            raise ValidationError(f"{at(source, item)}: grant {grant.grant_number} of {grant.funder} is listed "
+                                  "twice. List each grant once.")
+        funding.append(grant)
+
+    credited = {expid for person in people for expid in person.experiments}
+    expids = experiments.data["EXPID"]
+    fail_first(experiments, "EXPID", ~expids.isin(credited), lambda i: (
+        f"nobody in {source} is behind experiment '{expids.iat[i]}'. List it under the experiments of each person "
+        "behind it."))
+    return Contributors(source, text, people, funding)
+
+
 # ---------------------------------------------------------------- Validation
 
 def validate(raws: dict[str, RawTable], schema: Schema, notice: Callable[[str], None] = lambda message: None,
@@ -996,26 +1287,56 @@ def validate(raws: dict[str, RawTable], schema: Schema, notice: Callable[[str], 
     return tables
 
 
+@dataclass
+class Checked:
+    """What passed: the tables, and who to credit, if contributors.yaml was given."""
+    tables: dict[str, Table]
+    contributors: Contributors | None
+
+
 def validate_files(files: list[tuple[str, Path]], schema: Schema | None = None,
                    notice: Callable[[str], None] = lambda message: None,
-                   warning: Callable[[str], None] = lambda message: None) -> dict[str, Table]:
-    """Reads the tables from CSV files or one collection sheet, and checks them. See `load_files` and `validate`."""
+                   warning: Callable[[str], None] = lambda message: None) -> Checked:
+    """
+    Reads the tables from CSV files or one collection sheet, and checks them, and then contributors.yaml, if it is
+    among the files. See `load_files`, `validate` and `check_contributors`.
+    """
     schema = schema or load_schema()
-    return validate(load_files(files, schema, notice, warning), schema, notice, warning)
+    credit = [file for file in files if is_contributors_file(file[0])]
+    if len(credit) > 1:
+        raise ValidationError(f"{credit[0][0]} and {credit[1][0]} are both {CONTRIBUTORS_FILE}. Keep only one.")
+    tables = validate(load_files(files, schema, notice, warning), schema, notice, warning)
+    if not credit:
+        notice(f"There is no {CONTRIBUTORS_FILE}, so who to credit was not checked.")
+        return Checked(tables, None)
+    name, path = credit[0]
+    return Checked(tables, check_contributors(name, path.read_bytes(), tables["Experiment"]))
 
 
-def summary(tables: dict[str, Table], schema: Schema) -> list[str]:
-    """Lines saying that the tables passed, and how many rows each has."""
-    return ([f"Validation successful! All {len(tables)} tables pass schema version {schema.version}."]
-            + [f"{table.name}: {len(table.data)} row{'' if len(table.data) == 1 else 's'}, from {table.source}"
-               for table in tables.values()])
+def plural(count: int, one: str, many: str) -> str:
+    return f"{count} {one if count == 1 else many}"
 
 
-def write_tables(tables: dict[str, Table], folder: Path) -> None:
-    """Writes each table to <folder>/<table>.csv, in UTF-8."""
+def summary(checked: Checked, schema: Schema) -> list[str]:
+    """Lines saying that the tables passed, how many rows each has, and how many people and grants are credited."""
+    tables = checked.tables
+    lines = ([f"Validation successful! All {len(tables)} tables pass schema version {schema.version}."]
+             + [f"{table.name}: {plural(len(table.data), 'row', 'rows')}, from {table.source}"
+                for table in tables.values()])
+    if checked.contributors:
+        credit = checked.contributors
+        lines.append(f"Who to credit: {plural(len(credit.people), 'person', 'people')} and "
+                     f"{plural(len(credit.funding), 'grant', 'grants')}, from {credit.source}")
+    return lines
+
+
+def write_files(checked: Checked, folder: Path) -> None:
+    """Writes each table to <folder>/<table>.csv, in UTF-8, and contributors.yaml as it was given, if it was."""
     folder.mkdir(parents=True, exist_ok=True)
-    for name, table in tables.items():
+    for name, table in checked.tables.items():
         (folder / f"{name}.csv").write_text(table.to_csv(), encoding="utf-8", newline="")
+    if checked.contributors:
+        (folder / CONTRIBUTORS_FILE).write_text(checked.contributors.text, encoding="utf-8", newline="")
 
 
 def tested_versions(path: Path = REQUIREMENTS_FILE) -> dict[str, str]:
@@ -1046,20 +1367,22 @@ def version_notices(path: Path = REQUIREMENTS_FILE) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Check phenotype database tables against the schema. "
-                                                 "Stops at the first error.")
+    parser = argparse.ArgumentParser(description="Check phenotype database tables, and who to credit, against the "
+                                                 "schema. Stops at the first error.")
     parser.add_argument("paths", nargs="+", type=Path,
-                        help="CSV files named after their tables, a folder of them, or one collection sheet (.xlsx)")
+                        help="CSV files named after their tables, or one collection sheet (.xlsx), and "
+                             f"{CONTRIBUTORS_FILE}; or a folder of them")
     parser.add_argument("--out", type=Path,
                         help="if the tables pass, write them to this folder as CSV files "
-                             "(UTF-8, comma-separated, dates YYYY-MM-DD)")
+                             f"(UTF-8, comma-separated, dates YYYY-MM-DD), with {CONTRIBUTORS_FILE} as it was given")
     args = parser.parse_args(argv)
 
     files = []
     for path in args.paths:
         if path.is_dir():
             files += [(p.name, p) for p in sorted(path.iterdir())
-                      if p.suffix.lower() in (".csv", ".xlsx") and not p.name.startswith("~$")]
+                      if (p.suffix.lower() in (".csv", ".xlsx") or is_contributors_file(p.name))
+                      and not p.name.startswith("~$")]
         elif path.is_file():
             files.append((path.name, path))
         else:
@@ -1072,14 +1395,14 @@ def main(argv: list[str] | None = None) -> int:
     for notice in version_notices():
         print(f"Notice: {notice}")
     try:
-        tables = validate_files(files, schema, notice=lambda message: print(f"Notice: {message}"),
-                                warning=lambda message: print(f"Warning: {message}"))
+        checked = validate_files(files, schema, notice=lambda message: print(f"Notice: {message}"),
+                                 warning=lambda message: print(f"Warning: {message}"))
     except ValidationError as e:
         print(f"Validation failed: {e}")
         return 1
-    print("\n".join(summary(tables, schema)))
+    print("\n".join(summary(checked, schema)))
     if args.out:
-        write_tables(tables, args.out)
+        write_files(checked, args.out)
         print(f"Wrote the tables to {args.out}")
     return 0
 

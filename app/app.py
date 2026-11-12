@@ -5,7 +5,8 @@ from pathlib import Path
 from shiny import App, reactive, render, ui
 
 import collection_sheet
-from validation import Table, ValidationError, load_schema, summary, validate_files, version_notices
+from validation import (CONTRIBUTORS_FILE, Checked, ValidationError, load_schema, summary, validate_files,
+                        version_notices)
 
 SCHEMA = load_schema()
 
@@ -15,11 +16,12 @@ app_ui = ui.page_fluid(
         ui.card(
             ui.h2("Phenotype data validator"),
             ui.p("Upload one CSV file per table, named after the table (Germplasm.csv, SeedLot.csv, …), "
-                 "or a filled-in collection sheet (.xlsx)."),
+                 f"or a filled-in collection sheet (.xlsx). Add {CONTRIBUTORS_FILE}, which says who to credit, "
+                 "to check it too."),
             ui.div(ui.download_button("download_sheet", "Download a blank collection sheet")),
             *(ui.p(f"Notice: {notice}") for notice in version_notices()),
             ui.hr(),
-            ui.input_file("files", "Choose files", multiple=True, accept=[".csv", ".xlsx"]),
+            ui.input_file("files", "Choose files", multiple=True, accept=[".csv", ".xlsx", ".yaml"]),
             ui.hr(),
             ui.output_ui("reactive_message"),
             ui.output_ui("download_ui"),
@@ -39,37 +41,40 @@ app_ui = ui.page_fluid(
 def server(input, output, session):
 
     @reactive.calc
-    def validation_result() -> tuple[list[str], dict[str, Table]]:
-        """Validates the uploaded files. Returns the message lines and the checked tables (empty if validation failed)."""
+    def validation_result() -> tuple[list[str], Checked | None]:
+        """Validates the uploaded files. Returns the message lines and what passed (None if validation failed)."""
         uploads = input.files()
         if not uploads:
-            return ["Upload your files please."], {}
+            return ["Upload your files please."], None
         lines = []
         files = [(upload["name"], Path(upload["datapath"])) for upload in uploads]
         try:
-            tables = validate_files(files, SCHEMA, notice=lambda msg: lines.append(f"Notice: {msg}"),
-                                    warning=lambda msg: lines.append(f"Warning: {msg}"))
+            checked = validate_files(files, SCHEMA, notice=lambda msg: lines.append(f"Notice: {msg}"),
+                                     warning=lambda msg: lines.append(f"Warning: {msg}"))
         except ValidationError as e:
             lines.append(f"Validation failed: {e}")
-            return lines, {}
+            return lines, None
         except Exception as e:
             lines.append(f"An error occurred: {e}")
             lines.append("Please contact the developer.")
-            return lines, {}
-        return lines + summary(tables, SCHEMA), tables
+            return lines, None
+        return lines + summary(checked, SCHEMA), checked
 
     # Downloading a blank collection sheet, built from the schema the app checks against
     @render.download(filename="collection-sheet.xlsx")
     def download_sheet():
         yield collection_sheet.build(SCHEMA)
 
-    # Downloading the checked tables as CSV files
+    # Downloading the checked tables as CSV files, with contributors.yaml as it was uploaded
     @render.download(filename="tables.zip")
     def download_zip():
+        checked = validation_result()[1]
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-            for name, table in validation_result()[1].items():
+            for name, table in checked.tables.items():
                 archive.writestr(f"{name}.csv", table.to_csv())
+            if checked.contributors:
+                archive.writestr(CONTRIBUTORS_FILE, checked.contributors.text)
         yield buffer.getvalue()
 
     @render.ui

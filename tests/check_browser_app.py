@@ -5,9 +5,9 @@ Checks the browser app that the deploy Action builds, before it is published. No
 
 Checks that the packages bundled with the app are the versions in app/requirements.txt. Then opens the app in a
 browser and checks that it starts without notices, so it runs those versions, and that it shows the same messages
-as the validator run here: for the valid dataset as CSV files, whose tables it then downloads, and for the blank
-collection sheet, which it downloads from the app first and checks against one built here. Needs playwright and
-its Chromium.
+as the validator run here: for the valid dataset as CSV files and contributors.yaml, which it then hands back, and
+for the blank collection sheet, which it downloads from the app first and checks against one built here. Needs
+playwright and its Chromium.
 """
 import functools
 import http.server
@@ -26,8 +26,8 @@ TESTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TESTS.parent / "app"))
 
 import collection_sheet  # noqa: E402
-from validation import (Table, ValidationError, load_schema, summary, tested_versions,  # noqa: E402
-                        validate_files)
+from validation import (CONTRIBUTORS_FILE, Checked, ValidationError, load_schema, summary,  # noqa: E402
+                        tested_versions, validate_files)
 
 SCHEMA = load_schema()
 DOWNLOAD_SHEET = "Download a blank collection sheet"
@@ -40,15 +40,23 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
-def expected(paths: list[Path]) -> tuple[list[str], dict[str, Table]]:
-    """The message lines the app should show for these files, and the tables it should hand back."""
+def expected(paths: list[Path]) -> tuple[list[str], Checked | None]:
+    """The message lines the app should show for these files, and what passed, which it should hand back."""
     lines = []
     try:
-        tables = validate_files([(path.name, path) for path in paths], SCHEMA,
-                                notice=lambda message: lines.append(f"Notice: {message}"))
+        checked = validate_files([(path.name, path) for path in paths], SCHEMA,
+                                 notice=lambda message: lines.append(f"Notice: {message}"))
     except ValidationError as e:
-        return lines + [f"Validation failed: {e}"], {}
-    return lines + summary(tables, SCHEMA), tables
+        return lines + [f"Validation failed: {e}"], None
+    return lines + summary(checked, SCHEMA), checked
+
+
+def handed_back(checked: Checked) -> dict[str, str]:
+    """The files the app should hand back for what passed, by name."""
+    files = {f"{name}.csv": table.to_csv() for name, table in checked.tables.items()}
+    if checked.contributors:
+        files[CONTRIBUTORS_FILE] = checked.contributors.text
+    return files
 
 
 def sheet_values(content: bytes) -> dict[str, list[tuple]]:
@@ -100,15 +108,15 @@ def main(site: str) -> None:
         print("The app hands out the blank collection sheet.")
 
         for paths in [sorted((TESTS / "valid").iterdir()), [blank]]:
-            lines, tables = expected(paths)
+            lines, checked = expected(paths)
             app.locator("input[type=file]").set_input_files(paths)
             expect(app.locator("#reactive_message > div")).to_have_text(lines, timeout=TIMEOUT)
-            if tables:
+            if checked:
                 with page.expect_download(timeout=TIMEOUT) as download:
                     app.get_by_text("Download tables as CSV").click()
                 with zipfile.ZipFile(download.value.path()) as archive:
                     downloaded = {name: archive.read(name).decode("utf-8") for name in archive.namelist()}
-                assert downloaded == {f"{name}.csv": table.to_csv() for name, table in tables.items()}
+                assert downloaded == handed_back(checked)
             print(f"{len(paths)} file(s): {next(line for line in lines if line.startswith('Validation'))}")
         browser.close()
     server.shutdown()

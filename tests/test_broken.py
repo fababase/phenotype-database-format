@@ -40,7 +40,7 @@ def test_no_files():
 def test_file_of_another_type(dataset, name):
     dataset.rename_file("Germplasm", name)
     fails(dataset.files(), f"{name} is not a CSV or .xlsx file. "
-                           "Give one CSV file per table, or one collection sheet (.xlsx).")
+                           "Give one CSV file per table, or one collection sheet (.xlsx), and contributors.yaml.")
 
 
 def test_csv_files_and_a_workbook(dataset, tmp_path):

@@ -28,13 +28,15 @@ The validator checks a set of tables against the [schema](schema/schema.yaml). G
 - one CSV file per table, named after the table: `Germplasm.csv`, `SeedLot.csv`.
 - or one filled-in collection sheet.
 
+With either, give it `contributors.yaml`, which says who to credit (see [Who to credit](docs/submit-data.md#who-to-credit)), and it checks that too.
+
 It stops at the first problem it finds and says where it is and sometimes how to fix it, for example:
 
 ```
 Climate.csv, row 2, column Score: '11,7167' has ','. Numbers have '.' as the decimal mark and no thousands separator, so write 11.7167
 ```
 
-When everything passes, it can hand back the tables as clean CSV files, (hopefully) ready for upload to the database.
+When everything passes, it can hand back the tables as clean CSV files, with `contributors.yaml` as it was given, (hopefully) ready for upload to the database.
 
 **From the command line** (see [Running locally](#running-locally) for the setup):
 
