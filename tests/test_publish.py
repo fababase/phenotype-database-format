@@ -341,7 +341,7 @@ def test_first_version(merge, zenodo):
                       "format": SCHEMA.version}]}
     assert zenodo.drafts() == [FIRST]
     draft = zenodo.records[FIRST]
-    assert zenodo.content(FIRST) == {name: (merge.folder / name).read_bytes() for name in NAMES}
+    assert zenodo.content(FIRST) == {name: (merge.files / name).read_bytes() for name in NAMES}
     assert draft["metadata"] == metadata(merge, publish.Release(TODAY, doi, CONCEPT))
     assert draft["access"] == {"record": "public", "files": "public"}
     assert draft["settings"] == {"enabled": True, "default_preview": "README.md", "order": NAMES}
@@ -365,8 +365,8 @@ def test_running_again_takes_up_the_same_draft(merge, zenodo):
     lines = run(merge, zenodo, said=said)
     assert lines[0].endswith(f"/uploads/{FIRST}")
     assert zenodo.drafts() == [FIRST]
-    assert said == [f"Uploading Phenotype.csv, {(merge.folder / 'Phenotype.csv').stat().st_size:,} bytes."]
-    assert zenodo.content(FIRST) == {name: (merge.folder / name).read_bytes() for name in NAMES}
+    assert said == [f"Uploading Phenotype.csv, {(merge.files / 'Phenotype.csv').stat().st_size:,} bytes."]
+    assert zenodo.content(FIRST) == {name: (merge.files / name).read_bytes() for name in NAMES}
     assert [request for request in zenodo.requests if request[0] != "GET"] == [
         ("DELETE", f"/api/records/{FIRST}/draft/files/Phenotype.csv"),
         ("POST", f"/api/records/{FIRST}/draft/files"),
@@ -384,7 +384,7 @@ def test_after_publishing(merge, zenodo):
     zenodo.requests.clear()
     assert run(merge, zenodo) == [
         f"Version 1 of Nordbean test dataset is published: https://doi.org/10.5072/zenodo.{FIRST}. Its files are "
-        f"those in {merge.folder}. There is nothing more to upload.",
+        f"those in {merge.files}. There is nothing more to upload.",
         "This was the sandbox, for trying things out.",
     ]
     assert all(method == "GET" for method, _ in zenodo.requests)
@@ -404,9 +404,9 @@ def test_after_publishing_on_zenodo_itself(tmp_path, zenodo, monkeypatch):
 def test_published_files_that_are_not_those_in_the_folder(merge, zenodo):
     run(merge, zenodo)
     zenodo.publish(FIRST)
-    (merge.folder / "README.md").write_text("Changed after publishing\n", encoding="utf-8")
+    (merge.files / "README.md").write_text("Changed after publishing\n", encoding="utf-8")
     assert fails(merge, zenodo) == (f"Version 1 is published on Zenodo, but its files are not those in "
-                                    f"{merge.folder}: README.md differs. The next version compares with those files, "
+                                    f"{merge.files}: README.md differs. The next version compares with those files, "
                                     "so make them what was published.")
 
 
@@ -428,7 +428,7 @@ def test_second_version(tmp_path, zenodo):
         {"version": "2", "folder": second.folder.name, "id": SECOND, "doi": doi, "date": TODAY,
          "format": SCHEMA.version}]
     assert zenodo.records[SECOND]["parent"] == PARENT
-    assert zenodo.content(SECOND) == {name: (second.folder / name).read_bytes() for name in NAMES}
+    assert zenodo.content(SECOND) == {name: (second.files / name).read_bytes() for name in NAMES}
     assert zenodo.records[SECOND]["metadata"] == metadata(second, publish.Release(TODAY, doi, CONCEPT))
     assert second.section("What changed in this version").startswith(
         f"Corrections.\n\nCompared with version 1, published {TODAY}: "
@@ -447,10 +447,10 @@ def test_another_version_was_published_since(tmp_path, zenodo):
 
 def test_the_last_version_does_not_hold_what_was_published(tmp_path, zenodo):
     first = published_first(tmp_path, zenodo)
-    (first.folder / "Germplasm.csv").write_text("GPID\n", encoding="utf-8")
-    (first.folder / "README.md").unlink()
+    (first.files / "Germplasm.csv").write_text("GPID\n", encoding="utf-8")
+    (first.files / "README.md").unlink()
     assert fails(next_merge(tmp_path), zenodo) == (
-        f"The files of version 1 on Zenodo are not those in {first.folder}: Germplasm.csv differs, README.md is only "
+        f"The files of version 1 on Zenodo are not those in {first.files}: Germplasm.csv differs, README.md is only "
         "on Zenodo. What changed since it is worked out from those files, so they have to be what was published.")
 
 

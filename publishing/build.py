@@ -22,14 +22,14 @@ It reads, in the dataset folder:
 
 and, in the folder of the version:
 
-    <Table>.csv        the merged tables, one file per table of the format, written by merge.py
-    contributors.yaml  who to credit, written by merge.py
-    crosswalk.csv      the IDs that merge.py changed in each contribution
-    changes.md         what changed in this version, and why, for the people who use the data
+    zenodo/<Table>.csv  the merged tables, one file per table of the format, written by merge.py
+    contributors.yaml   who to credit, written by merge.py
+    crosswalk.csv       the IDs that merge.py changed in each contribution
+    changes.md          what changed in this version, and why, for the people who use the data
 
 and the folder of the last version, to say what changed since it, which follows from the tables and the crosswalks
-of the two. It checks the tables with the validator, and writes README.md in the folder of the version. The README
-and the tables are the files of the version on Zenodo, and nothing else.
+of the two. It checks the tables with the validator, and writes README.md in zenodo/ in the folder of the version,
+which then holds exactly what goes on Zenodo: the README and the tables, and nothing else.
 
 Run on its own, it builds a preview: the date and DOI of a version are only known when publish.py uploads it, and
 publish.py then builds the README again with them. A preview never replaces the README of a version that is on
@@ -67,6 +67,8 @@ VERSIONS = "Versions"
 # In the folder of a version
 CROSSWALK = "crosswalk.csv"
 CHANGES = "changes.md"
+# The subfolder that holds exactly what goes on Zenodo: the README and the tables
+FILES = "zenodo"
 README = "README.md"
 
 DATASET_KEYS = ("title", "access")
@@ -276,10 +278,10 @@ def read_previous(dataset: Dataset, version: Version) -> Previous:
     if not folder.is_dir():
         raise BuildError(f"There is no folder {folder}, which holds version {version.number}, as {dataset.state} "
                          "says. The folder of a version is kept, as the next version compares with it.")
-    tables = {path.stem: read_csv(path) for path in sorted(folder.glob("*.csv")) if path.name != CROSSWALK}
+    tables = {path.stem: read_csv(path) for path in sorted((folder / FILES).glob("*.csv"))}
     if not tables:
-        raise BuildError(f"There are no tables in {folder}, which holds version {version.number}. The folder of a "
-                         "version is kept as it was, as the next version compares with it.")
+        raise BuildError(f"There are no tables in {folder / FILES}, which holds version {version.number}. The folder "
+                         "of a version is kept as it was, as the next version compares with it.")
     credit_path = folder / CONTRIBUTORS_FILE
     if not credit_path.is_file():
         raise BuildError(f"There is no {CONTRIBUTORS_FILE} in {folder}, which says who made version "
@@ -893,8 +895,8 @@ def build(folder: Path, commit: str, release: Release | None = None, state: str 
         release: the date and DOIs of the version, which publish.py gives; None for a preview.
         state: the file in the dataset folder that lists the versions: zenodo.yaml, or the sandbox's.
         notice, warning: called with the validator's notices and warnings.
-        out: the folder to write README.md in, in place of the version's; publish.py builds in another one first,
-            as a check.
+        out: the folder to write README.md in, in place of the version's zenodo/; publish.py builds in another one
+            first, as a check.
     Raises:
         ValidationError: if the tables or contributors.yaml do not pass the validator.
         BuildError: if something else is missing or does not fit together.
@@ -917,17 +919,21 @@ def build(folder: Path, commit: str, release: Release | None = None, state: str 
         raise BuildError(f"The DOI of all versions is {release.concept_doi} on Zenodo, but {dataset.doi} in "
                          f"{dataset.state}.")
 
-    missing = [name for name in schema.tables if not (folder / f"{name}.csv").is_file()]
+    files_folder = folder / FILES
+    if not files_folder.is_dir():
+        raise BuildError(f"There is no {FILES} folder in {folder}. merge.py writes the tables in it, one CSV file per "
+                         "table of the format, and build.py writes the README: it holds exactly what goes on Zenodo.")
+    missing = [name for name in schema.tables if not (files_folder / f"{name}.csv").is_file()]
     if missing:
-        raise BuildError(f"There is no {missing[0]}.csv in {folder}. merge.py writes every table of the format, a "
-                         "table without rows as a file with only the column names.")
-    files = [(f"{name}.csv", folder / f"{name}.csv") for name in schema.tables]
+        raise BuildError(f"There is no {missing[0]}.csv in {files_folder}. merge.py writes every table of the format "
+                         "there, a table without rows as a file with only the column names.")
+    files = [(f"{name}.csv", files_folder / f"{name}.csv") for name in schema.tables]
     if (folder / CONTRIBUTORS_FILE).is_file():
         files.append((CONTRIBUTORS_FILE, folder / CONTRIBUTORS_FILE))
     checked = validate_files(files, schema, notice, warning)
     if checked.contributors is None:
         raise BuildError(f"There is no {CONTRIBUTORS_FILE} in {folder}. merge.py writes it, with who to credit.")
-    frames = published_tables(checked, folder)
+    frames = published_tables(checked, files_folder)
     people = sorted(checked.contributors.people,
                     key=lambda p: (p.family_name.casefold(), (p.given_names or "").casefold()))
     funding = checked.contributors.funding
@@ -965,7 +971,7 @@ def build(folder: Path, commit: str, release: Release | None = None, state: str 
     description = description_html(readme, glance, schema, diagram)
     data = metadata(dataset, number, release, people, funding, frames, description, commit)
 
-    where = out or folder
+    where = out or files_folder
     where.mkdir(parents=True, exist_ok=True)
     (where / README).write_text(readme, encoding="utf-8", newline="")
     lines = [f"Built version {number} of {dataset.title}, in schema version {schema.version}: {where / README}.",

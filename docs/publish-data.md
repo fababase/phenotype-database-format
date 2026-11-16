@@ -30,13 +30,13 @@ Each dataset has a folder, named after it:
       Sources/                   a copy of Sources/ as it was merged
       merge.py                   the script: Sources/ → the tables, with every decision in it
       merge-notes.md             the decisions, and the answers behind them
+      contributors.yaml          who to credit, merged
       crosswalk.csv              every ID that merge.py changed, by contribution
       changes.md                 what changed in this version, and why
-      Germplasm.csv …            the merged tables, one file per table, and contributors.yaml
-      README.md                  the README of the version, built by build.py
+      zenodo/                    exactly what goes on Zenodo: README.md and one CSV file per table
 ```
 
-What is on Zenodo is the README and the tables of a version, and nothing else.
+`zenodo/` holds exactly what is on Zenodo: the README, built by build.py, and the tables, written by merge.py, and nothing else.
 
 **zenodo.yaml** is written once, when the dataset is started. It gives the title, which Zenodo needs; the access, `open` for the public dataset, or `restricted` for a project's, whose files are then only for those given access on Zenodo; and, if someone is to be named, the curator, who looks after the dataset and is its contact in the README, written as a person is in [Who to credit](submit-data.md#who-to-credit), without experiments:
 
@@ -73,7 +73,7 @@ The rules of the folder, for you and for the AI:
    The AI makes `Versions/<today>`, copies `Sources/` into it, starts from the last merge, checks each contribution with the validator, and looks for where the contributions overlap: the same trait under two IDs, the same person written in two ways, and so on. It asks you about every change, never more than three questions at once, and makes none without your yes. When you don't know, say so: then nothing changes. It writes every answer in `merge-notes.md`, so that the next merge does not ask again. It sees which contributions changed since the last version, and asks you why, for `changes.md`: what changed in this version, and why, for the people who use the data. It never reads the scores: merging rests on what the rows say, not on the values measured.
 
    Use the same line to come back to a merge, in a new session or after a break.
-4. **Read the README.** When the merge is finished, the AI builds a preview of the version. Read `README.md` in the version's folder in full, as someone who will use the data: every experiment is there and described; the traits and their units are right; under *What changed in this version*, what changed agrees with `merge-notes.md`, and the reasons are the ones you gave; everyone in the contributions is listed, with their ORCID and affiliations, and so is the funding. Anything wrong goes back to the AI.
+4. **Read the README.** When the merge is finished, the AI builds a preview of the version. Read `README.md` in the version's `zenodo/` folder in full, as someone who will use the data: every experiment is there and described; the traits and their units are right; under *What changed in this version*, what changed agrees with `merge-notes.md`, and the reasons are the ones you gave; everyone in the contributions is listed, with their ORCID and affiliations, and so is the funding. Anything wrong goes back to the AI.
 5. **Upload the version to a draft.** In a terminal in the dataset folder, run
 
    ```
@@ -83,7 +83,7 @@ The rules of the folder, for you and for the AI:
    It checks the version, the copy of the repository and the last version on Zenodo, and stops with a message that says what to do if something is not right. Then it makes a draft of the version on Zenodo, lists it in `zenodo.yaml`, builds the README with the date and the DOIs, uploads it with the tables, sets the metadata, and prints the address of the draft. Run it again after a change to the merge: it takes up the same draft, and uploads only what changed.
 
    The AI never runs publish.py: the token is yours.
-6. **Check the draft, and publish.** Open the draft on Zenodo, and look at it as a reader would: the README; the files, the README and one CSV file per table; the creators, everyone in `contributors.yaml` in alphabetical order of family name, with their ORCIDs and affiliations; the funding; the licence, CC-BY-4.0; the access; the version number. Change nothing there by hand: what is on Zenodo should be what the folder holds, as the next version compares with it. Something wrong goes back to the merge, and publish.py uploads the fix. Then press *Publish*. Run publish.py once more, with the same line: it checks that what Zenodo published is what the folder holds, and says what to do next.
+6. **Check the draft, and publish.** Open the draft on Zenodo, and look at it as a reader would: the README; the files, the README and one CSV file per table; the creators, everyone in `contributors.yaml` in alphabetical order of family name, with their ORCIDs and affiliations; the funding; the licence, CC-BY-4.0; the access; the version number. Change nothing there by hand: what is on Zenodo should be what `zenodo/` holds, as the next version compares with it. Something wrong goes back to the merge, and publish.py uploads the fix. Then press *Publish*. Run publish.py once more, with the same line: it checks that what Zenodo published is what `zenodo/` holds, and says what to do next.
 7. **Afterwards.** After the first version, add the dataset to [datasets.md](datasets.md), with its DOI of all versions, and push; after a later one, update its row if the version of the format changed. For a restricted dataset, give the project's people access to the files, on the record's page on Zenodo. Tell the contributors that the version is out, and its DOI.
 
 **The sandbox.** Before the first version of the first dataset, and after a change to the scripts in `publishing/`, try publish.py on [sandbox.zenodo.org](https://sandbox.zenodo.org) first: the same line, with `--sandbox` and the file of the sandbox token. The versions on the sandbox are listed in `sandbox.yaml`, apart from those on Zenodo, so the same folder can be uploaded to both, and a later version can be tried there as long as the earlier ones are there too. Nothing on the sandbox counts, and it is cleared now and then.

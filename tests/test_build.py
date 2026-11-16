@@ -58,7 +58,7 @@ def compared(merge: Merge) -> str:
 
 def test_preview_of_the_first_version(merge):
     assert merge.run().lines == [
-        f"Built version 1 of Nordbean test dataset, in schema version 1.0: {merge.folder / 'README.md'}.",
+        f"Built version 1 of Nordbean test dataset, in schema version 1.0: {merge.files / 'README.md'}.",
         "It is the first version.",
         "It is a preview: the date and DOI of the version are set when publish.py uploads it.",
     ]
@@ -81,17 +81,24 @@ def test_published_version(merge):
 
 
 def test_only_the_readme_is_written(merge):
-    before = {path.name: path.read_bytes() for path in merge.folder.iterdir()}
+    before = {path.relative_to(merge.folder): path.read_bytes() for path in merge.folder.rglob("*") if path.is_file()}
     merge.run()
-    after = {path.name: path.read_bytes() for path in merge.folder.iterdir()}
-    assert after.pop("README.md")
+    after = {path.relative_to(merge.folder): path.read_bytes() for path in merge.folder.rglob("*") if path.is_file()}
+    assert after.pop(Path("zenodo") / "README.md")
     assert after == before
+
+
+def test_the_zenodo_folder_has_to_be_there(merge):
+    shutil.rmtree(merge.files)
+    assert fails(merge) == (f"There is no zenodo folder in {merge.folder}. merge.py writes the tables in it, one CSV "
+                            "file per table of the format, and build.py writes the README: it holds exactly what goes "
+                            "on Zenodo.")
 
 
 def test_every_table_has_to_be_there(merge):
     merge.tables.drop_table("Management")
-    assert fails(merge) == (f"There is no Management.csv in {merge.folder}. merge.py writes every table of the "
-                            "format, a table without rows as a file with only the column names.")
+    assert fails(merge) == (f"There is no Management.csv in {merge.files}. merge.py writes every table of the "
+                            "format there, a table without rows as a file with only the column names.")
 
 
 @pytest.mark.parametrize("table, change", [
@@ -102,7 +109,7 @@ def test_every_table_has_to_be_there(merge):
 def test_a_table_not_written_as_the_validator_writes_it(merge, table, change):
     """The files are uploaded as they are, so they have to be in the one form: all columns, missing values empty."""
     change(merge.tables)
-    assert fails(merge).startswith(f"{table}.csv in {merge.folder} is not written as the validator writes tables "
+    assert fails(merge).startswith(f"{table}.csv in {merge.files} is not written as the validator writes tables "
                                    f"with --out: every column of {table}, in the order of the format, missing values "
                                    "as empty cells, and the rows as pandas writes them")
 
@@ -292,7 +299,7 @@ def downloaded(merge: Merge, folder: Path) -> Path:
     """The files of the version as someone who downloads them from Zenodo has them: the README and the tables."""
     folder.mkdir()
     for name in ["README.md"] + [f"{table}.csv" for table in SCHEMA.tables]:
-        shutil.copyfile(merge.folder / name, folder / name)
+        shutil.copyfile(merge.files / name, folder / name)
     return folder
 
 
@@ -504,7 +511,7 @@ def test_a_new_version_of_the_format(tmp_path):
     """The last version followed another version of the format, which had a column that is gone, and not one."""
     first = published(tmp_path)
     set_format(first, "0.9")
-    germplasm = first.folder / "Germplasm.csv"
+    germplasm = first.files / "Germplasm.csv"
     with germplasm.open(encoding="utf-8", newline="") as f:
         rows = [{column: value for column, value in row.items() if column != "Maintaining"} | {"Pedigree": ""}
                 for row in csv.DictReader(f)]
@@ -622,7 +629,7 @@ def test_tables_that_do_not_pass(merge):
     merge.tables.set("Phenotype", SCORE, "Score", "high")
     with pytest.raises(ValidationError):
         merge.run()
-    assert not (merge.folder / "README.md").exists()
+    assert not (merge.files / "README.md").exists()
 
 
 def test_no_contributors_file(merge):
@@ -660,7 +667,7 @@ def test_the_last_version_has_no_tables(tmp_path):
     for name in SCHEMA.tables:
         first.tables.drop_table(name)
     assert fails(second_merge(tmp_path)) == (
-        f"There are no tables in {first.folder}, which holds version 1. The folder of a version is kept as it was, "
+        f"There are no tables in {first.files}, which holds version 1. The folder of a version is kept as it was, "
         "as the next version compares with it.")
 
 

@@ -51,6 +51,7 @@ class Dataset:
         for name, content in VALID_FILES.items():
             (folder / name).write_bytes(content)
         self.folder = folder
+        self.credit_folder = folder  # where contributors.yaml is
 
     def path(self, table: str) -> Path:
         return self.folder / f"{table}.csv"
@@ -128,7 +129,7 @@ class Dataset:
 
     @property
     def contributors(self) -> Path:
-        return self.folder / CONTRIBUTORS_FILE
+        return self.credit_folder / CONTRIBUTORS_FILE
 
     def credit(self) -> list[tuple[str, Path]]:
         """contributors.yaml, as validate_files takes it, to give with a collection sheet."""
@@ -268,16 +269,21 @@ curator:
 
 class Merge:
     """
-    The folder of a version, Versions/<name> in a dataset folder: the valid dataset as its merged tables, a
-    crosswalk.csv in which no ID was changed, and changes.md. The dataset folder gets a zenodo.yaml, unless it has one.
+    The folder of a version, Versions/<name> in a dataset folder: the valid dataset as its merged tables in zenodo/,
+    its contributors.yaml next to them, a crosswalk.csv in which no ID was changed, and changes.md. The dataset folder
+    gets a zenodo.yaml, unless it has one.
     """
 
     def __init__(self, dataset: Path, name: str = "2026-11-20", access: str = "open", orcid: str = "none",
                  changes: str = "The first version.\n"):
         self.dataset = dataset
         self.folder = dataset / "Versions" / name
-        self.folder.parent.mkdir(parents=True, exist_ok=True)
-        self.tables = Dataset(self.folder)
+        self.folder.mkdir(parents=True)
+        self.files = self.folder / "zenodo"
+        self.tables = Dataset(self.files)
+        # contributors.yaml is not uploaded, so merge.py writes it next to itself, not in zenodo/
+        self.tables.contributors.rename(self.folder / CONTRIBUTORS_FILE)
+        self.tables.credit_folder = self.folder
         self.zenodo = dataset / "zenodo.yaml"
         if not self.zenodo.exists():
             self.zenodo.write_text(ZENODO_FILE.format(access=access, orcid=orcid), encoding="utf-8")
@@ -306,7 +312,7 @@ class Merge:
             csv.writer(f, lineterminator="\n").writerows([header, *rows])
 
     def readme(self) -> str:
-        return (self.folder / "README.md").read_text(encoding="utf-8")
+        return (self.files / "README.md").read_text(encoding="utf-8")
 
     def section(self, heading: str) -> str:
         """The text under a heading of the README, '## heading', up to the next such heading."""
@@ -320,5 +326,5 @@ class Merge:
         return yaml.load((self.dataset / name).read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
 
     def rows(self, table: str) -> list[dict[str, str]]:
-        with (self.folder / f"{table}.csv").open(encoding="utf-8", newline="") as f:
+        with (self.files / f"{table}.csv").open(encoding="utf-8", newline="") as f:
             return list(csv.DictReader(f))

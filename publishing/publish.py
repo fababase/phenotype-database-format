@@ -46,8 +46,8 @@ from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 
-from build import (LIMIT, README, REPOSITORY_FOLDER, VERSIONS, ZENODO_FILE, BuildError, Dataset, Release, Version,
-                   build, repository_commit, sentence, write_dataset)
+from build import (FILES, LIMIT, README, REPOSITORY_FOLDER, VERSIONS, ZENODO_FILE, BuildError, Dataset, Release,
+                   Version, build, repository_commit, sentence, write_dataset)
 from collection_sheet import REPOSITORY, SITE
 from validation import Schema, ValidationError, load_schema
 
@@ -234,7 +234,7 @@ def differences(there: dict[str, str | None], here: dict[str, str]) -> list[str]
 def check_last(zenodo: Zenodo, dataset: Dataset, last: Version, names: list[str]) -> str:
     """
     The ID of the latest version on Zenodo, after checking that it is the last version that the dataset's file
-    lists, with the files in its folder, and with the access that zenodo.yaml gives.
+    lists, with the files in its folder's zenodo/, and with the access that zenodo.yaml gives.
     """
     folder = dataset.folder / VERSIONS / last.folder
     latest = zenodo.find(f"/api/records/{last.id}/versions/latest")
@@ -245,9 +245,9 @@ def check_last(zenodo: Zenodo, dataset: Dataset, last: Version, names: list[str]
         raise PublishError(f"The latest version on Zenodo has the DOI {doi_of(latest)}, but the last version in "
                            f"{dataset.state}, {last.number}, has {last.doi}. Every version has to be uploaded with "
                            "publish.py, so that the next one can say what changed since it.")
-    found = differences(zenodo_files(zenodo, latest["id"]), local_files(folder, names))
+    found = differences(zenodo_files(zenodo, latest["id"]), local_files(folder / FILES, names))
     if found:
-        raise PublishError(f"The files of version {last.number} on Zenodo are not those in {folder}: "
+        raise PublishError(f"The files of version {last.number} on Zenodo are not those in {folder / FILES}: "
                            f"{', '.join(found)}. What changed since it is worked out from those files, so they have "
                            "to be what was published.")
     files_access = latest.get("access", {}).get("files")
@@ -294,13 +294,13 @@ def published(zenodo: Zenodo, done: dict, dataset: Dataset, this: Version, folde
         raise PublishError(f"Version {this.number} is published on Zenodo, with the DOI {doi}, and the DOI of all "
                            f"versions {concept}, but {dataset.state} has {this.doi} and {dataset.doi}, which its "
                            "README gives. Correct it with a new version.")
-    found = differences(zenodo_files(zenodo, done["id"]), local_files(folder, names))
+    found = differences(zenodo_files(zenodo, done["id"]), local_files(folder / FILES, names))
     if found:
-        raise PublishError(f"Version {this.number} is published on Zenodo, but its files are not those in {folder}: "
-                           f"{', '.join(found)}. The next version compares with those files, so make them what was "
-                           "published.")
+        raise PublishError(f"Version {this.number} is published on Zenodo, but its files are not those in "
+                           f"{folder / FILES}: {', '.join(found)}. The next version compares with those files, so "
+                           "make them what was published.")
     lines = [f"Version {this.number} of {dataset.title} is published: https://doi.org/{doi}. Its files are those "
-             f"in {folder}. There is nothing more to upload."]
+             f"in {folder / FILES}. There is nothing more to upload."]
     if zenodo.address != ZENODO:
         lines.append("This was the sandbox, for trying things out.")
     elif this.number == 1:
@@ -392,7 +392,7 @@ def publish(folder: Path, zenodo: Zenodo, commit: str, today: str, state: str = 
     write_dataset(dataset)
     built = build(folder, commit, Release(today, doi, concept), state, notice=notice, warning=warning)
 
-    upload_files(zenodo, draft_id, folder, names, say)
+    upload_files(zenodo, draft_id, folder / FILES, names, say)
     # Setting the metadata replaces the whole draft, so the DOI is sent back as it is, or it would be lost
     updated = zenodo.request("PUT", f"/api/records/{draft_id}/draft", {
         "access": access, "files": {"enabled": True, "default_preview": README, "order": names},

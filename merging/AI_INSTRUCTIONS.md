@@ -94,7 +94,7 @@ Compare the `contributors.yaml` of the contributions with each other, and with t
 
 `merge.py` turns the contributions' tables and `contributors.yaml` into the merged ones. Every decision is in it, so that the merge can be repeated and checked.
 
-- **It reads only the folders in `Sources/` in the merge folder, and writes only the tables, `contributors.yaml` and `crosswalk.csv`**, next to itself, or in the folder given with `--out`. It finds `Sources/` from its own location, so that it runs from any folder.
+- **It reads only the folders in `Sources/` in the merge folder, and writes only the tables, in `zenodo/` next to itself, and `contributors.yaml` and `crosswalk.csv`, next to itself**, or the same under the folder given with `--out`. It finds `Sources/` from its own location, so that it runs from any folder. `zenodo/` holds exactly what goes on Zenodo: the tables, and the README that build.py writes there.
 - **It starts with the Python version and the exact version of every package it needs**, in the form uv reads, as in [Write conversion.py](../conversion/AI_INSTRUCTIONS.md#write-conversionpy). Run it with `uv run`.
 - **It checks what it reads first.** It lists every table and `contributors.yaml` it reads, with its SHA-256 checksum, and stops with a clear message if one is missing or has changed. When one has changed, stop, and ask the data manager why.
 - **Every decision has a comment** saying what it does, and the number of the decision in merge-notes.md that it carries out.
@@ -119,7 +119,7 @@ A merge changes only how a value is written, never what it says, and fills in no
   uv run phenotype-database-format/publishing/build.py Versions/<date>
   ```
 
-  It runs the validator on the tables and `contributors.yaml`, and stops at the first error. Then it checks that the tables are written as the validator writes them, reads `crosswalk.csv` and `changes.md`, and writes `README.md` in the merge folder. Fix `merge.py`, run it again, and build again, until it builds.
+  It runs the validator on the tables and `contributors.yaml`, and stops at the first error. Then it checks that the tables are written as the validator writes them, reads `crosswalk.csv` and `changes.md`, and writes `README.md` in `zenodo/`. Fix `merge.py`, run it again, and build again, until it builds.
 - **Run `merge.py` again**, into `scratch/` with `--out`, and check that it writes the same files, byte for byte.
 - **Nothing is lost.** Every row of every contribution is in the merged tables, and every person and grant in its `contributors.yaml` is in the merged one, or was made one with another by a decision in merge-notes.md.
 - **Nothing in the last version changes unnoticed.** Every ID in the tables of the last version should still be in the merged tables, with the same row, and every person and grant in its `contributors.yaml` should still be in the merged one, unless a decision in merge-notes.md changed it, or the contributor changed it in a new handover. Tell the data manager about every one that is not.
@@ -150,7 +150,7 @@ Write `changes.md`, in the merge folder, for the people who use the data: what c
 
 ## The README
 
-You don't write the README of the dataset, or its metadata on Zenodo: `publishing/build.py` builds them from the tables, `contributors.yaml`, `crosswalk.csv`, `changes.md` and `zenodo.yaml`, which the data manager keeps. Once the checks pass, read `README.md` in the merge folder in full. Under *What changed in this version*, every ID that a decision in merge-notes.md changed is renamed, nothing is renamed or removed that no decision explains, and what `changes.md` says agrees with the rest. Tell the data manager about anything in the README that is wrong or looks odd.
+You don't write the README of the dataset, or its metadata on Zenodo: `publishing/build.py` builds them from the tables, `contributors.yaml`, `crosswalk.csv`, `changes.md` and `zenodo.yaml`, which the data manager keeps. Once the checks pass, read `zenodo/README.md` in the merge folder in full. Under *What changed in this version*, every ID that a decision in merge-notes.md changed is renamed, nothing is renamed or removed that no decision explains, and what `changes.md` says agrees with the rest. Tell the data manager about anything in the README that is wrong or looks odd.
 
 ## Finishing
 
