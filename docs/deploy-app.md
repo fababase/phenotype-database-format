@@ -58,7 +58,7 @@ Only upgrade when there is a reason to, such as a fix in Shiny that the app need
 The diagram of how the tables link is at **<https://fababase.github.io/phenotype-database-format/diagram/>**. [schema/diagram.py](../schema/diagram.py) draws it each time the app is published, with every version of the schema:
 
 - It opens at the latest version. The menu at the top switches to an earlier one.
-- An address can name a version after `#`, as in `diagram/#1.0`, to open the diagram at that version. Link this way wherever the version matters: the *READ ME 1st* sheet of the collection sheet does, and so will the README of the Zenodo record.
+- An address can name a version after `#`, as in `diagram/#1.0`, to open the diagram at that version. Link this way wherever the version matters: the *READ ME 1st* sheet of the collection sheet does, and so does the README of each dataset on Zenodo.
 - Pictures of each version are at `diagram/<version>/diagram.png` and `diagram/<version>/diagram.svg`, and those of the latest also at `diagram/diagram.png` and `diagram/diagram.svg`.
 
 ### Where the versions come from
@@ -83,6 +83,19 @@ python schema/diagram.py site/diagram
 ```
 
 and open `site/diagram/index.html`. The `site/` folder is not committed.
+
+## Releasing a new version of the format
+
+A new version of the format is a push to `main` that changes the version in `schema/schema.yaml`. [CHANGELOG.md](../CHANGELOG.md) says what makes a major version and what a minor one. As [Where the versions come from](#where-the-versions-come-from) says, a version stays in the diagram for good once a commit with it is pushed, so push the new version only when it is final.
+
+1. Change `schema/schema.yaml`: the tables and columns, and the version, in quotes.
+2. Change the hand-written parts of `schema/schema.md` that the change touches, and its version line. The tables in it that list the tables and columns are written by the *Update schema.md* Action after the push; `python schema/schema_md.py` writes them on your own computer.
+3. Add the version to `CHANGELOG.md`, with its date and what changed, and set `version` and `date-released` in `CITATION.cff` to the same.
+4. Change the test data in `tests/valid/`, the AI instructions and the guides where the change touches them.
+5. Run the tests. One checks that `schema.yaml`, `CHANGELOG.md` and `CITATION.cff` give the same version.
+6. Commit and push. The *Deploy app* Action publishes the app, which then checks against the new version, and the diagram, with the new version at `diagram/#<version>`. The README of each dataset links to the diagram of its version, so publish.py checks that it is online before it uploads a version.
+
+After a new major version, the contributions have to be converted again before the next version of each dataset, as their tables fail the new validator, which build.py runs. A new minor version needs nothing of them: tables that passed still pass. The next version of each dataset says in its README which version of the format it follows, and its row in [datasets.md](datasets.md) is updated then.
 
 ## The collection sheet
 

@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 import publish
+import build
 from helpers import COMMIT, ROOT, SCHEMA, SCORE, Merge
 from validation import ValidationError
 
@@ -225,6 +226,8 @@ class FakeZenodo:
         return 201, self.view(self.add(record["parent"], record["access"], metadata)), None
 
     def latest(self, rid):
+        if rid not in self.records:
+            raise Answer(404, "The persistent identifier is not registered.")
         versions = self.parents[self.records[rid]["parent"]]["versions"]
         if not versions:
             raise Answer(404, "No published version was found.")
@@ -283,37 +286,41 @@ def zenodo(no_proxy):
 
 @pytest.fixture
 def merge(tmp_path: Path) -> Merge:
-    return Merge(tmp_path / "merge")
+    return Merge(tmp_path / "dataset")
 
 
-def run(merge: Merge, zenodo: FakeZenodo, previous: Merge | None = None, token: str = TOKEN,
+def run(merge: Merge, zenodo: FakeZenodo, token: str = TOKEN, state: str = "zenodo.yaml",
         online=lambda address: True, said: list[str] | None = None) -> list[str]:
-    return publish.publish(merge.folder, publish.Zenodo(zenodo.address, token), COMMIT, TODAY,
-                           previous.folder if previous else None, online=online,
+    return publish.publish(merge.folder, publish.Zenodo(zenodo.address, token), COMMIT, TODAY, state, online=online,
                            say=said.append if said is not None else lambda message: None)
 
 
-def fails(merge: Merge, zenodo: FakeZenodo, previous: Merge | None = None, **options) -> str:
+def fails(merge: Merge, zenodo: FakeZenodo, **options) -> str:
     with pytest.raises(publish.PublishError) as e:
-        run(merge, zenodo, previous, **options)
+        run(merge, zenodo, **options)
     return str(e.value)
 
 
-def state(merge: Merge) -> dict[str, str]:
-    return json.loads((merge.folder / "publish" / "zenodo.json").read_text(encoding="utf-8"))
+def versions(merge: Merge, state: str = "zenodo.yaml") -> list[dict]:
+    return merge.state(state).get("versions", [])
 
 
 def published_first(tmp_path: Path, zenodo: FakeZenodo, access: str = "open") -> Merge:
-    """A merge of the valid dataset, uploaded and published as the first version."""
-    first = Merge(tmp_path / "first", access=access)
+    """The valid dataset, uploaded and published as the first version, from the folder 2026-11-01."""
+    first = Merge(tmp_path / "dataset", "2026-11-01", access=access)
     run(first, zenodo)
     zenodo.publish(FIRST)
     return first
 
 
-def next_merge(tmp_path: Path, access: str = "open") -> Merge:
-    """The merge after the first version, with the DOI of all versions, and no IDs changed."""
-    return Merge(tmp_path / "next", doi=CONCEPT, access=access)
+def next_merge(tmp_path: Path) -> Merge:
+    """The folder of the version after the first, with no IDs changed."""
+    return Merge(tmp_path / "dataset", "2026-12-01", changes="Corrections.\n")
+
+
+def metadata(merge: Merge, release: publish.Release) -> dict:
+    """The metadata of the version, as build.py makes it with the version's date and DOIs."""
+    return build.build(merge.folder, COMMIT, release).metadata
 
 
 # ---------------------------------------------------------------- The first version
@@ -325,22 +332,27 @@ def test_first_version(merge, zenodo):
         f"{zenodo.address}/uploads/{FIRST}",
         f"Its DOI will be {doi}, and the DOI of all versions {CONCEPT}. They work once it is published.",
     ] + NEXT_STEPS
-    assert state(merge) == {zenodo.address: FIRST}
+    assert merge.state() == {
+        "title": "Nordbean test dataset", "access": "open",
+        "curator": {"family_name": "Keeper", "given_names": "Dana", "orcid": "none",
+                    "affiliations": [{"name": "Northfield Agricultural College", "ror": "none"}]},
+        "doi": CONCEPT,
+        "versions": [{"version": "1", "folder": merge.folder.name, "id": FIRST, "doi": doi, "date": TODAY,
+                      "format": SCHEMA.version}]}
     assert zenodo.drafts() == [FIRST]
     draft = zenodo.records[FIRST]
-    assert zenodo.content(FIRST) == {name: (merge.files / name).read_bytes() for name in NAMES}
-    assert draft["metadata"] == merge.metadata()
+    assert zenodo.content(FIRST) == {name: (merge.folder / name).read_bytes() for name in NAMES}
+    assert draft["metadata"] == metadata(merge, publish.Release(TODAY, doi, CONCEPT))
     assert draft["access"] == {"record": "public", "files": "public"}
     assert draft["settings"] == {"enabled": True, "default_preview": "README.md", "order": NAMES}
     assert draft["pids"]["doi"]["identifier"] == doi
-    assert merge.release() == {"version": 1, "publication_date": TODAY, "doi": doi, "concept_doi": CONCEPT,
-                               "schema_version": SCHEMA.version, "commit": COMMIT}
     assert (f"- **DOI:** [{doi}](https://doi.org/{doi}). The DOI [{CONCEPT}](https://doi.org/{CONCEPT})"
             in merge.readme())
+    assert f"- **Version:** 1, published {TODAY}.\n" in merge.readme()
 
 
 def test_a_restricted_dataset(tmp_path, zenodo):
-    merge = Merge(tmp_path / "merge", access="restricted")
+    merge = Merge(tmp_path / "dataset", access="restricted")
     run(merge, zenodo)
     assert zenodo.records[FIRST]["access"] == {"record": "public", "files": "restricted"}
 
@@ -353,8 +365,8 @@ def test_running_again_takes_up_the_same_draft(merge, zenodo):
     lines = run(merge, zenodo, said=said)
     assert lines[0].endswith(f"/uploads/{FIRST}")
     assert zenodo.drafts() == [FIRST]
-    assert said == [f"Uploading Phenotype.csv, {(merge.files / 'Phenotype.csv').stat().st_size:,} bytes."]
-    assert zenodo.content(FIRST) == {name: (merge.files / name).read_bytes() for name in NAMES}
+    assert said == [f"Uploading Phenotype.csv, {(merge.folder / 'Phenotype.csv').stat().st_size:,} bytes."]
+    assert zenodo.content(FIRST) == {name: (merge.folder / name).read_bytes() for name in NAMES}
     assert [request for request in zenodo.requests if request[0] != "GET"] == [
         ("DELETE", f"/api/records/{FIRST}/draft/files/Phenotype.csv"),
         ("POST", f"/api/records/{FIRST}/draft/files"),
@@ -363,6 +375,7 @@ def test_running_again_takes_up_the_same_draft(merge, zenodo):
         ("PUT", f"/api/records/{FIRST}/draft"),
     ]
     assert zenodo.records[FIRST]["pids"]["doi"]["identifier"] == f"10.5072/zenodo.{FIRST}"
+    assert len(versions(merge)) == 1
 
 
 def test_after_publishing(merge, zenodo):
@@ -371,7 +384,7 @@ def test_after_publishing(merge, zenodo):
     zenodo.requests.clear()
     assert run(merge, zenodo) == [
         f"Version 1 of Nordbean test dataset is published: https://doi.org/10.5072/zenodo.{FIRST}. Its files are "
-        f"those in {merge.files}. There is nothing more to upload.",
+        f"those in {merge.folder}. There is nothing more to upload.",
         "This was the sandbox, for trying things out.",
     ]
     assert all(method == "GET" for method, _ in zenodo.requests)
@@ -380,22 +393,21 @@ def test_after_publishing(merge, zenodo):
 def test_after_publishing_on_zenodo_itself(tmp_path, zenodo, monkeypatch):
     monkeypatch.setattr(publish, "ZENODO", zenodo.address)
     first = published_first(tmp_path, zenodo)
-    assert run(first, zenodo)[1] == (f"Write doi: {CONCEPT} in the record.yaml of the next merge, and add the dataset "
-                                     "to docs/datasets.md, with that DOI.")
+    assert run(first, zenodo)[1] == f"Add the dataset to docs/datasets.md, with the DOI of all versions, {CONCEPT}."
     second = next_merge(tmp_path)
-    run(second, zenodo, first)
+    run(second, zenodo)
     zenodo.publish(SECOND)
-    assert run(second, zenodo, first)[1] == ("Update the dataset's row in docs/datasets.md, if the version of the "
-                                             "format changed.")
+    assert run(second, zenodo)[1] == ("Update the dataset's row in docs/datasets.md, if the version of the format "
+                                      "changed.")
 
 
-def test_published_files_that_are_not_those_in_publish(merge, zenodo):
+def test_published_files_that_are_not_those_in_the_folder(merge, zenodo):
     run(merge, zenodo)
     zenodo.publish(FIRST)
-    (merge.files / "README.md").write_text("Changed after publishing\n", encoding="utf-8")
-    assert fails(merge, zenodo) == (f"Version 1 is published on Zenodo, but its files are not those in {merge.files}: "
-                                    "README.md differs. The next merge compares with those files, so make them what "
-                                    "was published.")
+    (merge.folder / "README.md").write_text("Changed after publishing\n", encoding="utf-8")
+    assert fails(merge, zenodo) == (f"Version 1 is published on Zenodo, but its files are not those in "
+                                    f"{merge.folder}: README.md differs. The next version compares with those files, "
+                                    "so make them what was published.")
 
 
 # ---------------------------------------------------------------- Later versions
@@ -405,67 +417,80 @@ def test_second_version(tmp_path, zenodo):
     second = next_merge(tmp_path)
     second.tables.set("Phenotype", SCORE, "Score", "95")
     doi = f"10.5072/zenodo.{SECOND}"
-    assert run(second, zenodo, first)[:2] == [
+    assert run(second, zenodo)[:2] == [
         f"Uploaded version 2 of Nordbean test dataset to a draft on {zenodo.address}: "
         f"{zenodo.address}/uploads/{SECOND}",
         f"Its DOI will be {doi}, and the DOI of all versions {CONCEPT}. They work once it is published.",
     ]
-    assert state(second) == {zenodo.address: SECOND}
+    assert versions(second) == [
+        {"version": "1", "folder": first.folder.name, "id": FIRST, "doi": f"10.5072/zenodo.{FIRST}", "date": TODAY,
+         "format": SCHEMA.version},
+        {"version": "2", "folder": second.folder.name, "id": SECOND, "doi": doi, "date": TODAY,
+         "format": SCHEMA.version}]
     assert zenodo.records[SECOND]["parent"] == PARENT
-    assert zenodo.content(SECOND) == {name: (second.files / name).read_bytes() for name in NAMES}
-    assert zenodo.records[SECOND]["metadata"] == second.metadata()
-    assert second.release() | {"commit": None} == {"version": 2, "publication_date": TODAY, "doi": doi,
-                                                   "concept_doi": CONCEPT, "schema_version": SCHEMA.version,
-                                                   "commit": None}
+    assert zenodo.content(SECOND) == {name: (second.folder / name).read_bytes() for name in NAMES}
+    assert zenodo.records[SECOND]["metadata"] == metadata(second, publish.Release(TODAY, doi, CONCEPT))
     assert second.section("What changed in this version").startswith(
-        f"Compared with version 1, published {TODAY}: [10.5072/zenodo.{FIRST}](https://doi.org/10.5072/zenodo.{FIRST})")
+        f"Corrections.\n\nCompared with version 1, published {TODAY}: "
+        f"[10.5072/zenodo.{FIRST}](https://doi.org/10.5072/zenodo.{FIRST}).")
 
 
 def test_another_version_was_published_since(tmp_path, zenodo):
-    first = published_first(tmp_path, zenodo)
+    published_first(tmp_path, zenodo)
     by_hand = zenodo.publish_by_hand(FIRST)
-    second = next_merge(tmp_path)
-    assert fails(second, zenodo, first) == (
-        f"The latest version on Zenodo has the DOI 10.5072/zenodo.{by_hand}, but the last merge, in {first.folder}, "
-        f"published 10.5072/zenodo.{FIRST}. Give the merge that published the latest version, with --previous.")
+    assert fails(next_merge(tmp_path), zenodo) == (
+        f"The latest version on Zenodo has the DOI 10.5072/zenodo.{by_hand}, but the last version in zenodo.yaml, 1, "
+        f"has 10.5072/zenodo.{FIRST}. Every version has to be uploaded with publish.py, so that the next one can say "
+        "what changed since it.")
     assert zenodo.drafts() == []
 
 
-def test_the_last_merge_does_not_hold_what_was_published(tmp_path, zenodo):
+def test_the_last_version_does_not_hold_what_was_published(tmp_path, zenodo):
     first = published_first(tmp_path, zenodo)
-    (first.files / "Germplasm.csv").write_text("GPID\n", encoding="utf-8")
-    (first.files / "Notes.txt").write_text("Not published\n", encoding="utf-8")
-    second = next_merge(tmp_path)
-    message = fails(second, zenodo, first)
-    assert message.startswith(f"The files of the latest version on Zenodo are not those in {first.files}: "
-                              "Germplasm.csv differs, Notes.txt is not on Zenodo. What changed")
+    (first.folder / "Germplasm.csv").write_text("GPID\n", encoding="utf-8")
+    (first.folder / "README.md").unlink()
+    assert fails(next_merge(tmp_path), zenodo) == (
+        f"The files of version 1 on Zenodo are not those in {first.folder}: Germplasm.csv differs, README.md is only "
+        "on Zenodo. What changed since it is worked out from those files, so they have to be what was published.")
 
 
 def test_access_that_changed(tmp_path, zenodo):
     first = published_first(tmp_path, zenodo)
-    second = next_merge(tmp_path, access="restricted")
-    assert fails(second, zenodo, first) == (
-        "The files of the latest version are public on Zenodo, but record.yaml has access: restricted. Correct "
-        "record.yaml, or, if the access is to change, change it on Zenodo first, by hand.")
+    text = first.zenodo.read_text(encoding="utf-8")
+    first.zenodo.write_text(text.replace("access: open", "access: restricted"), encoding="utf-8")
+    assert fails(next_merge(tmp_path), zenodo) == (
+        "The files of the latest version are public on Zenodo, but zenodo.yaml has access: restricted. Correct "
+        "zenodo.yaml, or, if the access is to change, change it on Zenodo first, by hand.")
     assert zenodo.drafts() == []
 
 
-def test_the_last_merge_was_not_published_with_publish_py(tmp_path, zenodo):
-    first = Merge(tmp_path / "first")
-    first.run(release=publish.Release("2026-11-01", "10.5072/zenodo.1", "10.5072/zenodo.0"))
-    second = Merge(tmp_path / "next", doi="10.5072/zenodo.0")
-    assert fails(second, zenodo, first) == (
-        f"The last merge, in {first.folder}, has no draft on {zenodo.address} in publish/zenodo.json, so it was not "
-        "published there with publish.py. Give the merge that was, with --previous.")
+def test_the_last_version_is_not_on_this_zenodo(tmp_path, zenodo):
+    first = Merge(tmp_path / "dataset", "2026-11-01")
+    first.upload(publish.Release("2026-11-01", "10.5072/zenodo.1", "10.5072/zenodo.0"), "1")
+    assert fails(next_merge(tmp_path), zenodo) == (
+        f"Version 1, in {first.folder}, was uploaded to {zenodo.address} as the draft 1, but no version of it is "
+        "published. Publish it first.")
 
 
-def test_the_last_merge_is_not_published_yet(tmp_path, zenodo):
-    first = Merge(tmp_path / "first")
+def test_the_last_version_is_not_published_yet(tmp_path, zenodo):
+    first = Merge(tmp_path / "dataset", "2026-11-01")
     run(first, zenodo)
-    second = next_merge(tmp_path)
-    assert fails(second, zenodo, first) == (
-        f"The last merge, in {first.folder}, made the draft {FIRST} on {zenodo.address}, but no version of it is "
-        "published. Publish it first, or give the merge that published the latest version, with --previous.")
+    assert fails(next_merge(tmp_path), zenodo) == (
+        f"Version 1, in {first.folder}, was uploaded to {zenodo.address} as the draft {FIRST}, but no version of it "
+        "is published. Publish it first.")
+
+
+def test_the_sandbox_and_zenodo_keep_their_versions_apart(merge, zenodo):
+    """The same folder can be uploaded to both: each lists it in its own file, and makes its own draft."""
+    run(merge, zenodo, state="sandbox.yaml")
+    assert [version["id"] for version in versions(merge, "sandbox.yaml")] == [FIRST]
+    assert "versions" not in merge.state()
+    run(merge, zenodo)
+    on_sandbox, on_zenodo = zenodo.drafts()
+    assert on_sandbox == FIRST and on_zenodo != FIRST
+    assert [version["id"] for version in versions(merge)] == [on_zenodo]
+    assert zenodo.records[on_zenodo]["parent"] != zenodo.records[on_sandbox]["parent"]
+    assert merge.state()["doi"] != merge.state("sandbox.yaml")["doi"]
 
 
 # ---------------------------------------------------------------- What goes wrong on Zenodo
@@ -476,9 +501,9 @@ def test_zenodo_finds_problems_in_the_metadata(merge, zenodo):
     assert fails(merge, zenodo) == (
         f"The draft is on Zenodo, at {zenodo.address}/uploads/{FIRST}, but Zenodo found problems in its metadata, so "
         "it cannot be published: metadata.creators.0.affiliations.0.id: Invalid value.; metadata.funding.0.funder.id: "
-        "Invalid value. Unknown funder. Correct record.yaml or the merge, or build.py if it builds the metadata "
+        "Invalid value. Unknown funder. Correct zenodo.yaml or the merge, or build.py if it builds the metadata "
         "wrong, and run publish.py again.")
-    assert state(merge) == {zenodo.address: FIRST}
+    assert [version["id"] for version in versions(merge)] == [FIRST]
 
 
 def test_a_lost_doi(merge, zenodo):
@@ -494,9 +519,10 @@ def test_a_lost_doi(merge, zenodo):
     said = []
     run(merge, zenodo, said=said)
     assert said[0] == f"The draft {FIRST} is no longer on {zenodo.address}, so a new one is made."
-    new = state(merge)[zenodo.address]
+    new = versions(merge)[0]["id"]
     assert zenodo.drafts() == [new] and new != FIRST
-    assert merge.release()["doi"] == f"10.5072/zenodo.{new}"
+    assert len(versions(merge)) == 1
+    assert f"10.5072/zenodo.{new}" in merge.readme()
 
 
 def test_a_wrong_token(merge, zenodo):
@@ -530,6 +556,7 @@ def test_tables_that_do_not_pass(merge, zenodo):
     with pytest.raises(ValidationError):
         run(merge, zenodo)
     assert zenodo.requests == []
+    assert "versions" not in merge.state()
 
 
 COMMIT_PAGE = f"https://github.com/fababase/phenotype-database-format/tree/{COMMIT}"
@@ -582,29 +609,34 @@ def test_the_copy_of_the_repository_has_no_changes(tmp_path):
 
 # ---------------------------------------------------------------- Running it
 
-def test_command_line(merge, zenodo, monkeypatch, capsys):
+def test_command_line(merge, zenodo, tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(publish, "SANDBOX", zenodo.address)
     monkeypatch.setattr(publish, "clean_commit", lambda: COMMIT)
     monkeypatch.setattr(publish, "is_online", lambda address: True)
-    monkeypatch.setenv("ZENODO_SANDBOX_TOKEN", TOKEN)
-    monkeypatch.delenv("ZENODO_TOKEN", raising=False)
-    assert publish.main(["--merge", str(merge.folder), "--sandbox"]) == 0
+    token_file = tmp_path / "token"
+    token_file.write_text(f"{TOKEN}\n", encoding="utf-8")
+    assert publish.main([str(merge.folder), "--token-file", str(token_file), "--sandbox"]) == 0
     out = capsys.readouterr().out
     assert out.splitlines()[-4].startswith(f"Uploaded version 1 of Nordbean test dataset to a draft on "
                                            f"{zenodo.address}: ")
     assert "Uploading Phenotype.csv, " in out
     assert TOKEN not in out
+    assert [version["id"] for version in versions(merge, "sandbox.yaml")] == [FIRST]
+    assert "versions" not in merge.state()
 
-    assert publish.main(["--merge", str(merge.folder)]) == 1
+    assert publish.main([str(merge.folder), "--token-file", str(tmp_path / "none")]) == 1
     assert capsys.readouterr().out == (
-        "Stopped: There is no token in the environment variable ZENODO_TOKEN. Make a personal access token on "
-        "https://zenodo.org/account/settings/applications/tokens/new/, with the scopes deposit:write and "
-        "deposit:actions. Then type read -s ZENODO_TOKEN && export ZENODO_TOKEN in this terminal, paste the token, "
-        "and press Enter, so that it is neither shown nor saved in the history.\n")
+        f"Stopped: Could not read the token file {tmp_path / 'none'}: No such file or directory. Make a personal "
+        "access token on https://zenodo.org/account/settings/applications/tokens/new/, with the scopes deposit:write "
+        "and deposit:actions, and save it in a file, on its own.\n")
+    token_file.write_text("token: secret\n", encoding="utf-8")
+    assert publish.main([str(merge.folder), "--token-file", str(token_file)]) == 1
+    assert capsys.readouterr().out == f"Stopped: The token file {token_file} has to hold the token, and nothing else.\n"
 
-    merge.record.unlink()
-    assert publish.main(["--merge", str(merge.folder), "--sandbox"]) == 1
-    assert capsys.readouterr().out.startswith("Stopped: There is no record.yaml")
+    token_file.write_text(TOKEN, encoding="utf-8")
+    merge.zenodo.unlink()
+    assert publish.main([str(merge.folder), "--token-file", str(token_file), "--sandbox"]) == 1
+    assert capsys.readouterr().out.startswith("Stopped: There is no zenodo.yaml")
 
 
 def test_the_script_runs_with_the_validators_packages():

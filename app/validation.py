@@ -1088,10 +1088,11 @@ def at(source: str, node: yaml.Node) -> str:
     return f"{source}, line {node.start_mark.line + 1}"
 
 
-def yaml_mapping(source: str, node: yaml.Node, keys: tuple[str, ...], what: str) -> dict[str, yaml.Node]:
+def yaml_mapping(source: str, node: yaml.Node, keys: tuple[str, ...], what: str,
+                 optional: tuple[str, ...] = ()) -> dict[str, yaml.Node]:
     """
-    The values of keys, which have to be there once each, in any order, with no other keys.
-    what names the thing they belong to in messages, such as "a person".
+    The values of keys, which have to be there once each, in any order, and of those of optional that are there,
+    with no other keys. what names the thing they belong to in messages, such as "a person".
     """
     if not isinstance(node, yaml.MappingNode):
         raise ValidationError(f"{at(source, node)}: {what} is not written as keys with their values. Write the keys "
@@ -1099,9 +1100,9 @@ def yaml_mapping(source: str, node: yaml.Node, keys: tuple[str, ...], what: str)
     found = {}
     for key, value in node.value:
         name = key.value if isinstance(key, yaml.ScalarNode) else ""
-        if name not in keys:
-            close = difflib.get_close_matches(name.lower(), keys, n=1)
-            hint = f"Did you mean '{close[0]}'?" if close else f"The keys of {what} are {joined(keys)}."
+        if name not in keys + optional:
+            close = difflib.get_close_matches(name.lower(), keys + optional, n=1)
+            hint = f"Did you mean '{close[0]}'?" if close else f"The keys of {what} are {joined(keys + optional)}."
             raise ValidationError(f"{at(source, key)}: '{name}' is not a key of {what}. {hint}")
         if name in found:
             raise ValidationError(f"{at(source, key)}: '{name}' appears twice in {what}. Keep only one.")

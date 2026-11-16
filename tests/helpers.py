@@ -9,13 +9,13 @@ Merge is a merge folder whose merged tables are a copy of it, for the tests of p
 """
 import csv
 import io
-import json
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
 import openpyxl
 import pytest
+import yaml
 
 import build
 import collection_sheet
@@ -252,10 +252,9 @@ def as_csv(tables: dict[str, Table]) -> dict[str, str]:
     return {name: table.to_csv() for name, table in tables.items()}
 
 
-# The record.yaml of a merge
-RECORD = """\
+# The zenodo.yaml of a dataset, before its first version is uploaded
+ZENODO_FILE = """\
 title: Nordbean test dataset
-doi: {doi}
 access: {access}
 curator:
   family_name: Keeper
@@ -269,25 +268,36 @@ curator:
 
 class Merge:
     """
-    A merge folder: the valid dataset as its merged tables, record.yaml, and a crosswalk.csv in which no ID was
-    changed.
+    The folder of a version, Versions/<name> in a dataset folder: the valid dataset as its merged tables, a
+    crosswalk.csv in which no ID was changed, and changes.md. The dataset folder gets a zenodo.yaml, unless it has one.
     """
 
-    def __init__(self, folder: Path, doi: str = "none", orcid: str = "none", access: str = "open"):
-        folder.mkdir()
-        self.folder = folder
-        self.tables = Dataset(folder / "tables")
-        self.record = folder / "record.yaml"
-        self.record.write_text(RECORD.format(doi=doi, orcid=orcid, access=access), encoding="utf-8")
+    def __init__(self, dataset: Path, name: str = "2026-11-20", access: str = "open", orcid: str = "none",
+                 changes: str = "The first version.\n"):
+        self.dataset = dataset
+        self.folder = dataset / "Versions" / name
+        self.folder.parent.mkdir(parents=True, exist_ok=True)
+        self.tables = Dataset(self.folder)
+        self.zenodo = dataset / "zenodo.yaml"
+        if not self.zenodo.exists():
+            self.zenodo.write_text(ZENODO_FILE.format(access=access, orcid=orcid), encoding="utf-8")
         self.crosswalk()
+        self.changes = self.folder / "changes.md"
+        self.changes.write_text(changes, encoding="utf-8")
 
-    @property
-    def files(self) -> Path:
-        return self.folder / "publish" / "files"
+    def run(self, release: build.Release | None = None, out: Path | None = None,
+            state: str = "zenodo.yaml") -> build.Built:
+        return build.build(self.folder, COMMIT, release, state, out=out)
 
-    def run(self, previous: "Merge | None" = None, release: build.Release | None = None,
-            out: Path | None = None) -> list[str]:
-        return build.build(self.folder, COMMIT, previous.folder if previous else None, release, out=out)
+    def upload(self, release: build.Release, record_id: str = "101") -> build.Built:
+        """Builds the version with its date and DOIs, and lists it in zenodo.yaml, as publish.py does."""
+        built = self.run(release)
+        dataset = build.read_dataset(self.dataset)
+        dataset.doi = release.concept_doi
+        dataset.versions.append(build.Version(built.version, self.folder.name, record_id, release.doi,
+                                              release.publication_date, SCHEMA.version))
+        build.write_dataset(dataset)
+        return built
 
     def crosswalk(self, *rows: tuple[str, ...],
                   header: tuple[str, ...] = ("Contribution", "Table", "OldID", "NewID")) -> None:
@@ -296,7 +306,7 @@ class Merge:
             csv.writer(f, lineterminator="\n").writerows([header, *rows])
 
     def readme(self) -> str:
-        return (self.files / "README.md").read_text(encoding="utf-8")
+        return (self.folder / "README.md").read_text(encoding="utf-8")
 
     def section(self, heading: str) -> str:
         """The text under a heading of the README, '## heading', up to the next such heading."""
@@ -305,12 +315,10 @@ class Merge:
         end = text.find("\n## ", start)
         return text[start:end if end >= 0 else None].strip()
 
-    def metadata(self) -> dict:
-        return json.loads((self.folder / "publish" / "metadata.json").read_text(encoding="utf-8"))
-
-    def release(self) -> dict:
-        return json.loads((self.folder / "publish" / "release.json").read_text(encoding="utf-8"))
+    def state(self, name: str = "zenodo.yaml") -> dict:
+        """The dataset's zenodo.yaml, or the sandbox's file, as written, every value as text."""
+        return yaml.load((self.dataset / name).read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
 
     def rows(self, table: str) -> list[dict[str, str]]:
-        with (self.files / f"{table}.csv").open(encoding="utf-8", newline="") as f:
+        with (self.folder / f"{table}.csv").open(encoding="utf-8", newline="") as f:
             return list(csv.DictReader(f))

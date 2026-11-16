@@ -1,8 +1,8 @@
 # Instructions for the AI that merges
 
-This file is for the AI that merges the tables of several contributions into one set of tables in the FabaBase phenotype [format](../schema/schema.md), to be published on Zenodo, as a public record or as a restricted record of a project. Both are merged the same way. You work for the data manager, who tells you which contributions to merge.
+This file is for the AI that merges the tables of several contributions into one set of tables in the FabaBase phenotype [format](../schema/schema.md), to be published on Zenodo as a version of a dataset: the public one, or the restricted one of a project. Both are merged the same way. You work for the data manager.
 
-You work only from what is in the `tables/` folders: the tables and `contributors.yaml` of each contribution, and those of the last merge for the same record, if there is one. Nothing else is part of a merge.
+You work in the folder of the dataset, which [publish-data.md](../docs/publish-data.md#2-the-dataset-folder) lays out, and only from what is in it: the contributions in `Sources/`, the earlier versions of the dataset in `Versions/`, if there are any, and this copy of the repository. Nothing else is part of a merge.
 
 Your job is to find where the contributions overlap, or write the same thing in different ways, and to propose what to change. The data manager decides every change: you make none without their yes.
 
@@ -15,33 +15,38 @@ Your job is to find where the contributions overlap, or write the same thing in 
 - [Make the values consistent](#make-the-values-consistent)
 - [Check](#check)
 - [merge-notes.md](#merge-notesmd)
-- [The Zenodo README](#the-zenodo-readme)
+- [changes.md](#changesmd)
+- [The README](#the-readme)
 - [Finishing](#finishing)
 - [Never](#never)
 
 ## Before you start
 
 1. **Read these in full:**
+   - [docs/publish-data.md](../docs/publish-data.md): the guide for the data manager: the datasets, the dataset folder, and its rules, which hold for you too.
    - [schema/schema.md](../schema/schema.md): the format. [schema/schema.yaml](../schema/schema.yaml) holds the same in machine-readable form, and the description of each column says what it should hold.
    - [Make the values consistent](../conversion/AI_INSTRUCTIONS.md#make-the-values-consistent), in the instructions for converting: how values are written.
    - [Who to credit](../docs/submit-data.md#who-to-credit), in the guide for contributors: what `contributors.yaml` holds, and its format.
 2. **Check that uv works** (`uv --version`). If it doesn't, ask the data manager to install it.
-3. **Ask the data manager what you cannot tell from the folder you are in:**
-   - which contributions to merge, and where their tables are;
-   - whether the record has been merged before, and where that last merge is;
-   - which folder this merge is written in. These instructions call it the merge folder, and everything you write goes in it.
-4. **If there was a last merge,** start from copies of its `merge.py` and `merge-notes.md`. Its decisions are carried out again without asking, unless a file that a decision rests on has changed. Then ask about that decision again.
-5. **Validate each contribution's `tables/` folder on its own**, as in [Check](#check). The validator checks its `contributors.yaml` too, and says if there is none. If one fails, or has no `contributors.yaml`, stop, and tell the data manager which one and why. It may have been made for an older version of the format.
+3. **Find your way in the dataset folder.** The contributions are the folders in `Sources/`. The last version is the last one that `zenodo.yaml` lists, in its folder in `Versions/`; if there is no `zenodo.yaml`, the dataset is new, so ask the data manager to write it, as [The dataset folder](../docs/publish-data.md#2-the-dataset-folder) says. A folder in `Versions/` with a `merge.py` that `zenodo.yaml` does not list is a merge that was stopped before it was uploaded: carry it on, in its folder, unless the data manager says to leave it. Otherwise, make `Versions/<today's date>` for this merge, and copy `Sources/` into it. These instructions call the folder of this merge the merge folder, and everything you write goes in it. A folder in `Versions/` without a `merge.py` is from before these instructions: leave it alone.
+4. **If there was a last version,** start from copies of its `merge.py` and `merge-notes.md`. Its decisions are carried out again without asking, unless a file that a decision rests on has changed. Then ask about that decision again. Compare the copy of `Sources/` in the merge folder with the last version's, by checksums, row counts and IDs: a contribution that differs was handed over again, with corrections or more data. Ask the data manager what changed in it, and why, for [changes.md](#changesmd).
+5. **Validate each contribution's folder in the merge folder's `Sources/` on its own**, with this copy of the repository, from the dataset folder:
+
+   ```
+   uv run --no-project --python 3.12 --with-requirements phenotype-database-format/app/requirements.txt phenotype-database-format/app/validation.py Versions/<date>/Sources/<contribution>
+   ```
+
+   The validator checks its `contributors.yaml` too, and says if there is none. If one fails, or has no `contributors.yaml`, stop, and tell the data manager which one and why. It may have been made for an older version of the format.
 
 Write your scripts for looking at the tables in `scratch/`, in the merge folder, and run them with uv.
 
 ## Find the overlaps
 
-Compare the contributions with each other, table by table, and with the tables of the last merge. Look at every row, not just the IDs: what each row says, and the scores that use it.
+Compare the contributions with each other, table by table, and with the tables of the last version. Look at every row, not just the IDs: what each row says.
 
 ### Traits, climate variables and features
 
-In PhenotypeDescription, ClimateDescription and Features, find for every row the rows in the other contributions that share its ID, ignoring case, and those that may describe the same thing under another ID. Compare everything they say: the name, the unit, the method, the level the value is taken at, the meaning of every code, and, for features, the Type. Compare the scores that use them too: their range and spread in each contribution.
+In PhenotypeDescription, ClimateDescription and Features, find for every row the rows in the other contributions that share its ID, ignoring case, and those that may describe the same thing under another ID. Compare everything they say: the name, the unit, the method, the level the value is taken at, the meaning of every code, and, for features, the Type.
 
 Two rows are the same thing only when they agree in all of this, apart from a unit that converts exactly, as below. When one row leaves out something that the other gives, the tables cannot show that they are the same, so they are not.
 
@@ -63,7 +68,7 @@ SLIDs, in SeedLot, are handled in the same way.
 
 ### Experiments and what belongs to them
 
-The IDs of Experiment, ExperimentalUnit, ExperimentIntervention, Management, Phenotype and Climate each belong to one contribution. When one is in more than one contribution, ignoring case, show the data manager the rows, say whether they look like the same thing, and ask.
+The IDs of Experiment, ExperimentalUnit, ExperimentIntervention, Management, Phenotype and Climate each belong to one contribution. When one is in more than one contribution, ignoring case, show the data manager the rows, without their scores, say whether they look like the same thing, and ask.
 
 ### People and funding
 
@@ -89,35 +94,35 @@ Compare the `contributors.yaml` of the contributions with each other, and with t
 
 `merge.py` turns the contributions' tables and `contributors.yaml` into the merged ones. Every decision is in it, so that the merge can be repeated and checked.
 
-- **It reads only the contributions' `tables/` folders, and writes only `tables/` and `crosswalk.csv`**, next to itself in the merge folder, or in the folder given with `--out`. It finds the files it reads from its own location, so that it runs from any folder.
+- **It reads only the folders in `Sources/` in the merge folder, and writes only the tables, `contributors.yaml` and `crosswalk.csv`**, next to itself, or in the folder given with `--out`. It finds `Sources/` from its own location, so that it runs from any folder.
 - **It starts with the Python version and the exact version of every package it needs**, in the form uv reads, as in [Write conversion.py](../conversion/AI_INSTRUCTIONS.md#write-conversionpy). Run it with `uv run`.
 - **It checks what it reads first.** It lists every table and `contributors.yaml` it reads, with its SHA-256 checksum, and stops with a clear message if one is missing or has changed. When one has changed, stop, and ask the data manager why.
 - **Every decision has a comment** saying what it does, and the number of the decision in merge-notes.md that it carries out.
 - **When it changes an ID, it changes every reference to it**: in every column that links to that table, as schema.yaml gives them, and in the FTIDs inside Features cells.
 - **It keeps every score as the contribution gives it**, except where a decision converts it. Then it converts it exactly, in decimal arithmetic: no rounding, and no floating-point artefacts.
 - **It gives the same output every time**: rows in a fixed order, and no date or time of the run in what it writes.
-- **It writes the tables as in [Files](../schema/schema.md#files)**, and follows schema.md in everything else.
-- **It writes `tables/contributors.yaml`** in the format in [Who to credit](../docs/submit-data.md#who-to-credit), the same as a contribution's, with the keys in the order of its template. It holds every person and every grant once: the people in alphabetical order of family name, then given names, and the grants in alphabetical order of funder, then grant number. The experiments of each are those it is behind in any of the contributions, each once, by its EXPID in the merged tables, in alphabetical order.
-- **It writes `crosswalk.csv`**, with one row for every ID it changed in every contribution, and the columns Contribution, Table, OldID and NewID, and only the first row when it changed none. Contribution is the name of the contribution's folder, the one that holds `raw_data/` and `runs/`, written the same way in every merge: `publishing/build.py` follows each ID of the last version through the crosswalk of the last merge and of this one, to say which of them changed.
+- **It writes every table of the format, as the validator writes them with `--out`**: every column, in the order of the format, missing values as empty cells, and a table without rows as a file with only the column names, as in [Files](../schema/schema.md#files). The files are uploaded as they are, and build.py refuses one written otherwise. It follows schema.md in everything else.
+- **It writes `contributors.yaml`**, next to the tables, in the format in [Who to credit](../docs/submit-data.md#who-to-credit), the same as a contribution's, with the keys in the order of its template. It holds every person and every grant once: the people in alphabetical order of family name, then given names, and the grants in alphabetical order of funder, then grant number. The experiments of each are those it is behind in any of the contributions, each once, by its EXPID in the merged tables, in alphabetical order.
+- **It writes `crosswalk.csv`**, with one row for every ID it changed in every contribution, and the columns Contribution, Table, OldID and NewID, and only the first row when it changed none. Contribution is the name of the contribution's folder in `Sources/`, which is the same in every merge: `publishing/build.py` follows each ID of the last version through the crosswalk of the last merge and of this one, to say which of them changed.
 
 ## Make the values consistent
 
-Each contribution was made consistent on its own, but not with the others. Each time `merge.py` has written the tables, go through every column of every table, across all the contributions, as [Make the values consistent](../conversion/AI_INSTRUCTIONS.md#make-the-values-consistent) says: the same thing is written the same way in every row, whichever contribution it comes from.
+Each contribution was made consistent on its own, but not with the others. Each time `merge.py` has written the tables, go through every column of every table but the Score columns, across all the contributions, as [Make the values consistent](../conversion/AI_INSTRUCTIONS.md#make-the-values-consistent) says: the same thing is written the same way in every row, whichever contribution it comes from.
 
 A merge changes only how a value is written, never what it says, and fills in nothing. Unlike in converting, you ask about every change, as in [Ask](#ask). `merge.py` writes out each value and what it becomes.
 
 ## Check
 
-- **Run the validator** on the merged tables, with the copy of this repository that holds this file:
+- **Build the version** with `publishing/build.py`, from the dataset folder:
 
   ```
-  uv run --no-project --python 3.12 --with-requirements <repository>/app/requirements.txt <repository>/app/validation.py <merge folder>/tables
+  uv run phenotype-database-format/publishing/build.py Versions/<date>
   ```
 
-  It checks `contributors.yaml` too, after the tables, and stops at the first error. Fix `merge.py`, run it again, and validate again, until it says "Validation successful!".
+  It runs the validator on the tables and `contributors.yaml`, and stops at the first error. Then it checks that the tables are written as the validator writes them, reads `crosswalk.csv` and `changes.md`, and writes `README.md` in the merge folder. Fix `merge.py`, run it again, and build again, until it builds.
 - **Run `merge.py` again**, into `scratch/` with `--out`, and check that it writes the same files, byte for byte.
 - **Nothing is lost.** Every row of every contribution is in the merged tables, and every person and grant in its `contributors.yaml` is in the merged one, or was made one with another by a decision in merge-notes.md.
-- **Nothing in the last merge changes unnoticed.** Every ID in the tables of the last merge should still be in the merged tables, with the same row, and every person and grant in its `contributors.yaml` should still be in the merged one, unless a decision in merge-notes.md changed it. Tell the data manager about every one that is not.
+- **Nothing in the last version changes unnoticed.** Every ID in the tables of the last version should still be in the merged tables, with the same row, and every person and grant in its `contributors.yaml` should still be in the merged one, unless a decision in merge-notes.md changed it, or the contributor changed it in a new handover. Tell the data manager about every one that is not.
 
 ## merge-notes.md
 
@@ -131,37 +136,35 @@ Start from this template. Keep its fields, its heading and the line in italics a
 # Merge notes
 
 - **Last updated:** YYYY-MM-DD
-- **Version of the format:** the version in schema.yaml, and the commit if the copy of the repository is a git clone
-- **Contributions:** …
+- **Version of the format:** the version in schema.yaml, and the commit the copy of the repository is at
+- **Contributions:** the folders in Sources/ that this merge reads
 
 ## Decisions
 
 *Every change asked about, and the answer, yes or no. Each item has its number and the date of the answer, and says what changes, where, and what in the tables it rests on, or that it was removed, when, and why.*
 ```
 
-## The Zenodo README
+## changes.md
 
-You don't write the README of the dataset, or its metadata on Zenodo: `publishing/build.py` builds them from the merged tables, `contributors.yaml`, `crosswalk.csv` and `record.yaml`. `record.yaml`, in the merge folder, gives the dataset's title, its DOI of all versions, who may download its files, and who looks after it. Copy it from the last merge. For the first version, ask the data manager to write it, as the docstring of `read_record` in build.py says.
+Write `changes.md`, in the merge folder, for the people who use the data: what changed in this version of the dataset, and why, in a few lines, as paragraphs or a list, with no headings. build.py puts it in the README, under *What changed in this version*, so write it to be read years from now, without this chat. It says, for the first version, that it is the first, and which contributions it holds; after that, which contributions were handed over again, and what the contributor corrected or added, as the data manager says; what the decisions of this merge changed that users of the data would notice, in plain words; and that the format changed, if it did. Write it with the data manager, who has the last word on it.
 
-Once the checks pass, build a preview of the version:
+## The README
 
-```
-uv run <repository>/publishing/build.py --merge <merge folder> --previous <last merge folder>
-```
-
-Leave out `--previous` for the first version. Read `publish/files/README.md` in full. Under *What changed in this version*, every ID that a decision in merge-notes.md changed is renamed, and nothing is renamed or removed that no decision explains. Tell the data manager about anything in the README that is wrong or looks odd.
+You don't write the README of the dataset, or its metadata on Zenodo: `publishing/build.py` builds them from the tables, `contributors.yaml`, `crosswalk.csv`, `changes.md` and `zenodo.yaml`, which the data manager keeps. Once the checks pass, read `README.md` in the merge folder in full. Under *What changed in this version*, every ID that a decision in merge-notes.md changed is renamed, nothing is renamed or removed that no decision explains, and what `changes.md` says agrees with the rest. Tell the data manager about anything in the README that is wrong or looks odd.
 
 ## Finishing
 
 Whenever you stop, finished or not, update merge-notes.md, and delete `scratch/`.
 
-The merge is finished when every change has been asked about and answered, the checks pass, you have read the README, and merge-notes.md is up to date. Then tell the data manager that the merge is finished, and point them to `publishing/publish.py`, whose docstring says how to run it. It uploads the version to a draft on Zenodo with their Zenodo token, so they run it, never you.
+The merge is finished when every change has been asked about and answered, the checks pass, you have read the README, and merge-notes.md and changes.md are up to date. Then tell the data manager that the merge is finished, and that the next step is to upload the version, as [Publish a version](../docs/publish-data.md#3-publish-a-version) says. `publishing/publish.py` does that with their Zenodo token, so they run it, never you.
 
 ## Never
 
 Write only in the merge folder. When something blocks you, stop and ask; never work around it. Never:
 
-- change anything in a contribution's `tables/` folder, or anything of an earlier merge;
+- read the Score column of Phenotype or Climate: never print, summarise, plot or sample it. Merging rests on what the rows say, not on the values measured; the validator and `merge.py` handle the scores without you;
+- change anything in the dataset's `Sources/`, or anything of an earlier version;
+- write in `zenodo.yaml` or `sandbox.yaml`, which the data manager and publish.py keep;
 - make a change the data manager has not said yes to;
 - change a GPID or an SLID, or make two of them one;
 - change a score, except by an exact conversion the data manager has said yes to;

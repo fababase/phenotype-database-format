@@ -16,17 +16,17 @@ The decisions behind this repository, the work still to do, and the questions st
 | Credit | **`contributors.yaml`**, handed over with the tables, as in [Who to credit](submit-data.md#who-to-credit), and checked by the validator. Everyone in it is a creator of the dataset on Zenodo, in alphabetical order of family name. Whoever looks after the dataset is a contributor, as data curator. |
 | Merging | An **AI merges** the contributions for the data manager, who decides every change, as in [merging/AI_INSTRUCTIONS.md](../merging/AI_INSTRUCTIONS.md). |
 | Data | **On Zenodo**: one public dataset, and a restricted dataset for each project whose data are not public yet. A restricted dataset's page and DOI are public, and its files are only for those given access. Each merge becomes a new version. |
+| Datasets on disk | **One folder per dataset**: a copy of the repository, `zenodo.yaml`, the contributions in `Sources/`, and one folder per version in `Versions/`, which keeps the sources as merged, the merge, the tables and the README, as in [publish-data.md](publish-data.md). Nothing of a version is changed or deleted. |
 | What is published | **Only the merged tables and the README.** The README holds all that people using the data need, so `schema.md` and `schema.yaml` are not published. Raw files, scripts and notes are kept privately. |
-| Publishing | `publishing/build.py` builds the README and the metadata from a merge, and `publishing/publish.py` uploads them to a draft on Zenodo. The data manager presses Publish. |
+| Publishing | `publishing/build.py` builds the README and the metadata from a merge, and `publishing/publish.py` uploads them to a draft on Zenodo. The data manager presses Publish, as in [publish-data.md](publish-data.md). |
 | Existing data | The IDs to reuse are in the datasets themselves. [datasets.md](datasets.md) lists every known dataset by DOI. |
 | Guides | One per role, written for people, and read by AIs too. Only the AI instructions are written for the AI alone. |
 | Licences | Code: GPL-3.0. The schema documentation, the collection sheet and the published data: CC-BY-4.0. |
 
 ## To do
 
-- [ ] Try `publish.py` on [sandbox.zenodo.org](https://sandbox.zenodo.org), then publish the first version of the public dataset.
+- [ ] Publish the first version of the public dataset, as in [publish-data.md](publish-data.md): on the sandbox first.
 - [ ] Decide how contributors hand over their tables, and say so in step 10 of [submit-data.md](submit-data.md#10-hand-over).
-- [ ] Write `docs/release.md` for the data manager: how to merge, build and publish a version of a dataset, and how to release a new version of the format (`schema.yaml`, the hand-written parts of `schema.md`, `CHANGELOG.md`, and the version and date in `CITATION.cff`). At least two people should have access to GitHub and Zenodo.
 
 ### Validator plots
 

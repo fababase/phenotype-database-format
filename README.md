@@ -15,10 +15,11 @@ This repository describes and checks the format of the FabaBase phenotype databa
 | [docs/datasets.md](docs/datasets.md) | Every known dataset in the format, by DOI. Look here for IDs to reuse. |
 | [docs/submit-data.md](docs/submit-data.md) | For contributors: how to convert your data into the format, with an AI or without, and hand it over. |
 | [docs/review-data.md](docs/review-data.md) | For reviewers: what a finished conversion is checked against, and its FAIR score. |
+| [docs/publish-data.md](docs/publish-data.md) | For the data manager: how the contributions become a version of a dataset on Zenodo, and the folder a dataset lives in. |
 | [conversion/AI_INSTRUCTIONS.md](conversion/AI_INSTRUCTIONS.md) | What the AI follows when it converts a contributor's data. |
 | [merging/AI_INSTRUCTIONS.md](merging/AI_INSTRUCTIONS.md) | What the AI follows when it merges contributions into one set of tables, for the data manager. |
 | [publishing/](publishing/) | Publishing on Zenodo. `build.py` builds the README and the metadata of a version from a merge, from `README_TEMPLATE.md`, and `publish.py` uploads them to a draft on Zenodo. |
-| [docs/deploy-app.md](docs/deploy-app.md) | How the app is published, and how to refresh it. |
+| [docs/deploy-app.md](docs/deploy-app.md) | How the app is published, how to refresh it, and how to release a new version of the format. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Decisions, planned work and open questions. |
 
 ## Checking your data
@@ -53,7 +54,7 @@ python app/validation.py collection-sheet.xlsx --out path/to/new-folder
 2. **Review.** A fresh AI session or a colleague checks the result and gives it a FAIR score, as in [docs/review-data.md](docs/review-data.md).
 3. **Hand over.** How is still to be decided.
 4. **Merge.** An AI merges the contributions into one set of tables for the data manager, as in [merging/AI_INSTRUCTIONS.md](merging/AI_INSTRUCTIONS.md).
-5. **Publish.** The scripts in [publishing/](publishing/) build the README and upload it with the tables to Zenodo, as a new version of the public dataset or of a project's restricted one.
+5. **Publish.** The data manager uploads the merged tables with their README to Zenodo, as a new version of the public dataset or of a project's restricted one, as in [docs/publish-data.md](docs/publish-data.md).
 
 ## Running locally
 

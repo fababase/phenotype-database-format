@@ -8,38 +8,37 @@
 # ]
 # ///
 """
-Builds what goes to Zenodo from a merge: the tables, their README, and the record's metadata.
+Builds the README of a version of a dataset, and its metadata for Zenodo, from the folder of the version.
 
-Run it in the merge folder, which holds the copy of this repository:
+Run it in the dataset folder, which holds the copy of this repository and the versions, as docs/publish-data.md lays
+it out:
 
-    uv run phenotype-database-format/publishing/build.py [--previous <folder of the last merge>]
+    uv run phenotype-database-format/publishing/build.py Versions/<date>
 
-It reads, in the merge folder:
+It reads, in the dataset folder:
 
-    tables/        the merged tables and contributors.yaml, written by merge.py
-    record.yaml    the dataset's title, its DOI of all versions, its access, and who looks after it
-    crosswalk.csv  the IDs that merge.py changed in each contribution
+    zenodo.yaml        the dataset's title, who may download its files, and who looks after it; and, written by
+                       publish.py, its DOI of all versions and the versions uploaded so far
 
-and, with --previous, the last merge's publish/ folder, tables/contributors.yaml and crosswalk.csv, to say what changed
-since the version it published. Which IDs of that version this merge changed follows from the two crosswalks. It checks
-the tables with the validator, and writes publish/ in the merge folder:
+and, in the folder of the version:
 
-    files/         README.md and one CSV file per table: exactly what is uploaded
-    metadata.json  the metadata of the record on Zenodo
-    release.json   the number, date and DOIs of the version, and the version of the format and the commit of the
-                   repository it was built with. The next merge reads it, with --previous.
+    <Table>.csv        the merged tables, one file per table of the format, written by merge.py
+    contributors.yaml  who to credit, written by merge.py
+    crosswalk.csv      the IDs that merge.py changed in each contribution
+    changes.md         what changed in this version, and why, for the people who use the data
 
-publish.py keeps zenodo.json in publish/ too, which build.py leaves as it is.
+and the folder of the last version, to say what changed since it, which follows from the tables and the crosswalks
+of the two. It checks the tables with the validator, and writes README.md in the folder of the version. The README
+and the tables are the files of the version on Zenodo, and nothing else.
 
-Run on its own, it builds a preview: the date and DOI of a version are only known when publish.py publishes it, and
-publish.py then builds it again with them. A preview never replaces a publish/ folder that has a DOI.
+Run on its own, it builds a preview: the date and DOI of a version are only known when publish.py uploads it, and
+publish.py then builds the README again with them. A preview never replaces the README of a version that is on
+Zenodo.
 """
 import argparse
 import csv
 import html
-import json
 import re
-import shutil
 import subprocess
 import sys
 from collections.abc import Callable
@@ -62,21 +61,20 @@ from validation import (CONTRIBUTORS_FILE, NONE, Checked, Grant, Person, Schema,
 
 TEMPLATE = HERE / "README_TEMPLATE.md"
 
-# In the merge folder
-TABLES = "tables"
-RECORD = "record.yaml"
+# In the dataset folder
+ZENODO_FILE = "zenodo.yaml"
+VERSIONS = "Versions"
+# In the folder of a version
 CROSSWALK = "crosswalk.csv"
-PUBLISH = "publish"
-# In publish/
-FILES = "files"
+CHANGES = "changes.md"
 README = "README.md"
-METADATA = "metadata.json"
-RELEASE = "release.json"
 
-RECORD_KEYS = ("title", "doi", "access", "curator")
+DATASET_KEYS = ("title", "access")
+DATASET_OPTIONAL = ("curator", "doi", "versions")
 # Who can download the files of the dataset: anyone, or only those given access on Zenodo
 ACCESS = ("open", "restricted")
 CURATOR_KEYS = ("family_name", "given_names", "orcid", "affiliations")
+VERSION_KEYS = ("version", "folder", "id", "date", "format")
 CROSSWALK_HEADER = ["Contribution", "Table", "OldID", "NewID"]
 DOI = re.compile(r"10\.[0-9]{4,9}/\S+")
 
@@ -98,12 +96,27 @@ class BuildError(ValueError):
 # ---------------------------------------------------------------- What it reads
 
 @dataclass
-class Record:
-    """The dataset, from record.yaml."""
+class Version:
+    """A version on Zenodo, as zenodo.yaml lists it: a draft, or published."""
+    number: int
+    folder: str      # the name of its folder in Versions/
+    id: str          # the ID of its record on Zenodo
+    doi: str | None  # reserved when the draft is made
+    date: str        # YYYY-MM-DD, the date it was uploaded, which is its publication date
+    format: str      # the version of the format its tables follow
+
+
+@dataclass
+class Dataset:
+    """A dataset, from zenodo.yaml in its folder."""
+    folder: Path
     title: str
-    doi: str | None  # the DOI of all versions; None until the first version is published
-    access: str      # one of ACCESS
-    curator: Person  # who looks after the dataset, with no experiments
+    access: str              # one of ACCESS
+    curator: Person | None   # who looks after it, with no experiments
+    doi: str | None          # the DOI of all versions; None until the first version is uploaded
+    versions: list[Version]  # in order, the first first
+    state: str               # the file that holds the DOI and the versions: ZENODO_FILE, or the sandbox's
+    text: dict               # zenodo.yaml as plain Python, every value as text, to write it back
 
 
 @dataclass
@@ -116,25 +129,46 @@ class Release:
 
 @dataclass
 class Previous:
-    """The last version, as the last merge published it."""
-    version: int
-    publication_date: str
-    doi: str
-    concept_doi: str
-    schema_version: str
+    """The last version, as its folder holds it."""
+    version: Version
     tables: dict[str, pd.DataFrame]  # by the name of each CSV file, without .csv
     people: list[Person]             # from its contributors.yaml
     funding: list[Grant]
     crosswalk: dict[tuple[str, str, str], str]  # from its crosswalk.csv, as read_crosswalk gives it
 
 
-def read_record(path: Path) -> Record:
+@dataclass
+class Built:
+    """What build() made."""
+    dataset: Dataset
+    version: int
+    readme: str
+    metadata: dict   # the record's metadata, as Zenodo takes it
+    lines: list[str]  # what was built, to print
+
+
+class Dumper(yaml.SafeDumper):
+    """Writes a list under its key indented, as the templates in the guides do, rather than level with it."""
+
+    def increase_indent(self, flow: bool = False, indentless: bool = False):
+        return super().increase_indent(flow, False)
+
+
+def plain(node: yaml.Node):
+    """A YAML node as plain Python, with every value as text."""
+    if isinstance(node, yaml.MappingNode):
+        return {plain(key): plain(value) for key, value in node.value}
+    if isinstance(node, yaml.SequenceNode):
+        return [plain(item) for item in node.value]
+    return node.value
+
+
+def read_dataset(folder: Path, state: str = ZENODO_FILE) -> Dataset:
     """
-    record.yaml, which says what the dataset is called, its DOI of all versions, who can download its files, and who
-    looks after it, in the same way as a person in contributors.yaml, without experiments:
+    zenodo.yaml in the dataset folder, which says what the dataset is called, who can download its files, and who
+    looks after it, if someone does, in the same way as a person in contributors.yaml, without experiments:
 
         title: <title>
-        doi: <DOI of all versions, or none before the first version is published>
         access: <open, for anyone, or restricted, for only those given access on Zenodo>
         curator:
           family_name: …
@@ -143,36 +177,92 @@ def read_record(path: Path) -> Record:
           affiliations:
             - name: …
               ror: …
+
+    publish.py adds the DOI of all versions and the versions, as read_versions says. With --sandbox, it keeps them in
+    another file, state, in the same folder, and leaves zenodo.yaml as it is.
     """
+    path = folder / ZENODO_FILE
     if not path.is_file():
-        raise BuildError(f"There is no {RECORD} in {path.parent}. Copy it from the last merge, or write it for the "
-                         "first version: see the docstring of read_record in publishing/build.py.")
+        raise BuildError(f"There is no {ZENODO_FILE} in {folder}, the folder above {VERSIONS}. Write the title of "
+                         "the dataset and its access in it, as docs/publish-data.md says.")
     try:
-        _, root = read_yaml(RECORD, path.read_bytes())
+        _, root = read_yaml(ZENODO_FILE, path.read_bytes())
         if root is None:
-            raise BuildError(f"{RECORD} is empty. Write the title, the DOI and the curator in it.")
-        values = yaml_mapping(RECORD, root, RECORD_KEYS, "the file")
-        title = yaml_text(RECORD, values["title"], "title")
-        node = values["doi"]
-        doi = None
-        if not (isinstance(node, yaml.ScalarNode) and node.value == NONE):
-            doi = yaml_text(RECORD, node, "doi")
-            if not DOI.fullmatch(doi):
-                raise BuildError(f"{at(RECORD, node)}: '{doi}' is not a DOI, which starts with 10. and a '/'. Write "
-                                 "it without https://doi.org/ in front, or write none before the first version is "
-                                 "published.")
-        access = yaml_text(RECORD, values["access"], "access")
+            raise BuildError(f"{ZENODO_FILE} is empty. Write the title of the dataset and its access in it.")
+        values = yaml_mapping(ZENODO_FILE, root, DATASET_KEYS, "the file", DATASET_OPTIONAL)
+        title = yaml_text(ZENODO_FILE, values["title"], "title")
+        access = yaml_text(ZENODO_FILE, values["access"], "access")
         if access not in ACCESS:
-            raise BuildError(f"{at(RECORD, values['access'])}: '{access}' is not a kind of access. Write open, if "
-                             "anyone may download the files, or restricted, if only those given access on Zenodo may.")
-        person = yaml_mapping(RECORD, values["curator"], CURATOR_KEYS, "the curator")
-        curator = Person(yaml_text(RECORD, person["family_name"], "family_name"),
-                         yaml_text(RECORD, person["given_names"], "given_names"),
-                         yaml_id(RECORD, person["orcid"], "orcid", orcid_problem),
-                         read_affiliations(RECORD, person["affiliations"]), [])
+            raise BuildError(f"{at(ZENODO_FILE, values['access'])}: '{access}' is not a kind of access. Write open, "
+                             "if anyone may download the files, or restricted, if only those given access on Zenodo "
+                             "may.")
+        curator = None
+        if "curator" in values:
+            person = yaml_mapping(ZENODO_FILE, values["curator"], CURATOR_KEYS, "the curator")
+            curator = Person(yaml_text(ZENODO_FILE, person["family_name"], "family_name"),
+                             yaml_text(ZENODO_FILE, person["given_names"], "given_names"),
+                             yaml_id(ZENODO_FILE, person["orcid"], "orcid", orcid_problem),
+                             read_affiliations(ZENODO_FILE, person["affiliations"]), [])
+        doi, versions = None, []
+        if state == ZENODO_FILE:
+            doi, versions = read_versions(ZENODO_FILE, values)
+        elif (folder / state).is_file():
+            _, found = read_yaml(state, (folder / state).read_bytes())
+            if found is not None:
+                doi, versions = read_versions(state, yaml_mapping(state, found, (), "the file", ("doi", "versions")))
     except ValidationError as e:
         raise BuildError(str(e)) from None
-    return Record(title, doi, access, curator)
+    return Dataset(folder, title, access, curator, doi, versions, state, plain(root))
+
+
+def read_versions(source: str, values: dict[str, yaml.Node]) -> tuple[str | None, list[Version]]:
+    """
+    The DOI of all versions and the versions, as publish.py writes them in the file: doi, and under versions a
+    list with, for each, its number, folder, ID on Zenodo, DOI, date and the version of the format.
+    """
+    doi = None
+    if "doi" in values:
+        doi = yaml_text(source, values["doi"], "doi")
+        if not DOI.fullmatch(doi):
+            raise BuildError(f"{at(source, values['doi'])}: '{doi}' is not a DOI, which starts with 10. and a '/'. "
+                             "publish.py writes it, so leave it as it was.")
+    versions = []
+    if "versions" in values:
+        node = values["versions"]
+        if not isinstance(node, yaml.SequenceNode):
+            raise BuildError(f"{at(source, node)}: versions has to be a list, as publish.py writes it.")
+        for item in node.value:
+            entry = yaml_mapping(source, item, VERSION_KEYS, "a version", ("doi",))
+            number = yaml_text(source, entry["version"], "version")
+            if not number.isdigit() or int(number) != len(versions) + 1:
+                raise BuildError(f"{at(source, entry['version'])}: the versions have to be numbered 1, 2, … in "
+                                 "order, as publish.py writes them.")
+            versions.append(Version(int(number), yaml_text(source, entry["folder"], "folder"),
+                                    yaml_text(source, entry["id"], "id"),
+                                    yaml_text(source, entry["doi"], "doi") if "doi" in entry else None,
+                                    yaml_text(source, entry["date"], "date"),
+                                    yaml_text(source, entry["format"], "format")))
+    return doi, versions
+
+
+def write_dataset(dataset: Dataset) -> None:
+    """
+    Writes the DOI of all versions and the versions into the dataset's state file: zenodo.yaml, with the rest of it
+    as it was, or the sandbox's file, which holds nothing else.
+    """
+    state = {}
+    if dataset.doi:
+        state["doi"] = dataset.doi
+    state["versions"] = []
+    for version in dataset.versions:
+        entry = {"version": version.number, "folder": version.folder, "id": version.id}
+        if version.doi:
+            entry["doi"] = version.doi
+        state["versions"].append(entry | {"date": version.date, "format": version.format})
+    if dataset.state == ZENODO_FILE:
+        state = {key: value for key, value in dataset.text.items() if key not in ("doi", "versions")} | state
+    (dataset.folder / dataset.state).write_text(yaml.dump(state, Dumper=Dumper, sort_keys=False, allow_unicode=True,
+                                                          width=120), encoding="utf-8", newline="")
 
 
 def read_csv(path: Path) -> pd.DataFrame:
@@ -180,21 +270,20 @@ def read_csv(path: Path) -> pd.DataFrame:
     return pd.read_csv(path, dtype=str, keep_default_na=False, na_filter=False, encoding="utf-8")
 
 
-def read_previous(folder: Path) -> Previous:
-    """The version that the merge in folder published: its release.json, tables, contributors.yaml and crosswalk."""
-    release_path = folder / PUBLISH / RELEASE
-    if not release_path.is_file():
-        raise BuildError(f"{folder} has no {PUBLISH}/{RELEASE}, so it is not a merge that was published. Give "
-                         "the folder of the merge that was published as the last version.")
-    release = json.loads(release_path.read_text(encoding="utf-8"))
-    if not release["doi"] or not release["publication_date"]:
-        raise BuildError(f"The merge in {folder} was not published: {PUBLISH}/{RELEASE} has no DOI or date. Give "
-                         "the folder of the merge that was published as the last version.")
-    tables = {path.stem: read_csv(path) for path in sorted((folder / PUBLISH / FILES).glob("*.csv"))}
-    credit_path = folder / TABLES / CONTRIBUTORS_FILE
+def read_previous(dataset: Dataset, version: Version) -> Previous:
+    """The version, as its folder holds it: its tables, contributors.yaml and crosswalk."""
+    folder = dataset.folder / VERSIONS / version.folder
+    if not folder.is_dir():
+        raise BuildError(f"There is no folder {folder}, which holds version {version.number}, as {dataset.state} "
+                         "says. The folder of a version is kept, as the next version compares with it.")
+    tables = {path.stem: read_csv(path) for path in sorted(folder.glob("*.csv")) if path.name != CROSSWALK}
+    if not tables:
+        raise BuildError(f"There are no tables in {folder}, which holds version {version.number}. The folder of a "
+                         "version is kept as it was, as the next version compares with it.")
+    credit_path = folder / CONTRIBUTORS_FILE
     if not credit_path.is_file():
-        raise BuildError(f"The last merge, in {folder}, has no {TABLES}/{CONTRIBUTORS_FILE}, which says who made the "
-                         "last version.")
+        raise BuildError(f"There is no {CONTRIBUTORS_FILE} in {folder}, which says who made version "
+                         f"{version.number}.")
     credit = yaml.load(credit_path.read_text(encoding="utf-8-sig"), Loader=yaml.BaseLoader)
 
     def text(value: str) -> str | None:
@@ -205,8 +294,7 @@ def read_previous(folder: Path) -> Previous:
     funding = [Grant(item["funder"], text(item["ror"]), text(item["grant_number"]), text(item["grant_title"]), [])
                for item in ([] if credit["funding"] == NONE else credit["funding"])]
     crosswalk = read_crosswalk(folder / CROSSWALK, str(folder / CROSSWALK), tables, "the last version")
-    return Previous(release["version"], release["publication_date"], release["doi"], release["concept_doi"],
-                    release["schema_version"], tables, people, funding, crosswalk)
+    return Previous(version, tables, people, funding, crosswalk)
 
 
 def read_crosswalk(path: Path, source: str, tables: dict[str, pd.DataFrame],
@@ -282,19 +370,40 @@ def repository_commit(repository: Path = REPOSITORY_FOLDER) -> str:
     return result.stdout.strip()
 
 
-def published_tables(checked: Checked, schema: Schema) -> dict[str, pd.DataFrame]:
+def published_tables(checked: Checked, folder: Path) -> dict[str, pd.DataFrame]:
     """
-    Every table of the format, as it is published: every column, in the schema's order, missing values as empty
-    cells, and a table that is not there as one without rows.
+    Every table of the format, as its file in the folder holds it, after checking that the file is written as the
+    validator writes tables with --out: every column of the table, in the order of the format, and missing values as
+    empty cells. So the files that merge.py writes are what is uploaded, byte for byte.
     """
     frames = {}
-    for name, definition in schema.tables.items():
-        if name in checked.tables:
-            table = checked.tables[name]
-            frames[name] = table.data.mask(table.missing, "").reset_index(drop=True)
-        else:
-            frames[name] = pd.DataFrame({column: pd.Series(dtype=str) for column in definition.columns})
+    for name, table in checked.tables.items():
+        if (folder / f"{name}.csv").read_bytes() != table.to_csv().encode("utf-8"):
+            raise BuildError(f"{name}.csv in {folder} is not written as the validator writes tables with --out: "
+                             f"every column of {name}, in the order of the format, missing values as empty cells, "
+                             "and the rows as pandas writes them with to_csv(index=False, lineterminator='\\n'). "
+                             "Make merge.py write it so, as the file is uploaded as it is.")
+        frames[name] = table.data.mask(table.missing, "").reset_index(drop=True)
     return frames
+
+
+def read_changes(folder: Path) -> str:
+    """
+    changes.md in the folder of a version: what changed in it, and why, written for the people who use the data. It
+    holds paragraphs and lists, but no headings, as the README puts it under a heading of its own.
+    """
+    path = folder / CHANGES
+    if not path.is_file():
+        raise BuildError(f"There is no {CHANGES} in {folder}. Write in it what changed in this version of the dataset, "
+                         "and why, for the people who use the data; for the first version, that it is the first.")
+    text = path.read_text(encoding="utf-8-sig").strip()
+    if not text:
+        raise BuildError(f"{CHANGES} in {folder} is empty. Write in it what changed in this version of the dataset, "
+                         "and why, for the people who use the data; for the first version, that it is the first.")
+    if any(line.startswith("#") for line in text.splitlines()):
+        raise BuildError(f"{CHANGES} in {folder} has a heading. Write paragraphs and lists only: the README puts it "
+                         "under a heading of its own.")
+    return text
 
 
 # ---------------------------------------------------------------- Writing it out
@@ -501,11 +610,15 @@ def funding_table(funding: list[Grant]) -> str:
     return markdown_table(rows)
 
 
-def curator_text(curator: Person) -> str:
+def curator_sentence(curator: Person | None) -> str:
+    """Who looks after the dataset, as a sentence, or nothing if no one is named."""
+    if curator is None:
+        return ""
     details = [ror_link(a.name, a.ror) for a in curator.affiliations]
     if curator.orcid:
         details.append(f"ORCID {orcid_link(curator.orcid)}")
-    return md(name_of(curator)) + (f" ({'; '.join(details)})" if details else "")
+    return f"The dataset is looked after by {md(name_of(curator))}" + (f" ({'; '.join(details)})." if details
+                                                                       else ".")
 
 
 def citation(people: list[Person], year: str, title: str, version: int, doi: str | None) -> str:
@@ -603,12 +716,14 @@ def table_changes(definition: TableDef, old: pd.DataFrame, new: pd.DataFrame,
 
 def changes_text(last: Previous | None, frames: dict[str, pd.DataFrame], schema: Schema,
                  renames: dict[str, dict[str, str]], people: list[Person], funding: list[Grant], diagram: str) -> str:
-    """What changed since the last version: in the format, in each table, and in who made it."""
+    """What changed since the last version: in the format, in each table, and in who made it. Nothing for the
+    first version."""
     if last is None:
-        return "This is the first version."
-    parts = [f"Compared with version {last.version}, published {last.publication_date}: {doi_link(last.doi)}."]
-    if not same_version(last.schema_version, schema.version):
-        parts.append(f"The format changed from version {last.schema_version} to version {schema.version}. The "
+        return ""
+    parts = [f"Compared with version {last.version.number}, published {last.version.date}: "
+             f"{doi_link(last.version.doi)}."]
+    if not same_version(last.version.format, schema.version):
+        parts.append(f"The format changed from version {last.version.format} to version {schema.version}. The "
                      f"[diagram]({diagram}) shows each version: choose one in its menu.")
 
     summary = [["Table", "Added", "Changed", "Renamed", "Removed"]]
@@ -723,15 +838,15 @@ def creator(person: Person) -> dict:
     return entry
 
 
-def metadata(record: Record, version: int, release: Release | None, people: list[Person], funding: list[Grant],
+def metadata(dataset: Dataset, version: int, release: Release | None, people: list[Person], funding: list[Grant],
              frames: dict[str, pd.DataFrame], description: str, commit: str) -> dict:
     """
-    The record's metadata, as Zenodo takes it. Everyone in contributors.yaml is a creator, and the curator is a
-    contributor, unless they are a creator already.
+    The record's metadata, as Zenodo takes it. Everyone in contributors.yaml is a creator, and the curator, if
+    there is one, is a contributor, unless they are a creator already.
     """
-    data = {"resource_type": {"id": "dataset"}, "title": record.title, "creators": [creator(p) for p in people]}
-    if not any(same_person(record.curator, person) for person in people):
-        data["contributors"] = [creator(record.curator) | {"role": {"id": "datacurator"}}]
+    data = {"resource_type": {"id": "dataset"}, "title": dataset.title, "creators": [creator(p) for p in people]}
+    if dataset.curator and not any(same_person(dataset.curator, person) for person in people):
+        data["contributors"] = [creator(dataset.curator) | {"role": {"id": "datacurator"}}]
     if release:
         data["publication_date"] = release.publication_date
     data |= {"version": str(version), "description": description, "publisher": "Zenodo",
@@ -765,74 +880,69 @@ def metadata(record: Record, version: int, release: Release | None, people: list
     return data
 
 
-def as_json(data: dict) -> str:
-    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
-
-
 # ---------------------------------------------------------------- Building
 
-def build(merge: Path, commit: str, previous: Path | None = None, release: Release | None = None,
+def build(folder: Path, commit: str, release: Release | None = None, state: str = ZENODO_FILE,
           notice: Callable[[str], None] = lambda message: None,
-          warning: Callable[[str], None] = lambda message: None, out: Path | None = None) -> list[str]:
+          warning: Callable[[str], None] = lambda message: None, out: Path | None = None) -> Built:
     """
-    Builds publish/ in the merge folder, and returns lines saying what it built.
+    Builds README.md in the folder of a version, and returns what it built.
     Parameters:
-        merge: the merge folder.
+        folder: the folder of the version, Versions/<date> in the dataset folder.
         commit: the commit that the copy of this repository is at.
-        previous: the folder of the last merge, which published the last version; None for the first version.
-        release: the date and DOIs of this version, which publish.py gives; None for a preview.
+        release: the date and DOIs of the version, which publish.py gives; None for a preview.
+        state: the file in the dataset folder that lists the versions: zenodo.yaml, or the sandbox's.
         notice, warning: called with the validator's notices and warnings.
-        out: the folder to build in, in place of publish/; publish.py builds in another one first, as a check.
+        out: the folder to write README.md in, in place of the version's; publish.py builds in another one first,
+            as a check.
     Raises:
         ValidationError: if the tables or contributors.yaml do not pass the validator.
         BuildError: if something else is missing or does not fit together.
     """
     schema = load_schema()
-    record = read_record(merge / RECORD)
-    if record.doi and not previous:
-        raise BuildError(f"{RECORD} gives the DOI {record.doi}, so the dataset has been published before. Give the "
-                         "folder of the merge that published the last version, with --previous.")
-    if previous and not record.doi:
-        raise BuildError(f"{RECORD} has doi: none, so this would be the first version, but a last merge was given. "
-                         "If the dataset has been published, write its DOI of all versions in it.")
-    if release and record.doi and release.concept_doi != record.doi:
-        raise BuildError(f"The DOI of all versions is {release.concept_doi} on Zenodo, but {record.doi} in "
-                         f"{RECORD}.")
-    last = read_previous(previous) if previous else None
-    if last and last.concept_doi != record.doi:
-        raise BuildError(f"The last merge, in {previous}, published a version of {last.concept_doi}, but {RECORD} "
-                         f"gives {record.doi}. Give the last merge of this dataset.")
+    folder = folder.resolve()
+    if folder.parent.name != VERSIONS:
+        raise BuildError(f"{folder} is not a folder in {VERSIONS}. A version is built from {VERSIONS}/<date> in the "
+                         "dataset folder, as docs/publish-data.md lays it out.")
+    dataset = read_dataset(folder.parent.parent, state)
+    this = next((version for version in dataset.versions if version.folder == folder.name), None)
+    if this and not release and out is None:
+        raise BuildError(f"Version {this.number}, in {folder}, is on Zenodo, as {dataset.state} says, so a preview "
+                         "would replace the README that was uploaded. Build a new version in a new folder, or run "
+                         "publish.py, which builds the README with the version's date and DOI.")
+    earlier = [version for version in dataset.versions if this is None or version.number < this.number]
+    number = this.number if this else (earlier[-1].number + 1 if earlier else 1)
+    last = read_previous(dataset, earlier[-1]) if earlier else None
+    if release and dataset.doi and release.concept_doi != dataset.doi:
+        raise BuildError(f"The DOI of all versions is {release.concept_doi} on Zenodo, but {dataset.doi} in "
+                         f"{dataset.state}.")
 
-    folder = merge / TABLES
-    if not folder.is_dir():
-        raise BuildError(f"There is no {TABLES} folder in {merge}. merge.py writes the merged tables in it.")
-    files = [(path.name, path) for path in sorted(folder.iterdir())
-             if path.suffix.lower() == ".csv" or path.name == CONTRIBUTORS_FILE]
+    missing = [name for name in schema.tables if not (folder / f"{name}.csv").is_file()]
+    if missing:
+        raise BuildError(f"There is no {missing[0]}.csv in {folder}. merge.py writes every table of the format, a "
+                         "table without rows as a file with only the column names.")
+    files = [(f"{name}.csv", folder / f"{name}.csv") for name in schema.tables]
+    if (folder / CONTRIBUTORS_FILE).is_file():
+        files.append((CONTRIBUTORS_FILE, folder / CONTRIBUTORS_FILE))
     checked = validate_files(files, schema, notice, warning)
     if checked.contributors is None:
         raise BuildError(f"There is no {CONTRIBUTORS_FILE} in {folder}. merge.py writes it, with who to credit.")
-    frames = published_tables(checked, schema)
+    frames = published_tables(checked, folder)
     people = sorted(checked.contributors.people,
                     key=lambda p: (p.family_name.casefold(), (p.given_names or "").casefold()))
     funding = checked.contributors.funding
-    crosswalk = read_crosswalk(merge / CROSSWALK, CROSSWALK, frames, "the merged tables")
+    crosswalk = read_crosswalk(folder / CROSSWALK, CROSSWALK, frames, "the merged tables")
     renames = renames_since(last, crosswalk, frames) if last else {}
+    changes = read_changes(folder)
 
-    out = out or merge / PUBLISH
-    if not release and (out / RELEASE).is_file() and json.loads((out / RELEASE).read_text(encoding="utf-8"))["doi"]:
-        raise BuildError(f"{out} holds a version with a DOI, which a preview would replace. It is kept as it is, "
-                         "as the next merge compares with it. Build a new version in a new merge folder.")
-
-    version = last.version + 1 if last else 1
-    concept_doi = release.concept_doi if release else record.doi
     diagram = f"{SITE}diagram/#{schema.version}"
     glance = at_a_glance(frames)
     values = {
-        "title": md(record.title),
-        "version": str(version),
+        "title": md(dataset.title),
+        "version": str(number),
         "publication_date": release.publication_date if release else NOT_YET,
         "doi": doi_link(release.doi if release else None),
-        "concept_doi": doi_link(concept_doi),
+        "concept_doi": doi_link(release.concept_doi if release else dataset.doi),
         "schema_version": schema.version,
         "diagram": diagram,
         "repository": f"[{REPOSITORY}]({REPOSITORY}/tree/{commit})",
@@ -843,55 +953,35 @@ def build(merge: Path, commit: str, previous: Path | None = None, release: Relea
         "files": files_table(frames, schema),
         "links": links_table(schema),
         "tables": tables_section(schema),
-        "changes": changes_text(last, frames, schema, renames, people, funding, diagram),
+        "changes": "\n\n".join(part for part in (
+            changes, changes_text(last, frames, schema, renames, people, funding, diagram)) if part),
         "people": people_table(people),
         "funding": funding_table(funding),
-        "curator": curator_text(record.curator),
-        "citation": citation(people, release.publication_date[:4] if release else NOT_YET.strip("()"), record.title,
-                             version, release.doi if release else None),
+        "curator": curator_sentence(dataset.curator),
+        "citation": citation(people, release.publication_date[:4] if release else NOT_YET.strip("()"),
+                             dataset.title, number, release.doi if release else None),
     }
     readme = render(TEMPLATE.read_text(encoding="utf-8"), values)
     description = description_html(readme, glance, schema, diagram)
+    data = metadata(dataset, number, release, people, funding, frames, description, commit)
 
-    # Only what it writes is replaced: publish.py keeps zenodo.json here too
-    if (out / FILES).exists():
-        shutil.rmtree(out / FILES)
-    for name in (METADATA, RELEASE):
-        (out / name).unlink(missing_ok=True)
-    (out / FILES).mkdir(parents=True)
-    for name, frame in frames.items():
-        (out / FILES / f"{name}.csv").write_text(frame.to_csv(index=False, lineterminator="\n"), encoding="utf-8",
-                                                 newline="")
-    (out / FILES / README).write_text(readme, encoding="utf-8", newline="")
-    (out / METADATA).write_text(as_json(metadata(record, version, release, people, funding, frames, description,
-                                                 commit)), encoding="utf-8", newline="")
-    (out / RELEASE).write_text(as_json({
-        "version": version,
-        "publication_date": release.publication_date if release else None,
-        "doi": release.doi if release else None,
-        "concept_doi": concept_doi,
-        "schema_version": schema.version,
-        "commit": commit,
-    }), encoding="utf-8", newline="")
-
-    lines = [f"Built version {version} of {record.title}, in schema version {schema.version}, in {out}.",
-             f"Compared with version {last.version}." if last else "It is the first version."]
+    where = out or folder
+    where.mkdir(parents=True, exist_ok=True)
+    (where / README).write_text(readme, encoding="utf-8", newline="")
+    lines = [f"Built version {number} of {dataset.title}, in schema version {schema.version}: {where / README}.",
+             f"Compared with version {last.version.number}." if last else "It is the first version."]
     if not release:
-        lines.append("It is a preview: the date and DOI of the version are set when publish.py publishes it.")
-    return lines
+        lines.append("It is a preview: the date and DOI of the version are set when publish.py uploads it.")
+    return Built(dataset, number, readme, data, lines)
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Build the README, the tables and the metadata of a version of the "
-                                                 "dataset on Zenodo, from a merge, as a preview.")
-    parser.add_argument("--previous", type=Path,
-                        help="the folder of the merge that published the last version; leave it out for the first "
-                             "version")
-    parser.add_argument("--merge", type=Path, default=REPOSITORY_FOLDER.parent,
-                        help="the merge folder; by default the folder that holds this copy of the repository")
+    parser = argparse.ArgumentParser(description="Build the README of a version of a dataset, from its folder, as a "
+                                                 "preview.")
+    parser.add_argument("folder", type=Path, help=f"the folder of the version: {VERSIONS}/<date> in the dataset folder")
     args = parser.parse_args(argv)
     try:
-        lines = build(args.merge, repository_commit(), args.previous,
+        built = build(args.folder, repository_commit(),
                       notice=lambda message: print(f"Notice: {message}"),
                       warning=lambda message: print(f"Warning: {message}"))
     except ValidationError as e:
@@ -900,7 +990,7 @@ def main(argv: list[str] | None = None) -> int:
     except BuildError as e:
         print(f"Stopped: {e}")
         return 1
-    print("\n".join(lines))
+    print("\n".join(built.lines))
     return 0
 
 

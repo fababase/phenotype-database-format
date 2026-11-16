@@ -10,34 +10,32 @@
 """
 Uploads a version of a dataset to Zenodo, as a draft, for the data manager to look at and publish.
 
-Run it in the merge folder, which holds the copy of this repository, once the merge is finished:
+Run it in the dataset folder, which holds the copy of this repository and the versions, as docs/publish-data.md lays
+it out, once the merge is finished:
 
-    uv run phenotype-database-format/publishing/publish.py [--previous <folder of the last merge>] [--sandbox]
+    uv run phenotype-database-format/publishing/publish.py Versions/<date> --token-file <file> [--sandbox]
 
---previous is as for build.py. --sandbox uploads to sandbox.zenodo.org, which is for trying things out, in place of
-zenodo.org.
+The token file holds a personal access token of the Zenodo account that owns the dataset, with the scopes
+deposit:write and deposit:actions, and nothing else. The token is never shown. --sandbox uploads to
+sandbox.zenodo.org, which is for trying things out, in place of zenodo.org; the versions there are listed in
+sandbox.yaml in the dataset folder, in place of zenodo.yaml.
 
-It needs a personal access token of the Zenodo account that owns the dataset, with the scopes deposit:write and
-deposit:actions, in the environment variable ZENODO_TOKEN, or ZENODO_SANDBOX_TOKEN with --sandbox. The token is never
-shown or saved.
-
-It first checks everything it can without Zenodo: it builds the version as build.py does, in a folder of its own, and
+It first checks everything it can without Zenodo: it builds the README as build.py does, in a folder of its own, and
 checks that the copy of this repository has no changes, that its commit is on GitHub and that the diagram of the
 format's version is online, as the README links to both. For a later version, it checks that the latest version on
-Zenodo is the one that the last merge published, with the same files and the same access.
+Zenodo is the last one in zenodo.yaml, with the files in its folder and the same access.
 
-Then it makes a draft of the version on Zenodo, reserves its DOI, builds publish/ with the date and the DOIs, uploads
-publish/files/, and sets the metadata in publish/metadata.json. It writes in publish/zenodo.json the ID of the draft on
-each Zenodo it was uploaded to. Run again, it takes up the same draft, and uploads only the files that changed. The next
-merge finds the dataset on Zenodo from it.
+Then it makes a draft of the version on Zenodo, reserves its DOI, lists the version in zenodo.yaml, builds README.md
+with the date and the DOIs, uploads it with the tables, and sets the metadata. Run again, it takes up the same draft,
+and uploads only the files that changed.
 
 It never publishes. The data manager looks at the draft on Zenodo, and presses Publish there, as a published version
-cannot be changed or taken back. Run once more after that, it checks that what Zenodo published is what publish/ holds.
+cannot be changed or taken back. Run once more after that, it checks that what Zenodo published is what the folder
+holds.
 """
 import argparse
 import hashlib
 import json
-import os
 import subprocess
 import sys
 import tempfile
@@ -48,18 +46,16 @@ from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 
-from build import (FILES, LIMIT, METADATA, PUBLISH, README, RECORD, RELEASE, REPOSITORY_FOLDER, BuildError, Record,
-                   Release, as_json, build, read_record, repository_commit, sentence)
+from build import (LIMIT, README, REPOSITORY_FOLDER, VERSIONS, ZENODO_FILE, BuildError, Dataset, Release, Version,
+                   build, repository_commit, sentence, write_dataset)
 from collection_sheet import REPOSITORY, SITE
 from validation import Schema, ValidationError, load_schema
 
 ZENODO = "https://zenodo.org"
 SANDBOX = "https://sandbox.zenodo.org"
-TOKEN = "ZENODO_TOKEN"
-SANDBOX_TOKEN = "ZENODO_SANDBOX_TOKEN"
-# In publish/: the ID of the draft of this version on each Zenodo, by its address
-STATE = "zenodo.json"
-# The access to the files on Zenodo, for each access in record.yaml. The record's page is always public.
+# In the dataset folder: the versions on the sandbox, as zenodo.yaml lists those on Zenodo
+SANDBOX_FILE = "sandbox.yaml"
+# The access to the files on Zenodo, for each access in zenodo.yaml. The record's page is always public.
 FILES_ACCESS = {"open": "public", "restricted": "restricted"}
 # Seconds to wait for Zenodo, or GitHub, to answer
 TIMEOUT = 300
@@ -201,16 +197,6 @@ def link(zenodo: Zenodo, draft: dict) -> str:
     return draft.get("links", {}).get("self_html") or f"{zenodo.address}/uploads/{draft['id']}"
 
 
-def read_state(merge: Path) -> dict[str, str]:
-    path = merge / PUBLISH / STATE
-    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
-
-
-def write_state(merge: Path, state: dict[str, str]) -> None:
-    (merge / PUBLISH).mkdir(parents=True, exist_ok=True)
-    (merge / PUBLISH / STATE).write_text(as_json(state), encoding="utf-8", newline="")
-
-
 def file_names(schema: Schema) -> list[str]:
     """The files of a version, in the order Zenodo shows them: the README first, then the tables."""
     return [README] + [f"{name}.csv" for name in schema.tables]
@@ -225,8 +211,9 @@ def md5(path: Path) -> str:
     return f"md5:{digest.hexdigest()}"
 
 
-def local_files(folder: Path) -> dict[str, str]:
-    return {path.name: md5(path) for path in sorted(folder.iterdir()) if path.is_file()}
+def local_files(folder: Path, names: list[str]) -> dict[str, str]:
+    """The files of a version in its folder, by name, with their checksums; a file that is not there is left out."""
+    return {name: md5(folder / name) for name in names if (folder / name).is_file()}
 
 
 def zenodo_files(zenodo: Zenodo, record_id: str) -> dict[str, str | None]:
@@ -244,35 +231,30 @@ def differences(there: dict[str, str | None], here: dict[str, str]) -> list[str]
 
 # ---------------------------------------------------------------- Publishing
 
-def check_last(zenodo: Zenodo, previous: Path, record: Record) -> str:
+def check_last(zenodo: Zenodo, dataset: Dataset, last: Version, names: list[str]) -> str:
     """
-    The ID of the latest version on Zenodo, after checking that it is the one that the last merge published, with
-    the files in its publish/files/, and with the access that record.yaml gives.
+    The ID of the latest version on Zenodo, after checking that it is the last version that the dataset's file
+    lists, with the files in its folder, and with the access that zenodo.yaml gives.
     """
-    state = read_state(previous)
-    if zenodo.address not in state:
-        raise PublishError(f"The last merge, in {previous}, has no draft on {zenodo.address} in {PUBLISH}/{STATE}, "
-                           "so it was not published there with publish.py. Give the merge that was, with --previous.")
-    last = json.loads((previous / PUBLISH / RELEASE).read_text(encoding="utf-8"))
-    latest = zenodo.find(f"/api/records/{state[zenodo.address]}/versions/latest")
+    folder = dataset.folder / VERSIONS / last.folder
+    latest = zenodo.find(f"/api/records/{last.id}/versions/latest")
     if latest is None:
-        raise PublishError(f"The last merge, in {previous}, made the draft {state[zenodo.address]} on "
-                           f"{zenodo.address}, but no version of it is published. Publish it first, or give the merge "
-                           "that published the latest version, with --previous.")
-    if doi_of(latest) != last["doi"]:
-        raise PublishError(f"The latest version on Zenodo has the DOI {doi_of(latest)}, but the last merge, in "
-                           f"{previous}, published {last['doi']}. Give the merge that published the latest version, "
-                           "with --previous.")
-    found = differences(zenodo_files(zenodo, latest["id"]), local_files(previous / PUBLISH / FILES))
+        raise PublishError(f"Version {last.number}, in {folder}, was uploaded to {zenodo.address} as the draft "
+                           f"{last.id}, but no version of it is published. Publish it first.")
+    if doi_of(latest) != last.doi:
+        raise PublishError(f"The latest version on Zenodo has the DOI {doi_of(latest)}, but the last version in "
+                           f"{dataset.state}, {last.number}, has {last.doi}. Every version has to be uploaded with "
+                           "publish.py, so that the next one can say what changed since it.")
+    found = differences(zenodo_files(zenodo, latest["id"]), local_files(folder, names))
     if found:
-        raise PublishError(f"The files of the latest version on Zenodo are not those in "
-                           f"{previous / PUBLISH / FILES}: {', '.join(found)}. What changed since the latest version "
-                           "is worked out from those files, so they have to be what was published.")
+        raise PublishError(f"The files of version {last.number} on Zenodo are not those in {folder}: "
+                           f"{', '.join(found)}. What changed since it is worked out from those files, so they have "
+                           "to be what was published.")
     files_access = latest.get("access", {}).get("files")
-    if files_access != FILES_ACCESS[record.access]:
-        raise PublishError(f"The files of the latest version are {files_access} on Zenodo, but {RECORD} has access: "
-                           f"{record.access}. Correct {RECORD}, or, if the access is to change, change it on Zenodo "
-                           "first, by hand.")
+    if files_access != FILES_ACCESS[dataset.access]:
+        raise PublishError(f"The files of the latest version are {files_access} on Zenodo, but {ZENODO_FILE} has "
+                           f"access: {dataset.access}. Correct {ZENODO_FILE}, or, if the access is to change, change "
+                           "it on Zenodo first, by hand.")
     return latest["id"]
 
 
@@ -301,63 +283,61 @@ def upload_files(zenodo: Zenodo, draft_id: str, folder: Path, names: list[str], 
                                f"not {here[name]}. Run publish.py again.")
 
 
-def published(zenodo: Zenodo, done: dict, merge: Path, record: Record) -> list[str]:
+def published(zenodo: Zenodo, done: dict, dataset: Dataset, this: Version, folder: Path,
+              names: list[str]) -> list[str]:
     """
-    Lines saying that the version is published, and what to do next, after checking that Zenodo published what
-    publish/ holds.
+    Lines saying that the version is published, and what to do next, after checking that Zenodo published what the
+    folder of the version holds.
     """
-    release = json.loads((merge / PUBLISH / RELEASE).read_text(encoding="utf-8")) if (
-        merge / PUBLISH / RELEASE).is_file() else {}
-    version = release.get("version", "")
     doi, concept = doi_of(done), parent_doi(done)
-    if (doi, concept) != (release.get("doi"), release.get("concept_doi")):
-        raise PublishError(f"Version {version} is published on Zenodo, with the DOI {doi}, and the DOI of all "
-                           f"versions {concept}, but its README, in {merge / PUBLISH}, gives {release.get('doi')} and "
-                           f"{release.get('concept_doi')}. Correct it with a new version.")
-    found = differences(zenodo_files(zenodo, done["id"]), local_files(merge / PUBLISH / FILES))
+    if (doi, concept) != (this.doi, dataset.doi):
+        raise PublishError(f"Version {this.number} is published on Zenodo, with the DOI {doi}, and the DOI of all "
+                           f"versions {concept}, but {dataset.state} has {this.doi} and {dataset.doi}, which its "
+                           "README gives. Correct it with a new version.")
+    found = differences(zenodo_files(zenodo, done["id"]), local_files(folder, names))
     if found:
-        raise PublishError(f"Version {version} is published on Zenodo, but its files are not those in "
-                           f"{merge / PUBLISH / FILES}: {', '.join(found)}. The next merge compares with those files, "
-                           "so make them what was published.")
-    lines = [f"Version {version} of {record.title} is published: https://doi.org/{doi}. Its files are those in "
-             f"{merge / PUBLISH / FILES}. There is nothing more to upload."]
+        raise PublishError(f"Version {this.number} is published on Zenodo, but its files are not those in {folder}: "
+                           f"{', '.join(found)}. The next version compares with those files, so make them what was "
+                           "published.")
+    lines = [f"Version {this.number} of {dataset.title} is published: https://doi.org/{doi}. Its files are those "
+             f"in {folder}. There is nothing more to upload."]
     if zenodo.address != ZENODO:
         lines.append("This was the sandbox, for trying things out.")
-    elif record.doi is None:
-        lines.append(f"Write doi: {concept} in the {RECORD} of the next merge, and add the dataset to "
-                     "docs/datasets.md, with that DOI.")
+    elif this.number == 1:
+        lines.append(f"Add the dataset to docs/datasets.md, with the DOI of all versions, {concept}.")
     else:
         lines.append("Update the dataset's row in docs/datasets.md, if the version of the format changed.")
     return lines
 
 
-def publish(merge: Path, zenodo: Zenodo, commit: str, today: str, previous: Path | None = None,
+def publish(folder: Path, zenodo: Zenodo, commit: str, today: str, state: str = ZENODO_FILE,
             online: Callable[[str], bool] = is_online, say: Callable[[str], None] = lambda message: None,
             notice: Callable[[str], None] = lambda message: None,
             warning: Callable[[str], None] = lambda message: None) -> list[str]:
     """
-    Uploads the version that the merge folder holds to a draft on Zenodo, and returns lines saying what to do next.
-    If the draft has been published, it checks what was published instead.
+    Uploads the version that the folder holds to a draft on Zenodo, and returns lines saying what to do next. If the
+    draft has been published, it checks what was published instead.
     Parameters:
-        merge: the merge folder.
+        folder: the folder of the version, Versions/<date> in the dataset folder.
         zenodo: the Zenodo to upload to.
         commit: the commit that the copy of this repository is at.
         today: the date of the version, YYYY-MM-DD.
-        previous: the folder of the last merge, which published the last version; None for the first version.
+        state: the file in the dataset folder that lists the versions on this Zenodo: zenodo.yaml, or the sandbox's.
         online: says whether a page answers; the README links to the commit on GitHub and the diagram.
         say: called with what it is doing, while it uploads.
         notice, warning: called with the validator's notices and warnings.
     Raises:
         ValidationError: if the tables or contributors.yaml do not pass the validator.
-        BuildError: if something else in the merge folder is missing or does not fit together.
+        BuildError: if something else in the folders is missing or does not fit together.
         PublishError: if something on Zenodo or GitHub does not fit, or Zenodo answers with an error.
     """
     schema = load_schema()
-    record = read_record(merge / RECORD)
+    folder = folder.resolve()
+    names = file_names(schema)
 
     # Everything that can be checked without Zenodo, before anything is sent to it
-    with tempfile.TemporaryDirectory() as folder:
-        build(merge, commit, previous, notice=notice, warning=warning, out=Path(folder))
+    with tempfile.TemporaryDirectory() as check:
+        dataset = build(folder, commit, state=state, notice=notice, warning=warning, out=Path(check)).dataset
     if not online(f"{REPOSITORY}/tree/{commit}"):
         raise PublishError(f"The commit {commit}, which the copy of the repository is at, is not on GitHub, at "
                            f"{REPOSITORY}. The README links to it, so push it first, or clone the repository again.")
@@ -367,27 +347,31 @@ def publish(merge: Path, zenodo: Zenodo, commit: str, today: str, previous: Path
                            "docs/deploy-app.md.")
 
     # The draft: the one made before, if it is still there, or a new one
-    state = read_state(merge)
+    this = next((version for version in dataset.versions if version.folder == folder.name), None)
     draft = None
-    if zenodo.address in state:
-        draft_id = state[zenodo.address]
-        done = zenodo.find(f"/api/records/{draft_id}")
+    if this:
+        done = zenodo.find(f"/api/records/{this.id}")
         if done:
-            return published(zenodo, done, merge, record)
-        draft = zenodo.find(f"/api/records/{draft_id}/draft")
+            return published(zenodo, done, dataset, this, folder, names)
+        draft = zenodo.find(f"/api/records/{this.id}/draft")
         if draft is None:
-            say(f"The draft {draft_id} is no longer on {zenodo.address}, so a new one is made.")
-    last_id = check_last(zenodo, previous, record) if previous else None
-    access = {"record": "public", "files": FILES_ACCESS[record.access]}
+            say(f"The draft {this.id} is no longer on {zenodo.address}, so a new one is made.")
+    earlier = [version for version in dataset.versions if this is None or version.number < this.number]
+    last_id = check_last(zenodo, dataset, earlier[-1], names) if earlier else None
+    access = {"record": "public", "files": FILES_ACCESS[dataset.access]}
     if draft is None:
         if last_id:
             draft = zenodo.request("POST", f"/api/records/{last_id}/versions")
         else:
+            # A first version: Zenodo gives it a new DOI of all versions, so one from a draft that is gone is forgotten
             draft = zenodo.request("POST", "/api/records", {
                 "access": access, "files": {"enabled": True},
-                "metadata": {"resource_type": {"id": "dataset"}, "title": record.title}})
-        state[zenodo.address] = draft["id"]
-        write_state(merge, state)
+                "metadata": {"resource_type": {"id": "dataset"}, "title": dataset.title}})
+            dataset.doi = None
+        this = Version(earlier[-1].number + 1 if earlier else 1, folder.name, draft["id"], doi_of(draft), today,
+                       schema.version)
+        dataset.versions = earlier + [this]
+        write_dataset(dataset)
     draft_id = draft["id"]
 
     # Its DOI, which the README gives, so it is reserved before the version is built
@@ -402,29 +386,30 @@ def publish(merge: Path, zenodo: Zenodo, commit: str, today: str, previous: Path
                                "was reserved, and then lost. Delete the draft on Zenodo, at "
                                f"{link(zenodo, draft)}, and run publish.py again, which makes a new one.") from None
         doi = doi_of(draft)
-    build(merge, commit, previous, Release(today, doi, concept_doi(draft, doi)))
+    concept = concept_doi(draft, doi)
+    this.doi, this.date, this.format = doi, today, schema.version
+    dataset.doi = dataset.doi or concept
+    write_dataset(dataset)
+    built = build(folder, commit, Release(today, doi, concept), state, notice=notice, warning=warning)
 
-    names = file_names(schema)
-    upload_files(zenodo, draft_id, merge / PUBLISH / FILES, names, say)
+    upload_files(zenodo, draft_id, folder, names, say)
     # Setting the metadata replaces the whole draft, so the DOI is sent back as it is, or it would be lost
-    metadata = json.loads((merge / PUBLISH / METADATA).read_text(encoding="utf-8"))
     updated = zenodo.request("PUT", f"/api/records/{draft_id}/draft", {
         "access": access, "files": {"enabled": True, "default_preview": README, "order": names},
-        "metadata": metadata, "pids": draft.get("pids", {})})
+        "metadata": built.metadata, "pids": draft.get("pids", {})})
     if doi_of(updated) != doi:
         raise PublishError(f"Zenodo lost the DOI of the draft when its metadata was set. Delete the draft on Zenodo, "
                            f"at {link(zenodo, draft)}, and run publish.py again, which makes a new one.")
     if updated.get("errors"):
         raise PublishError(f"The draft is on Zenodo, at {link(zenodo, draft)}, but Zenodo found problems in its "
                            f"metadata, so it cannot be published: {sentence('; '.join(problems(updated['errors'])))} "
-                           f"Correct {RECORD} or the merge, or build.py if it builds the metadata wrong, and run "
+                           f"Correct {ZENODO_FILE} or the merge, or build.py if it builds the metadata wrong, and run "
                            "publish.py again.")
 
-    release = json.loads((merge / PUBLISH / RELEASE).read_text(encoding="utf-8"))
     return [
-        f"Uploaded version {release['version']} of {record.title} to a draft on {zenodo.address}: "
+        f"Uploaded version {built.version} of {dataset.title} to a draft on {zenodo.address}: "
         f"{link(zenodo, updated)}",
-        f"Its DOI will be {doi}, and the DOI of all versions {release['concept_doi']}. They work once it is published.",
+        f"Its DOI will be {doi}, and the DOI of all versions {concept}. They work once it is published.",
         "Look at the draft on Zenodo: the files, the README and the metadata. To change something, correct the merge, "
         "and run publish.py again, which updates the same draft.",
         "When all is right, press Publish on Zenodo. A published version cannot be changed or taken back. Then run "
@@ -432,27 +417,34 @@ def publish(merge: Path, zenodo: Zenodo, commit: str, today: str, previous: Path
     ]
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Upload a version of the dataset from a merge to a draft on Zenodo, "
-                                                 "for the data manager to look at and publish.")
-    parser.add_argument("--previous", type=Path,
-                        help="the folder of the merge that published the last version; leave it out for the first "
-                             "version")
-    parser.add_argument("--merge", type=Path, default=REPOSITORY_FOLDER.parent,
-                        help="the merge folder; by default the folder that holds this copy of the repository")
-    parser.add_argument("--sandbox", action="store_true",
-                        help=f"upload to {SANDBOX}, which is for trying things out, in place of {ZENODO}")
-    args = parser.parse_args(argv)
-    address, variable = (SANDBOX, SANDBOX_TOKEN) if args.sandbox else (ZENODO, TOKEN)
-    token = os.environ.get(variable, "").strip()
-    if not token:
-        print(f"Stopped: There is no token in the environment variable {variable}. Make a personal access token on "
-              f"{address}/account/settings/applications/tokens/new/, with the scopes deposit:write and "
-              f"deposit:actions. Then type read -s {variable} && export {variable} in this terminal, paste the token, "
-              "and press Enter, so that it is neither shown nor saved in the history.")
-        return 1
+def read_token(path: Path, address: str) -> str:
+    """The token in a file, which holds nothing else. It is never shown."""
     try:
-        lines = publish(args.merge, Zenodo(address, token), clean_commit(), date.today().isoformat(), args.previous,
+        token = path.read_text(encoding="utf-8").strip()
+    except OSError as e:
+        raise PublishError(f"Could not read the token file {path}: {e.strerror or e}. Make a personal access token "
+                           f"on {address}/account/settings/applications/tokens/new/, with the scopes deposit:write "
+                           "and deposit:actions, and save it in a file, on its own.") from None
+    if not token or len(token.split()) != 1:
+        raise PublishError(f"The token file {path} has to hold the token, and nothing else.")
+    return token
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Upload a version of a dataset to a draft on Zenodo, from its "
+                                                 "folder, for the data manager to look at and publish.")
+    parser.add_argument("folder", type=Path, help=f"the folder of the version: {VERSIONS}/<date> in the dataset folder")
+    parser.add_argument("--token-file", type=Path, required=True,
+                        help="a file that holds a personal access token of the account that owns the dataset, with "
+                             "the scopes deposit:write and deposit:actions, and nothing else")
+    parser.add_argument("--sandbox", action="store_true",
+                        help=f"upload to {SANDBOX}, which is for trying things out, in place of {ZENODO}, and list "
+                             f"the version in {SANDBOX_FILE}")
+    args = parser.parse_args(argv)
+    address, state = (SANDBOX, SANDBOX_FILE) if args.sandbox else (ZENODO, ZENODO_FILE)
+    try:
+        token = read_token(args.token_file, address)
+        lines = publish(args.folder, Zenodo(address, token), clean_commit(), date.today().isoformat(), state,
                         online=is_online, say=print, notice=lambda message: print(f"Notice: {message}"),
                         warning=lambda message: print(f"Warning: {message}"))
     except ValidationError as e:

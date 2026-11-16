@@ -4,7 +4,7 @@ restricted datasets of projects all use it.
 
 publishing/build.py fills it in, and leaves out comments like this one. It replaces each {{name}} with:
 
-  {{title}}              the title of the dataset, from record.yaml
+  {{title}}              the title of the dataset, from zenodo.yaml
   {{version}}            the version of the dataset on Zenodo
   {{publication_date}}   the date this version is published, YYYY-MM-DD
   {{doi}}                the DOI of this version
@@ -19,10 +19,10 @@ publishing/build.py fills it in, and leaves out comments like this one. It repla
   {{files}}              each file: what one row of it is, and its number of rows
   {{links}}              every column that holds the ID of another table
   {{tables}}             every table and column, from schema.yaml
-  {{changes}}            what changed since the last version
+  {{changes}}            what changed in this version, and why: changes.md, then the comparison with the last version
   {{people}}             everyone in contributors.yaml: ORCID, affiliations and experiments
   {{funding}}            every grant in contributors.yaml, with its experiments
-  {{curator}}            who looks after the dataset, from record.yaml
+  {{curator}}            who looks after the dataset, from zenodo.yaml, as a sentence, or nothing
   {{citation}}           how to cite this version
 
 Every {{name}} must be filled in. build.py stops if one is not, or if one is not in this list.
@@ -271,7 +271,7 @@ Feature values are read as text. Those of features of type `i` or `d` can be tur
 
 {{funding}}
 
-The dataset is looked after by {{curator}}.
+{{curator}}
 
 ## How to cite
 
