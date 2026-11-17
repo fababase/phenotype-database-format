@@ -10,6 +10,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 import build
@@ -24,6 +25,11 @@ HEIGHT = "plant_height_mean_of_5_plants_cm"
 # The contribution the valid dataset comes from, as the crosswalk names it, by its folder in Sources/
 NORDBEAN = "Nordbean"
 LINK = "[10.5281/zenodo.101](https://doi.org/10.5281/zenodo.101)"
+# The first sentence of the Description of each experiment in the valid dataset
+TRIAL_SENTENCE = ("Field trial at the Northfield research farm, on a field of mostly sandy loam that grew spring "
+                  "barley the year before")
+GREENHOUSE_SENTENCE = ("Pot experiment in a greenhouse compartment at the Northfield research farm, comparing lines "
+                       "with no factors tested")
 
 
 @pytest.fixture
@@ -90,9 +96,8 @@ def test_only_the_readme_is_written(merge):
 
 def test_the_zenodo_folder_has_to_be_there(merge):
     shutil.rmtree(merge.files)
-    assert fails(merge) == (f"There is no zenodo folder in {merge.folder}. merge.py writes the tables in it, one CSV "
-                            "file per table of the format, and build.py writes the README: it holds exactly what goes "
-                            "on Zenodo.")
+    assert fails(merge) == (f"There is no zenodo folder in {merge.folder}. merge.py writes the tables and "
+                            "contributors.yaml in it, and build.py the README: it holds exactly what goes on Zenodo.")
 
 
 def test_every_table_has_to_be_there(merge):
@@ -136,8 +141,8 @@ def test_every_place_in_the_template_is_filled_in(merge):
 
 def test_at_a_glance(merge):
     merge.run()
-    assert merge.section("At a glance") == ("- 2 experiments, run in 2025\n- 3 germplasm, in 4 seed lots\n- 12 units\n"
-                                            "- 3 traits, with 20 scores")
+    assert merge.section("At a glance") == ("- 2 experiments, at 2 places, run in 2025\n- 1 species: Vicia faba\n"
+                                            "- 3 germplasm, in 4 seed lots\n- 12 units\n- 3 traits, with 20 scores")
 
 
 def test_years_of_experiments_over_several_years_or_none(merge):
@@ -145,22 +150,43 @@ def test_years_of_experiments_over_several_years_or_none(merge):
     merge.tables.set("Experiment", GREENHOUSE, "StartDate", "")
     merge.tables.set("Experiment", GREENHOUSE, "EndDate", "")
     built = merge.run()
-    assert merge.section("At a glance").splitlines()[0] == "- 2 experiments, run from 2025 to 2026"
+    assert merge.section("At a glance").splitlines()[0] == "- 2 experiments, at 2 places, run from 2025 to 2026"
     experiments = merge.section("Experiments")
-    assert f"| `{TRIAL}` | 2025–2026 | [" in experiments
-    assert f"| `{GREENHOUSE}` | | [" in experiments
+    assert f"| `{TRIAL}` | {TRIAL_SENTENCE} | 2025–2026 | [" in experiments
+    assert f"| `{GREENHOUSE}` | {GREENHOUSE_SENTENCE} | | [" in experiments
     assert built.metadata["dates"] == [{"date": "2025-04-08/2026-08-26", "type": {"id": "collected"}}]
 
 
 def test_experiments(merge):
     merge.tables.set("Experiment", GREENHOUSE, "GPSCoordinates", "")
     merge.run()
+    assert merge.section("At a glance").splitlines()[0] == "- 2 experiments, at 1 place, run in 2025"
     assert merge.section("Experiments").split("\n\n")[0] == (
-        "| Experiment | Years | Place | Units | Germplasm | Traits | People |\n"
+        "| Experiment | Description | Years | Place | Units | Germplasm | Traits |\n"
         "|---|---|---|---|---|---|---|\n"
-        f"| `{TRIAL}` | 2025 | [56.091250, 9.552040](https://www.openstreetmap.org/?mlat=56.091250&mlon=9.552040"
-        "#map=15/56.091250/9.552040) | 8 | 2 | 1 | Rhea Plicate |\n"
-        f"| `{GREENHOUSE}` | 2025 | | 4 | 2 | 2 | Ann Ova, Rhea Plicate |")
+        f"| `{TRIAL}` | {TRIAL_SENTENCE} | 2025 | [56.091250, 9.552040](https://www.openstreetmap.org/?mlat=56.091250"
+        "&mlon=9.552040#map=15/56.091250/9.552040) | 8 | 2 | 1 |\n"
+        f"| `{GREENHOUSE}` | {GREENHOUSE_SENTENCE} | 2025 | | 4 | 2 | 2 |")
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("Field trial. Split-plot design.", "Field trial"),
+    ("Field trial\nat the farm", "Field trial at the farm"),
+    ("", ""),
+    ("A " + "long " * 30 + "sentence.", "A " + "long " * 22 + "long…"),
+])
+def test_the_first_sentence_of_a_description(text, expected):
+    assert build.first_sentence(text) == expected
+
+
+def test_traits_by_experiment(merge):
+    merge.run()
+    assert ("### Traits by experiment\n\n"
+            f"- `{TRIAL}`: `{HEIGHT}`\n"
+            f"- `{GREENHOUSE}`: `flower_colour_visual_1to3`, `leaf_absorbance_nirs_dried_powder`\n") in merge.readme()
+    frames = {"Experiment": pd.DataFrame({"EXPID": ["a"]}), "ExperimentalUnit": pd.DataFrame({"UNID": [], "EXPID": []}),
+              "Phenotype": pd.DataFrame({"UNID": [], "PDID": []})}
+    assert build.traits_by_experiment(frames) == "- `a`: no scores"
 
 
 def test_traits_and_climate_variables(merge):
@@ -187,10 +213,10 @@ def test_files_links_and_tables(merge):
     assert "| [`Phenotype.csv`](#phenotype) | one score of one trait on one unit | 20 |" in files
     assert ("| [`ExperimentalUnit.csv`](#experimentalunit) | a unit in an experiment: a field plot, a pot, a "
             "sample, … | 12 |") in files
+    assert "one CSV file per table, `contributors.yaml`, which says who made the data, and this README." in files
     links = merge.section("How the tables link")
-    assert "| `SeedLot.ParentSLID` | [SeedLot](#seedlot) |" in links
-    assert "| `Phenotype.Features` | [Features](#features), one or more: see [Features cells](#features-cells) |" \
-           in links
+    assert "[The tables](#the-tables) marks each such column with the table it links to." in links
+    assert "|" not in links
     tables = merge.section("The tables")
     for name, table in SCHEMA.tables.items():
         assert f"### {name}\n\n`{name}.csv`: one row is " in tables
@@ -204,25 +230,21 @@ def test_files_links_and_tables(merge):
 
 
 def test_who_made_it(merge):
-    merge.tables.edit_contributors("        ror: none", "        ror: 01aj84f44")
+    """The people and the funding are on the record's page and in contributors.yaml, which is uploaded."""
     merge.run()
     assert merge.section("Who made it") == (
-        "| Name | ORCID | Affiliations | Experiments |\n|---|---|---|---|\n"
-        f"| Ann Ova | | [Northfield Agricultural College](https://ror.org/01aj84f44) | `{GREENHOUSE}` |\n"
-        "| Rhea Plicate | [0000-0002-1825-0097](https://orcid.org/0000-0002-1825-0097) | Northfield Agricultural "
-        f"College; Nordbean Breeding Programme | `{TRIAL}`, `{GREENHOUSE}` |\n\n"
-        "### Funding\n\n"
-        "| Funder | Grant number | Grant title | Experiments |\n|---|---|---|---|\n"
-        f"| Nordic Bean Foundation | NBF-2024-117 | Drought tolerance in faba bean | `{TRIAL}` |\n\n"
+        "Everyone who made the data is a creator of this record: their names, ORCIDs and affiliations are on its "
+        "page on Zenodo, and so is the funding. `contributors.yaml` says which experiments each person and each "
+        "grant is behind.\n\n"
         "The dataset is looked after by Dana Keeper (Northfield Agricultural College).")
+    assert "Ann Ova" not in merge.readme().split("## Who made it")[0]
 
 
 def test_no_funding_and_a_curator_with_an_orcid_id(tmp_path):
     merge = Merge(tmp_path / "dataset", orcid="0000-0002-1825-0097")
     text = merge.tables.contributors.read_text(encoding="utf-8")
     merge.tables.contributors.write_text(text[:text.index("funding:")] + "funding: none\n", encoding="utf-8")
-    merge.run()
-    assert "### Funding\n\nThere was no specific funding.\n" in merge.readme()
+    assert "funding" not in merge.run().metadata
     assert ("The dataset is looked after by Dana Keeper (Northfield Agricultural College; ORCID "
             "[0000-0002-1825-0097](https://orcid.org/0000-0002-1825-0097)).") in merge.readme()
 
@@ -298,7 +320,7 @@ def quick_start(language: str) -> str:
 def downloaded(merge: Merge, folder: Path) -> Path:
     """The files of the version as someone who downloads them from Zenodo has them: the README and the tables."""
     folder.mkdir()
-    for name in ["README.md"] + [f"{table}.csv" for table in SCHEMA.tables]:
+    for name in ["README.md"] + [f"{table}.csv" for table in SCHEMA.tables] + [CONTRIBUTORS_FILE]:
         shutil.copyfile(merge.files / name, folder / name)
     return folder
 
@@ -374,7 +396,8 @@ def test_metadata(merge):
         {"identifier": f"https://github.com/fababase/phenotype-database-format/tree/{COMMIT}", "scheme": "url",
          "relation_type": {"id": "isdocumentedby"}, "resource_type": {"id": "software"}}]
     assert data["description"].startswith("<p>Phenotype data from plant experiments: the scores of traits")
-    assert "<li>2 experiments, run in 2025</li>\n<li>3 germplasm, in 4 seed lots</li>" in data["description"]
+    assert ("<li>2 experiments, at 2 places, run in 2025</li>\n<li>1 species: Vicia faba</li>\n"
+            "<li>3 germplasm, in 4 seed lots</li>") in data["description"]
 
 
 def test_the_curator_is_a_contributor_only_if_not_a_creator(tmp_path):
@@ -633,8 +656,8 @@ def test_tables_that_do_not_pass(merge):
 
 
 def test_no_contributors_file(merge):
-    (merge.folder / CONTRIBUTORS_FILE).unlink()
-    assert fails(merge) == (f"There is no contributors.yaml in {merge.folder}. merge.py writes it, with who to "
+    merge.tables.contributors.unlink()
+    assert fails(merge) == (f"There is no contributors.yaml in {merge.files}. merge.py writes it there, with who to "
                             "credit.")
 
 
@@ -673,8 +696,8 @@ def test_the_last_version_has_no_tables(tmp_path):
 
 def test_the_last_version_has_no_contributors_file(tmp_path):
     first = published(tmp_path)
-    (first.folder / CONTRIBUTORS_FILE).unlink()
-    assert fails(second_merge(tmp_path)) == (f"There is no contributors.yaml in {first.folder}, which says who made "
+    first.tables.contributors.unlink()
+    assert fails(second_merge(tmp_path)) == (f"There is no contributors.yaml in {first.files}, which says who made "
                                              "version 1.")
 
 

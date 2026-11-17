@@ -51,7 +51,6 @@ class Dataset:
         for name, content in VALID_FILES.items():
             (folder / name).write_bytes(content)
         self.folder = folder
-        self.credit_folder = folder  # where contributors.yaml is
 
     def path(self, table: str) -> Path:
         return self.folder / f"{table}.csv"
@@ -129,7 +128,7 @@ class Dataset:
 
     @property
     def contributors(self) -> Path:
-        return self.credit_folder / CONTRIBUTORS_FILE
+        return self.folder / CONTRIBUTORS_FILE
 
     def credit(self) -> list[tuple[str, Path]]:
         """contributors.yaml, as validate_files takes it, to give with a collection sheet."""
@@ -269,9 +268,9 @@ curator:
 
 class Merge:
     """
-    The folder of a version, Versions/<name> in a dataset folder: the valid dataset as its merged tables in zenodo/,
-    its contributors.yaml next to them, a crosswalk.csv in which no ID was changed, and changes.md. The dataset folder
-    gets a zenodo.yaml, unless it has one.
+    The folder of a version, Versions/<name> in a dataset folder: the valid dataset, tables and contributors.yaml, in
+    zenodo/, a crosswalk.csv in which no ID was changed, and changes.md. The dataset folder gets a zenodo.yaml, unless
+    it has one.
     """
 
     def __init__(self, dataset: Path, name: str = "2026-11-20", access: str = "open", orcid: str = "none",
@@ -281,9 +280,6 @@ class Merge:
         self.folder.mkdir(parents=True)
         self.files = self.folder / "zenodo"
         self.tables = Dataset(self.files)
-        # contributors.yaml is not uploaded, so merge.py writes it next to itself, not in zenodo/
-        self.tables.contributors.rename(self.folder / CONTRIBUTORS_FILE)
-        self.tables.credit_folder = self.folder
         self.zenodo = dataset / "zenodo.yaml"
         if not self.zenodo.exists():
             self.zenodo.write_text(ZENODO_FILE.format(access=access, orcid=orcid), encoding="utf-8")

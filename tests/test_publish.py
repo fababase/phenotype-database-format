@@ -20,7 +20,7 @@ from validation import ValidationError
 
 TOKEN = "secret-token-0123456789"
 TODAY = "2026-11-20"
-NAMES = ["README.md"] + [f"{name}.csv" for name in SCHEMA.tables]
+NAMES = ["README.md"] + [f"{name}.csv" for name in SCHEMA.tables] + ["contributors.yaml"]
 # The IDs and DOIs of the first dataset made on a fake Zenodo, and of its first two versions
 PARENT, FIRST, SECOND = "1000", "1001", "1002"
 CONCEPT = f"10.5072/zenodo.{PARENT}"

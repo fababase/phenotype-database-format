@@ -54,7 +54,7 @@ python app/validation.py collection-sheet.xlsx --out path/to/new-folder
 2. **Review.** A fresh AI session or a colleague checks the result and gives it a FAIR score, as in [docs/review-data.md](docs/review-data.md).
 3. **Hand over.** How is still to be decided.
 4. **Merge.** An AI merges the contributions into one set of tables for the data manager, as in [merging/AI_INSTRUCTIONS.md](merging/AI_INSTRUCTIONS.md).
-5. **Publish.** The data manager uploads the merged tables with their README to Zenodo, as a new version of the public dataset or of a project's restricted one, as in [docs/publish-data.md](docs/publish-data.md).
+5. **Publish.** The data manager uploads the merged tables, with `contributors.yaml` and their README, to Zenodo, as a new version of the public dataset or of a project's restricted one, as in [docs/publish-data.md](docs/publish-data.md).
 
 ## Running locally
 

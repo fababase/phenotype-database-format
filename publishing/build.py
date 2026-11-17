@@ -22,14 +22,14 @@ It reads, in the dataset folder:
 
 and, in the folder of the version:
 
-    zenodo/<Table>.csv  the merged tables, one file per table of the format, written by merge.py
-    contributors.yaml   who to credit, written by merge.py
-    crosswalk.csv       the IDs that merge.py changed in each contribution
-    changes.md          what changed in this version, and why, for the people who use the data
+    zenodo/<Table>.csv        the merged tables, one file per table of the format, written by merge.py
+    zenodo/contributors.yaml  who to credit, written by merge.py
+    crosswalk.csv             the IDs that merge.py changed in each contribution
+    changes.md                what changed in this version, and why, for the people who use the data
 
 and the folder of the last version, to say what changed since it, which follows from the tables and the crosswalks
 of the two. It checks the tables with the validator, and writes README.md in zenodo/ in the folder of the version,
-which then holds exactly what goes on Zenodo: the README and the tables, and nothing else.
+which then holds exactly what goes on Zenodo: the README, the tables and contributors.yaml, and nothing else.
 
 Run on its own, it builds a preview: the date and DOI of a version are only known when publish.py uploads it, and
 publish.py then builds the README again with them. A preview never replaces the README of a version that is on
@@ -67,7 +67,7 @@ VERSIONS = "Versions"
 # In the folder of a version
 CROSSWALK = "crosswalk.csv"
 CHANGES = "changes.md"
-# The subfolder that holds exactly what goes on Zenodo: the README and the tables
+# The subfolder that holds exactly what goes on Zenodo: the README, the tables and contributors.yaml
 FILES = "zenodo"
 README = "README.md"
 
@@ -282,9 +282,9 @@ def read_previous(dataset: Dataset, version: Version) -> Previous:
     if not tables:
         raise BuildError(f"There are no tables in {folder / FILES}, which holds version {version.number}. The folder "
                          "of a version is kept as it was, as the next version compares with it.")
-    credit_path = folder / CONTRIBUTORS_FILE
+    credit_path = folder / FILES / CONTRIBUTORS_FILE
     if not credit_path.is_file():
-        raise BuildError(f"There is no {CONTRIBUTORS_FILE} in {folder}, which says who made version "
+        raise BuildError(f"There is no {CONTRIBUTORS_FILE} in {folder / FILES}, which says who made version "
                          f"{version.number}.")
     credit = yaml.load(credit_path.read_text(encoding="utf-8-sig"), Loader=yaml.BaseLoader)
 
@@ -498,30 +498,55 @@ def at_a_glance(frames: dict[str, pd.DataFrame]) -> list[str]:
     experiments = frames["Experiment"]
     found = sorted({year for start, end in zip(experiments["StartDate"], experiments["EndDate"])
                     for year in years(start, end)})
+    places = {coordinates for coordinates in experiments["GPSCoordinates"] if coordinates}
+    where = f", at {count(len(places), 'place')}" if places else ""
     run = ""
     if found:
         run = f", run in {found[0]}" if found[0] == found[-1] else f", run from {found[0]} to {found[-1]}"
-    return [
-        count(len(experiments), "experiment") + run,
+    species = sorted(set(frames["Germplasm"]["Species"]) - {""})
+    lines = [count(len(experiments), "experiment") + where + run]
+    if species:
+        lines.append(f"{count(len(species), 'species', 'species')}: {', '.join(species)}")
+    return lines + [
         f"{count(len(frames['Germplasm']), 'germplasm', 'germplasm')}, in {count(len(frames['SeedLot']), 'seed lot')}",
         count(len(frames["ExperimentalUnit"]), "unit"),
         f"{count(len(frames['PhenotypeDescription']), 'trait')}, with {count(len(frames['Phenotype']), 'score')}",
     ]
 
 
-def experiments_table(frames: dict[str, pd.DataFrame], people: list[Person]) -> str:
+def first_sentence(text: str, limit: int = 120) -> str:
+    """The first sentence of a description, without its full stop, or the start of it if that is long, in one line."""
+    end = re.search(r"\.(\s|$)", text)
+    first = " ".join((text[:end.start()] if end else text).split())
+    if len(first) > limit:
+        first = first[:limit].rsplit(" ", 1)[0] + "…"
+    return first
+
+
+def experiments_table(frames: dict[str, pd.DataFrame]) -> str:
     units = frames["ExperimentalUnit"]
     germplasm = dict(zip(frames["SeedLot"]["SLID"], frames["SeedLot"]["GPID"]))
     scores = frames["Phenotype"]
     traits = scores["PDID"].groupby(scores["UNID"].map(unit_experiments(frames))).nunique()
-    rows = [["Experiment", "Years", "Place", "Units", "Germplasm", "Traits", "People"]]
+    rows = [["Experiment", "Description", "Years", "Place", "Units", "Germplasm", "Traits"]]
     for experiment in frames["Experiment"].itertuples(index=False):
         own = units[units["EXPID"] == experiment.EXPID]
-        rows.append([code(experiment.EXPID), span(years(experiment.StartDate, experiment.EndDate)),
-                     place(experiment.GPSCoordinates), f"{len(own):,}", f"{own['SLID'].map(germplasm).nunique():,}",
-                     f"{traits.get(experiment.EXPID, 0):,}",
-                     ", ".join(md(name_of(person)) for person in people if experiment.EXPID in person.experiments)])
+        rows.append([code(experiment.EXPID), md(first_sentence(experiment.Description)),
+                     span(years(experiment.StartDate, experiment.EndDate)), place(experiment.GPSCoordinates),
+                     f"{len(own):,}", f"{own['SLID'].map(germplasm).nunique():,}",
+                     f"{traits.get(experiment.EXPID, 0):,}"])
     return markdown_table(rows)
+
+
+def traits_by_experiment(frames: dict[str, pd.DataFrame]) -> str:
+    """Each experiment with the PDIDs of the traits scored in it, one line each."""
+    scores = frames["Phenotype"]
+    found = scores.groupby(scores["UNID"].map(unit_experiments(frames)))["PDID"].agg(set)
+    lines = []
+    for expid in frames["Experiment"]["EXPID"]:
+        pdids = sorted(found.get(expid, set()), key=str.casefold)
+        lines.append(f"- {code(expid)}: {', '.join(code(pdid) for pdid in pdids) if pdids else 'no scores'}")
+    return "\n".join(lines)
 
 
 def measured_table(descriptions: pd.DataFrame, key: str, name: str, values: pd.DataFrame, experiments: pd.Series,
@@ -563,18 +588,6 @@ def files_table(frames: dict[str, pd.DataFrame], schema: Schema) -> str:
         for name, table in schema.tables.items()])
 
 
-def links_table(schema: Schema) -> str:
-    rows = [["Column", "Holds the ID of"]]
-    for table in schema.tables.values():
-        for column in table.columns.values():
-            if column.links_to:
-                rows.append([code(f"{table.name}.{column.name}"), link(column.links_to)])
-            elif column.type == "features":
-                rows.append([code(f"{table.name}.{column.name}"),
-                             f"{link('Features')}, one or more: see [Features cells](#features-cells)"])
-    return markdown_table(rows)
-
-
 def tables_section(schema: Schema) -> str:
     """Every table, under a heading of its own, with its columns."""
     parts = []
@@ -591,25 +604,6 @@ def tables_section(schema: Schema) -> str:
         parts.append(f"### {table.name}\n\n`{table.name}.csv`: one row is {sentence(table.one_row_is)}\n\n"
                      f"{markdown_table(rows)}")
     return "\n\n".join(parts)
-
-
-def people_table(people: list[Person]) -> str:
-    rows = [["Name", "ORCID", "Affiliations", "Experiments"]]
-    for person in people:
-        rows.append([md(name_of(person)), orcid_link(person.orcid),
-                     "; ".join(ror_link(a.name, a.ror) for a in person.affiliations),
-                     ", ".join(code(expid) for expid in person.experiments)])
-    return markdown_table(rows)
-
-
-def funding_table(funding: list[Grant]) -> str:
-    if not funding:
-        return "There was no specific funding."
-    rows = [["Funder", "Grant number", "Grant title", "Experiments"]]
-    for grant in funding:
-        rows.append([ror_link(grant.funder, grant.ror), md(grant.grant_number or ""), md(grant.grant_title or ""),
-                     ", ".join(code(expid) for expid in grant.experiments)])
-    return markdown_table(rows)
 
 
 def curator_sentence(curator: Person | None) -> str:
@@ -921,18 +915,19 @@ def build(folder: Path, commit: str, release: Release | None = None, state: str 
 
     files_folder = folder / FILES
     if not files_folder.is_dir():
-        raise BuildError(f"There is no {FILES} folder in {folder}. merge.py writes the tables in it, one CSV file per "
-                         "table of the format, and build.py writes the README: it holds exactly what goes on Zenodo.")
+        raise BuildError(f"There is no {FILES} folder in {folder}. merge.py writes the tables and "
+                         f"{CONTRIBUTORS_FILE} in it, and build.py the README: it holds exactly what goes on Zenodo.")
     missing = [name for name in schema.tables if not (files_folder / f"{name}.csv").is_file()]
     if missing:
         raise BuildError(f"There is no {missing[0]}.csv in {files_folder}. merge.py writes every table of the format "
                          "there, a table without rows as a file with only the column names.")
     files = [(f"{name}.csv", files_folder / f"{name}.csv") for name in schema.tables]
-    if (folder / CONTRIBUTORS_FILE).is_file():
-        files.append((CONTRIBUTORS_FILE, folder / CONTRIBUTORS_FILE))
+    if (files_folder / CONTRIBUTORS_FILE).is_file():
+        files.append((CONTRIBUTORS_FILE, files_folder / CONTRIBUTORS_FILE))
     checked = validate_files(files, schema, notice, warning)
     if checked.contributors is None:
-        raise BuildError(f"There is no {CONTRIBUTORS_FILE} in {folder}. merge.py writes it, with who to credit.")
+        raise BuildError(f"There is no {CONTRIBUTORS_FILE} in {files_folder}. merge.py writes it there, with who to "
+                         "credit.")
     frames = published_tables(checked, files_folder)
     people = sorted(checked.contributors.people,
                     key=lambda p: (p.family_name.casefold(), (p.given_names or "").casefold()))
@@ -953,16 +948,14 @@ def build(folder: Path, commit: str, release: Release | None = None, state: str 
         "diagram": diagram,
         "repository": f"[{REPOSITORY}]({REPOSITORY}/tree/{commit})",
         "at_a_glance": "\n".join(f"- {md(item)}" for item in glance),
-        "experiments": experiments_table(frames, people),
+        "experiments": experiments_table(frames),
         "traits": traits_table(frames),
+        "traits_by_experiment": traits_by_experiment(frames),
         "climate_variables": climate_table(frames),
         "files": files_table(frames, schema),
-        "links": links_table(schema),
         "tables": tables_section(schema),
         "changes": "\n\n".join(part for part in (
             changes, changes_text(last, frames, schema, renames, people, funding, diagram)) if part),
-        "people": people_table(people),
-        "funding": funding_table(funding),
         "curator": curator_sentence(dataset.curator),
         "citation": citation(people, release.publication_date[:4] if release else NOT_YET.strip("()"),
                              dataset.title, number, release.doi if release else None),

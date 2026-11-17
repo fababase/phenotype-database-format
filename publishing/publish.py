@@ -49,7 +49,7 @@ from pathlib import Path
 from build import (FILES, LIMIT, README, REPOSITORY_FOLDER, VERSIONS, ZENODO_FILE, BuildError, Dataset, Release,
                    Version, build, repository_commit, sentence, write_dataset)
 from collection_sheet import REPOSITORY, SITE
-from validation import Schema, ValidationError, load_schema
+from validation import CONTRIBUTORS_FILE, Schema, ValidationError, load_schema
 
 ZENODO = "https://zenodo.org"
 SANDBOX = "https://sandbox.zenodo.org"
@@ -198,8 +198,8 @@ def link(zenodo: Zenodo, draft: dict) -> str:
 
 
 def file_names(schema: Schema) -> list[str]:
-    """The files of a version, in the order Zenodo shows them: the README first, then the tables."""
-    return [README] + [f"{name}.csv" for name in schema.tables]
+    """The files of a version, in the order Zenodo shows them: the README, the tables, and who to credit."""
+    return [README] + [f"{name}.csv" for name in schema.tables] + [CONTRIBUTORS_FILE]
 
 
 def md5(path: Path) -> str:

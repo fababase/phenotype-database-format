@@ -12,16 +12,16 @@ publishing/build.py fills it in, and leaves out comments like this one. It repla
   {{schema_version}}     the version of the format the tables follow
   {{diagram}}            the address of the diagram at that version: .../diagram/#<version>
   {{repository}}         the address of the format's repository, at the commit used
-  {{at_a_glance}}        how many experiments, years, germplasm, seed lots, units, traits and scores there are
-  {{experiments}}        each experiment: its years, place, units, germplasm, traits and people
+  {{at_a_glance}}        how many experiments, places, years, species, germplasm, seed lots, units, traits and
+                         scores there are
+  {{experiments}}        each experiment: the first sentence of its description, its years, place, units,
+                         germplasm and traits
   {{traits}}             each trait: its PDID, name, unit and class, and its number of scores and experiments
+  {{traits_by_experiment}}  each experiment with the PDIDs of the traits scored in it
   {{climate_variables}}  each climate variable, in the same way
   {{files}}              each file: what one row of it is, and its number of rows
-  {{links}}              every column that holds the ID of another table
   {{tables}}             every table and column, from schema.yaml
   {{changes}}            what changed in this version, and why: changes.md, then the comparison with the last version
-  {{people}}             everyone in contributors.yaml: ORCID, affiliations and experiments
-  {{funding}}            every grant in contributors.yaml, with its experiments
   {{curator}}            who looks after the dataset, from zenodo.yaml, as a sentence, or nothing
   {{citation}}           how to cite this version
 
@@ -65,13 +65,17 @@ This README holds all you need to read the tables and join them.
 
 {{experiments}}
 
-The Description of each experiment, in `Experiment.csv`, says where and how it was run: the site, the growing conditions, the design, the plot layout, the number of replicates and what the blocks are.
+Description is the first sentence of each experiment's Description in `Experiment.csv`, which says in full where and how it was run: the site, the growing conditions, the design, the plot layout, the number of replicates and what the blocks are.
 
 ## What was measured
 
 ### Traits
 
 {{traits}}
+
+### Traits by experiment
+
+{{traits_by_experiment}}
 
 ### Climate variables
 
@@ -81,7 +85,7 @@ What each trait and climate variable is, and how it was measured, is in the Desc
 
 ## The files
 
-The dataset is one CSV file per table, and this README.
+The dataset is one CSV file per table, `contributors.yaml`, which says who made the data, and this README.
 
 {{files}}
 
@@ -95,7 +99,7 @@ Every file is written in the same way:
 
 ## How the tables link
 
-Every table has an ID column, its first column, which identifies its rows. A column that refers to another table holds the ID of a row in it. The [diagram]({{diagram}}) shows how the tables link: click a table to highlight its links, and point at a column to see what it holds.
+Every table has an ID column, its first column, which identifies its rows. A column that refers to another table holds the ID of a row in it; [The tables](#the-tables) marks each such column with the table it links to. The [diagram]({{diagram}}) shows how the tables link: click a table to highlight its links, and point at a column to see what it holds.
 
 **Plant material.** A row in Germplasm is a variety, line or other genetically distinct plant material. A row in SeedLot is a batch of seed of one germplasm, from one harvest. A seed lot can name the seed lot it was grown from, in ParentSLID, so seed can be traced back through generations.
 
@@ -104,10 +108,6 @@ Every table has an ID column, its first column, which identifies its rows. A col
 **Scores.** A row in Phenotype is one score of one trait on one unit. Its PDID leads to PhenotypeDescription, which says what was measured, in which unit and how. A row in Climate is one climate measurement, for an experiment or for one unit in it. Its CDID leads to ClimateDescription.
 
 **Annotations.** Features defines notes on units and on scores that no column holds, such as the tissue a sample came from. They are in the Features columns of ExperimentalUnit and Phenotype.
-
-These are all the links:
-
-{{links}}
 
 ## The tables
 
@@ -265,11 +265,7 @@ Feature values are read as text. Those of features of type `i` or `d` can be tur
 
 ## Who made it
 
-{{people}}
-
-### Funding
-
-{{funding}}
+Everyone who made the data is a creator of this record: their names, ORCIDs and affiliations are on its page on Zenodo, and so is the funding. `contributors.yaml` says which experiments each person and each grant is behind.
 
 {{curator}}
 
