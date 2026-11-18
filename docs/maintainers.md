@@ -4,6 +4,21 @@ This guide is for the people who look after this repository: who change the form
 
 ## How the pieces fit together
 
+```mermaid
+flowchart LR
+    yaml["schema/schema.yaml"]
+    subgraph site["Published by Deploy app"]
+        app["the app: the validator<br/>and the collection sheet"]
+        diagram["the schema diagram,<br/>with every version"]
+    end
+    md["the tables in schema.md"]
+    readme["each dataset's README"]
+    yaml -->|"validation.py,<br/>collection_sheet.py"| app
+    yaml -->|"diagram.py,<br/>with the history"| diagram
+    yaml -->|"schema_md.py, run by the<br/>Update schema.md Action"| md
+    yaml -->|build.py| readme
+```
+
 `schema/schema.yaml` is the format: the tables and columns, their types and links, and a description of each column. The rest reads it, or is made from it:
 
 - `app/validation.py`, the validator, checks tables against it, on the command line and in the app.
@@ -15,6 +30,8 @@ This guide is for the people who look after this repository: who change the form
 There is only ever one `schema.yaml`, in `schema/`. It is never copied anywhere in the repository, and a test fails if a second one appears.
 
 The addresses of the app and of this repository are written once, as `SITE` and `REPOSITORY` in `app/collection_sheet.py`, which the publishing scripts use too. The diagram has its own copy, `REPOSITORY` in `schema/diagram.html`.
+
+The pictures in the README and in submit-data.md are drawn by `docs/images/draw.py`, as SVG files next to it, and are drawn again after a change to it, as in [On your own computer](#on-your-own-computer). The diagrams in this guide and in publish-data.md are written in the guides, in [Mermaid](https://mermaid.js.org), which GitHub draws.
 
 Three Actions run on GitHub:
 
@@ -66,6 +83,12 @@ Then draw it, and open `site/diagram/index.html`. The `site/` folder is not comm
 
 ```
 uv run --no-project --python 3.12 --with-requirements app/requirements.txt --with playwright==1.63.0 schema/diagram.py site/diagram
+```
+
+**Draw the pictures** in `docs/images/` again, after a change to `draw.py`, and commit them with it. It stops if a text no longer fits its box.
+
+```
+uv run --no-project --python 3.12 docs/images/draw.py
 ```
 
 ## The app

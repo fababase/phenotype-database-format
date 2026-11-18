@@ -63,6 +63,15 @@ The rules of the folder, for you and for the AI:
 
 ## 3. Publish a version
 
+```mermaid
+flowchart TB
+    contributions["the contributions, as handed over"] -->|you copy them in| sources["Sources/"]
+    sources -->|"the AI proposes, you decide"| merge["a folder in Versions/, with merge.py and its notes"]
+    merge -->|merge.py and build.py| files["its zenodo/ folder: the tables, the credit and the README"]
+    files -->|publish.py| draft["a draft on Zenodo"]
+    draft -->|"you check it, and press Publish"| version["a new version, with a DOI"]
+```
+
 1. **Get the contributions.** From each contributor, the `tables/` folder of their latest finished run, with its `contributors.yaml`, after a review that passes, as in [Have it reviewed](submit-data.md#9-have-it-reviewed). How they hand it over is [still to be decided](submit-data.md#10-hand-over). Copy it into the contribution's folder in `Sources/`, in place of what was there, and make the files read-only, as in [Set up the folder](submit-data.md#4-set-up-the-folder). A contribution without corrections or new data stays as it is.
 2. **Update the copy of the repository.** In `phenotheca/`, run `git pull`. The first time, clone the repository into the dataset folder instead, as in [Set up the folder](submit-data.md#4-set-up-the-folder), and write `zenodo.yaml`.
 3. **Merge with the AI.** Open your AI tool in the dataset folder, so that it sees `Sources/`, `Versions/` and the copy of the repository, as in [Open the folder in your AI tool](submit-data.md#5-open-the-folder-in-your-ai-tool), and type:

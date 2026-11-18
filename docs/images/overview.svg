@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="604" viewBox="0 0 1360 604" font-family="Arial, 'Liberation Sans', Helvetica, sans-serif" role="img">
+<title>On the contributor's computer, the data is converted into the format and curated. The contributor answers and has the last word, an AI asks and writes the script, and a fresh AI or a colleague reviews, while the raw files stay there. The tables and the credit go to the data manager's folder, where the contributions are merged and their overlaps handled. The data manager decides every change, and an AI proposes the merge. The tables, the credit and the README go to Zenodo, into the public dataset or a project's restricted one, which Zenodo shares and stores for the long term, and where data users download and cite them. The IDs already published are reused, so that one thing has one ID across datasets.</title>
+<defs><marker id="head-1F2328" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#1F2328"/></marker><marker id="head-2B6CB0" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#2B6CB0"/></marker><marker id="head-2F7D4F" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#2F7D4F"/></marker><marker id="head-3B4452" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#3B4452"/></marker><marker id="head-4E5968" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#4E5968"/></marker><marker id="head-5B6672" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#5B6672"/></marker><marker id="head-7A3FD1" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#7A3FD1"/></marker><marker id="head-9AA4AE" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#9AA4AE"/></marker><marker id="head-B9620F" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#B9620F"/></marker><marker id="head-B9C2CB" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#B9C2CB"/></marker><marker id="head-EAF6EE" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#EAF6EE"/></marker><marker id="head-EBF2FB" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#EBF2FB"/></marker><marker id="head-F1F3F5" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#F1F3F5"/></marker><marker id="head-F3ECFC" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#F3ECFC"/></marker><marker id="head-FDF2E7" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#FDF2E7"/></marker><marker id="head-FFFFFF" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 Z" fill="#FFFFFF"/></marker></defs>
+<rect width="1360" height="604" fill="#FFFFFF"/>
+<rect x="24" y="18" width="1312" height="60" rx="12" fill="#F1F3F5" stroke="none" stroke-width="1.5"/>
+<text x="48" y="56" font-size="23" fill="#1F2328" font-weight="bold">This repository</text>
+<text x="223.368" y="56" font-size="20" fill="#5B6672">the format, the tools and the guides, copied into each folder below</text>
+<path d="M246,78 L246,116" fill="none" stroke="#9AA4AE" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="7 6" marker-end="url(#head-9AA4AE)"/>
+<path d="M736,78 L736,116" fill="none" stroke="#9AA4AE" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="7 6" marker-end="url(#head-9AA4AE)"/>
+<rect x="24" y="120" width="444" height="356" rx="16" fill="#EBF2FB" stroke="none" stroke-width="1.5"/>
+<text x="46" y="162" font-size="25" fill="#1F2328" font-weight="bold">The contributor's computer</text>
+<text x="46" y="190" font-size="19" fill="#5B6672">conversion into the format, and data curation</text>
+<circle cx="74" cy="222.4" r="8.4" fill="#2B6CB0"/><path d="M58.5,256 V248.9 A15.5,15.5 0 0 1 89.5,248.9 V256 Z" fill="#2B6CB0"/>
+<text x="112" y="243" font-size="21" fill="#1F2328">Answers, and has the last word</text>
+<circle cx="74" cy="284.4" r="8.4" fill="#F3ECFC" stroke="#7A3FD1" stroke-width="2" stroke-dasharray="4 3"/><path d="M58.5,318 V310.9 A15.5,15.5 0 0 1 89.5,310.9 V318 Z" fill="#F3ECFC" stroke="#7A3FD1" stroke-width="2" stroke-dasharray="4 3"/>
+<text x="112" y="305" font-size="21" fill="#1F2328">An AI asks, and writes the script</text>
+<circle cx="74" cy="346.4" r="8.4" fill="#F3ECFC" stroke="#7A3FD1" stroke-width="2" stroke-dasharray="4 3"/><path d="M58.5,380 V372.9 A15.5,15.5 0 0 1 89.5,372.9 V380 Z" fill="#F3ECFC" stroke="#7A3FD1" stroke-width="2" stroke-dasharray="4 3"/>
+<text x="112" y="367" font-size="21" fill="#1F2328">A fresh AI or a colleague reviews</text>
+<rect x="49.0" y="432.0" width="18" height="12.6" rx="2.2" fill="#2B6CB0"/><path d="M52.6,432.0 V428.4 A5.4,5.4 0 0 1 63.4,428.4 V432.0" fill="none" stroke="#2B6CB0" stroke-width="2.7"/>
+<text x="80" y="450" font-size="21" fill="#2B6CB0" font-weight="bold">The raw files stay here.</text>
+<rect x="556" y="120" width="360" height="356" rx="16" fill="#FDF2E7" stroke="none" stroke-width="1.5"/>
+<text x="578" y="162" font-size="25" fill="#1F2328" font-weight="bold">The data manager's folder</text>
+<text x="578" y="190" font-size="19" fill="#5B6672">merging the contributions</text>
+<circle cx="606" cy="222.4" r="8.4" fill="#B9620F"/><path d="M590.5,256 V248.9 A15.5,15.5 0 0 1 621.5,248.9 V256 Z" fill="#B9620F"/>
+<text x="644" y="243" font-size="21" fill="#1F2328">Decides every change</text>
+<circle cx="606" cy="284.4" r="8.4" fill="#F3ECFC" stroke="#7A3FD1" stroke-width="2" stroke-dasharray="4 3"/><path d="M590.5,318 V310.9 A15.5,15.5 0 0 1 621.5,310.9 V318 Z" fill="#F3ECFC" stroke="#7A3FD1" stroke-width="2" stroke-dasharray="4 3"/>
+<text x="644" y="305" font-size="21" fill="#1F2328">An AI proposes the merge</text>
+<text x="578" y="450" font-size="21" fill="#B9620F" font-weight="bold">Overlaps are handled.</text>
+<rect x="1024" y="120" width="312" height="356" rx="16" fill="#EAF6EE" stroke="none" stroke-width="1.5"/>
+<text x="1046" y="162" font-size="25" fill="#1F2328" font-weight="bold">Zenodo</text>
+<text x="1046" y="190" font-size="19" fill="#5B6672">sharing, and long-term storage</text>
+<rect x="1044" y="212" width="258" height="74" rx="10" fill="#FFFFFF" stroke="#B9C2CB" stroke-width="1.5"/>
+<text x="1058" y="241" font-size="20" fill="#1F2328" font-weight="bold">the public dataset</text>
+<rect x="1058" y="252" width="46" height="22" rx="5" fill="#1F2328" stroke="none" stroke-width="1.5"/>
+<text x="1081" y="268" font-size="13" fill="#FFFFFF" font-weight="bold" text-anchor="middle">DOI</text>
+<text x="1116" y="269" font-size="18" fill="#5B6672">open</text>
+<rect x="1058" y="296" width="258" height="74" rx="10" fill="#FFFFFF" stroke="#B9C2CB" stroke-width="1.5"/>
+<rect x="1051" y="303" width="258" height="74" rx="10" fill="#FFFFFF" stroke="#B9C2CB" stroke-width="1.5"/>
+<rect x="1044" y="310" width="258" height="74" rx="10" fill="#FFFFFF" stroke="#B9C2CB" stroke-width="1.5"/>
+<text x="1058" y="339" font-size="20" fill="#1F2328" font-weight="bold">a dataset per project</text>
+<rect x="1058" y="350" width="46" height="22" rx="5" fill="#1F2328" stroke="none" stroke-width="1.5"/>
+<text x="1081" y="366" font-size="13" fill="#FFFFFF" font-weight="bold" text-anchor="middle">DOI</text>
+<text x="1116" y="367" font-size="18" fill="#5B6672">restricted</text>
+<rect x="1276.0" y="352.0" width="16" height="11.2" rx="1.9" fill="#3B4452"/><path d="M1279.2,352.0 V348.8 A4.8,4.8 0 0 1 1288.8,348.8 V352.0" fill="none" stroke="#3B4452" stroke-width="2.4"/>
+<circle cx="1068" cy="412.0" r="8.0" fill="#4E5968"/><path d="M1053.2,444 V437.2 A14.8,14.8 0 0 1 1082.8,437.2 V444 Z" fill="#4E5968"/>
+<text x="1102" y="422" font-size="20" fill="#1F2328" font-weight="bold">Data users</text>
+<text x="1102" y="446" font-size="19" fill="#1F2328">download and cite it</text>
+<path d="M502,236 H515.6 L522,242.4 V262 H502 Z" fill="#FFFFFF" stroke="#3B4452" stroke-width="2" stroke-linejoin="round"/><path d="M515.6,236 V242.4 H522" fill="none" stroke="#3B4452" stroke-width="2" stroke-linejoin="round"/>
+<path d="M474,288 L548,288" fill="none" stroke="#1F2328" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#head-1F2328)"/>
+<text x="512" y="318" font-size="18" fill="#1F2328" font-weight="bold" text-anchor="middle">tables</text>
+<text x="512" y="340" font-size="18" fill="#1F2328" font-weight="bold" text-anchor="middle">+ credit</text>
+<path d="M960,236 H973.6 L980,242.4 V262 H960 Z" fill="#FFFFFF" stroke="#3B4452" stroke-width="2" stroke-linejoin="round"/><path d="M973.6,236 V242.4 H980" fill="none" stroke="#3B4452" stroke-width="2" stroke-linejoin="round"/>
+<path d="M922,288 L1016,288" fill="none" stroke="#1F2328" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#head-1F2328)"/>
+<text x="970" y="318" font-size="18" fill="#1F2328" font-weight="bold" text-anchor="middle">tables</text>
+<text x="970" y="340" font-size="18" fill="#1F2328" font-weight="bold" text-anchor="middle">+ credit</text>
+<text x="970" y="362" font-size="18" fill="#1F2328" font-weight="bold" text-anchor="middle">+ README</text>
+<path d="M1180,476 L1180,528 L246,528 L246,482" fill="none" stroke="#5B6672" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="7 6" marker-end="url(#head-5B6672)"/>
+<text x="680" y="562" font-size="20" fill="#1F2328" text-anchor="middle">The IDs already published are reused, so that one thing has one ID across datasets.</text>
+</svg>

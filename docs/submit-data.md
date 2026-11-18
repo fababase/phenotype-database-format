@@ -96,19 +96,7 @@ You make the top-level folder and the `raw_data` folder, and clone the `phenothe
 
 Make one folder for the data contribution, named after it, such as `nordbean_irrigation_2025`. When the work is done, it looks like this:
 
-```
-nordbean_irrigation_2025/
-  raw_data/                      everything from you: data, documents, answers, in any format
-    notes/                       answers and notes written down during the conversion
-  phenotheca/                    a copy of this repository
-  runs/
-    2026-10-22/                  one run per handover
-      conversion.py              the script: raw_data/ → tables/
-      conversion-notes.md        the notes: what was changed, what is missing, what is doubtful
-      summary.md                 what the tables hold, written by conversion.py each time it runs
-      review.md                  the review: what it found, and the FAIR score
-      tables/                    Germplasm.csv … Features.csv, and contributors.yaml: who to credit
-```
+![The contribution folder, nordbean_irrigation_2025, one folder per contribution, named after it. raw_data is yours, with your data and documents, read-only, and in it notes, with your answers, one file per subject. phenotheca is a copy of this repository, which nobody edits. runs is where the AI writes, one run per handover. In 2026-10-22 are conversion.py, the script from raw_data to tables, conversion-notes.md, with what was changed and what is missing, summary.md, with what the tables hold, for you to check, review.md, the review with the FAIR score, and tables, with the tables and who to credit, written by the script alone.](images/contribution.svg)
 
 1. **Open the folder in VS Code**: choose *File* → *Open Folder*, and pick the contribution folder. If VS Code asks whether you trust the authors of the files in it, say yes. A terminal you open in VS Code then starts in this folder.
 2. **Copy this repository into the folder**, as `phenotheca`.
