@@ -199,8 +199,8 @@ def schema_md_text() -> str:
 
 def test_schema_md_has_a_place_for_every_table():
     """
-    The Update schema.md Action can write the tables: schema.md has comments to put each one between. Whether they
-    are up to date is not checked, as the Action brings them up to date after each push to main.
+    The hook can write the tables, as schema.md has comments to put each one between. Whether they are up to date is
+    not checked, as the hook writes them into every commit.
     """
     schema_md.update(schema_md_text(), SCHEMA)
 

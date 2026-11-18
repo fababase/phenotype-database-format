@@ -15,7 +15,7 @@ flowchart LR
     readme["each dataset's README"]
     yaml -->|"validation.py,<br/>collection_sheet.py"| app
     yaml -->|"diagram.py,<br/>with the history"| diagram
-    yaml -->|"schema_md.py, run by the<br/>Update schema.md Action"| md
+    yaml -->|"schema_md.py,<br/>at each commit"| md
     yaml -->|build.py| readme
 ```
 
@@ -31,12 +31,13 @@ There is only ever one `schema.yaml`, in `schema/`. It is never copied anywhere 
 
 The addresses of the app and of this repository are written once, as `SITE` and `REPOSITORY` in `app/collection_sheet.py`, which the publishing scripts use too. The diagram has its own copy, `REPOSITORY` in `schema/diagram.html`.
 
-The pictures in the README and in submit-data.md are drawn by `docs/images/draw.py`, as SVG files next to it, and are drawn again after a change to it, as in [On your own computer](#on-your-own-computer). The diagrams in this guide and in publish-data.md are written in the guides, in [Mermaid](https://mermaid.js.org), which GitHub draws.
+The pictures in the README and in submit-data.md are drawn by `docs/images/draw.py`, as SVG files next to it. The diagrams in this guide and in publish-data.md are written in the guides, in [Mermaid](https://mermaid.js.org), which GitHub draws.
 
-Three Actions run on GitHub:
+Before every commit, a hook, [.githooks/pre-commit](../.githooks/pre-commit), writes the tables in `schema.md` and draws the pictures, and adds them to the commit, so that every commit holds them as its sources make them. It stops the commit if `schema.yaml`, `schema.md` or `docs/images/` has changes that are not in it. Turn the hook on once in each clone, as in [Setup, done once](#setup-done-once).
+
+Two Actions run on GitHub:
 
 - **Tests** ([tests.yml](../.github/workflows/tests.yml)) runs the tests on every push.
-- **Update schema.md** ([schema-md.yml](../.github/workflows/schema-md.yml)) writes the tables in `schema.md` after every push to `main`, and commits them if they changed. Pull afterwards (*Pull origin* in GitHub Desktop) to get that commit.
 - **Deploy app** ([deploy-app.yml](../.github/workflows/deploy-app.yml)) publishes the app and the diagram after every push to `main`, as in [Refreshing the app](#refreshing-the-app).
 
 ## On your own computer
@@ -61,7 +62,7 @@ uv run --no-project --python 3.12 --with-requirements app/requirements.txt shiny
 uv run --no-project --python 3.12 --with-requirements app/requirements.txt app/collection_sheet.py collection-sheet.xlsx
 ```
 
-**Write the tables in `schema.md`**, to see them before you push:
+**Write the tables in `schema.md`**, to see them before you commit:
 
 ```
 uv run --no-project --python 3.12 --with-requirements app/requirements.txt schema/schema_md.py
@@ -85,7 +86,7 @@ Then draw it, and open `site/diagram/index.html`. The `site/` folder is not comm
 uv run --no-project --python 3.12 --with-requirements app/requirements.txt --with playwright==1.63.0 schema/diagram.py site/diagram
 ```
 
-**Draw the pictures** in `docs/images/` again, after a change to `draw.py`, and commit them with it. It stops if a text no longer fits its box.
+**Draw the pictures** in `docs/images/`, to see a change to `draw.py` before you commit. It stops if a text no longer fits its box.
 
 ```
 uv run --no-project --python 3.12 docs/images/draw.py
@@ -176,7 +177,7 @@ The diagram needs the whole history, so the Actions fetch all of it (`fetch-dept
 A new version of the format is a push to `main` that changes the version in `schema/schema.yaml`. [CHANGELOG.md](../CHANGELOG.md) says what makes a major version and what a minor one. As [Where the versions come from](#where-the-versions-come-from) says, a version stays in the diagram for good once a commit with it is pushed, so push the new version only when it is final.
 
 1. Change `schema/schema.yaml`: the tables and columns, and the version, in quotes.
-2. Change the hand-written parts of `schema/schema.md` that the change touches, and its version line. The tables in it that list the tables and columns are written by the *Update schema.md* Action after the push, or [on your own computer](#on-your-own-computer) before it.
+2. Change the hand-written parts of `schema/schema.md` that the change touches, and its version line. The tables in it that list the tables and columns are written by the hook when you commit.
 3. Add the version to `CHANGELOG.md`, with its date and what changed, and set `version` and `date-released` in `CITATION.cff` to the same.
 4. Change the test data in `tests/valid/`, the AI instructions and the guides where the change touches them.
 5. Run the tests. One checks that `schema.yaml`, `CHANGELOG.md` and `CITATION.cff` give the same version.
@@ -187,5 +188,11 @@ After a new major version, the contributions have to be converted again before t
 ## Setup, done once
 
 In the repository's **Settings → Pages**, under *Build and deployment*, *Source* is set to **GitHub Actions**. Only an admin of the repository can change this.
+
+In each clone of the repository, turn on the hook that writes `schema.md` and the pictures into every commit, with this command in a terminal in the repository folder. GitHub Desktop runs it too.
+
+```
+git config core.hooksPath .githooks
+```
 
 The address of the app and the diagram contains the names of the repository and of its organisation on GitHub. If either is renamed, or the repository moves to another organisation, the address changes, and the old one stops working: GitHub forwards links to the repository, but not to the site. So change the address wherever it is written: `SITE` and `REPOSITORY` in `app/collection_sheet.py`, which the *READ ME 1st* sheet, the README of the datasets and the publishing scripts use; `REPOSITORY` in `schema/diagram.html`; and the README, the guides, `schema.md`, `CITATION.cff` and the tests. `git grep` with the old name finds them all. A renamed repository is also cloned into a folder of its new name, which the guides and the AI instructions name. Update the address, too, anywhere else it was shared.

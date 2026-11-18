@@ -1,0 +1,35 @@
+#!/bin/sh
+# Before every commit, writes the tables in schema/schema.md from schema/schema.yaml, draws the pictures in
+# docs/images/ with draw.py, and adds both to the commit, so that every commit holds them as its sources make them.
+# Turn it on once in each clone, in the repository folder, with
+#
+#     git config core.hooksPath .githooks
+#
+# See docs/maintainers.md.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+
+# uv, also where a program such as GitHub Desktop does not look for it
+uv=$(command -v uv || true)
+for candidate in "$HOME/.local/bin/uv" "$HOME/.local/bin/uv.exe" "$HOME/.cargo/bin/uv"; do
+    if [ -z "$uv" ] && [ -x "$candidate" ]; then
+        uv=$candidate
+    fi
+done
+if [ -z "$uv" ]; then
+    echo "The hook needs uv to write schema.md and draw the pictures. Install it as in step 2 of docs/submit-data.md." >&2
+    exit 1
+fi
+
+# They are written from what goes into the commit, so these may have no changes outside it
+files="schema/schema.yaml schema/schema_md.py schema/schema.md docs/images"
+if ! git diff --quiet -- $files; then
+    echo "These files have changes that are not in the commit, so the hook cannot write from it." >&2
+    git diff --name-only -- $files >&2
+    echo "Add the changes to the commit, or set them aside, and commit again." >&2
+    exit 1
+fi
+
+"$uv" run --quiet --no-project --python 3.12 --with-requirements app/requirements.txt schema/schema_md.py >/dev/null
+"$uv" run --quiet --no-project --python 3.12 docs/images/draw.py >/dev/null
+git add schema/schema.md docs/images

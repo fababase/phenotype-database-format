@@ -1,8 +1,7 @@
 """
-Writes the tables in schema.md that list the tables and their columns, from schema.yaml. The Update schema.md Action
-runs it on every push to main and commits schema.md if it changed. To see the tables before pushing:
-
-    python schema/schema_md.py
+Writes the tables in schema.md that list the tables and their columns, from schema.yaml. The hook in .githooks/ runs
+it before every commit, and adds schema.md to the commit. To see the tables before you commit, run it as in
+docs/maintainers.md.
 
 Each of these tables sits between two comments, <!-- BEGIN ... --> and <!-- END ... -->, and only what is between
 them is rewritten. The rest of schema.md is written by hand.

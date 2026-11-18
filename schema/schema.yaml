@@ -1,7 +1,7 @@
 # Machine-readable copy of the Phenotheca format. schema.md describes it in full.
 # The validator (app/validation.py) reads this file, so a change here changes what it checks. The collection sheet,
-# the diagram and the tables in schema.md that list the tables and columns are made from it too. An Action writes
-# the tables in schema.md, with schema/schema_md.py, on every push to main.
+# the diagram and the tables in schema.md that list the tables and columns are made from it too. The hook in
+# .githooks/ writes the tables in schema.md, with schema/schema_md.py, into every commit.
 
 # The version of the format, major.minor, in quotes so that 1.10 stays 1.10. See CHANGELOG.md.
 version: "1.0"

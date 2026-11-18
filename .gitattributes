@@ -1,2 +1,4 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+# Hooks run under sh, also on Windows, so they keep LF line endings
+.githooks/* text eol=lf
