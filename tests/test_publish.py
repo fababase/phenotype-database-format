@@ -559,18 +559,18 @@ def test_tables_that_do_not_pass(merge, zenodo):
     assert "versions" not in merge.state()
 
 
-COMMIT_PAGE = f"https://github.com/fababase/phenotype-database-format/tree/{COMMIT}"
-DIAGRAM_PICTURE = f"https://fababase.github.io/phenotype-database-format/diagram/{SCHEMA.version}/diagram.png"
+COMMIT_PAGE = f"https://github.com/phenotheca/phenotheca/tree/{COMMIT}"
+DIAGRAM_PICTURE = f"https://phenotheca.github.io/phenotheca/diagram/{SCHEMA.version}/diagram.png"
 
 
 @pytest.mark.parametrize("missing, asked, message", [
     (COMMIT_PAGE, [COMMIT_PAGE],
      f"The commit {COMMIT}, which the copy of the repository is at, is not on GitHub, at "
-     "https://github.com/fababase/phenotype-database-format. The README links to it, so push it first, or clone the "
+     "https://github.com/phenotheca/phenotheca. The README links to it, so push it first, or clone the "
      "repository again."),
     (DIAGRAM_PICTURE, [COMMIT_PAGE, DIAGRAM_PICTURE],
      f"The diagram of version {SCHEMA.version} of the format is not online, at "
-     f"https://fababase.github.io/phenotype-database-format/diagram/#{SCHEMA.version}. The README links to it, so "
+     f"https://phenotheca.github.io/phenotheca/diagram/#{SCHEMA.version}. The README links to it, so "
      "publish the app first: see docs/maintainers.md."),
 ])
 def test_what_the_readme_links_to_is_online(merge, zenodo, missing, asked, message):

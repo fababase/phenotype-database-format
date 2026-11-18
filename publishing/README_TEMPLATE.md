@@ -36,7 +36,7 @@ Phenotype data from plant experiments: the scores of traits measured on field pl
 
 - **Version:** {{version}}, published {{publication_date}}.
 - **DOI:** {{doi}}. The DOI {{concept_doi}} always leads to the latest version.
-- **Format:** version {{schema_version}} of the FabaBase phenotype database format. The [diagram]({{diagram}}) shows how its tables link.
+- **Format:** version {{schema_version}} of the Phenotheca format. The [diagram]({{diagram}}) shows how its tables link.
 - **Licence:** [CC-BY-4.0](#licence).
 
 This README holds all you need to read the tables and join them.

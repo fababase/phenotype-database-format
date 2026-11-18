@@ -1,6 +1,6 @@
 # Submitting data
 
-This guide is for researchers who want to add their phenotype data to FabaBase. It goes from your raw files to the tables of the [format](../schema/schema.md), and ends with a folder you keep: the raw data, what turned it into the tables, and notes on what was changed and why. Your AI reads this guide too.
+This guide is for researchers who want to add their phenotype data to Phenotheca. It goes from your raw files to the tables of the [format](../schema/schema.md), and ends with a folder you keep: the raw data, what turned it into the tables, and notes on what was changed and why. Your AI reads this guide too.
 
 You can make the tables in three ways. An AI agent can read your files, ask you about everything it cannot tell from them, and write a script, `conversion.py`, that turns them into the tables. You can write that script yourself, without an AI. Or you can fill in the [collection sheet](#the-collection-sheet), a workbook with one sheet per table of the format. The first two use the same folder and the same steps, the third one fills data manually and then uses the app to validate.
 
@@ -92,7 +92,7 @@ The AI can only use what you give it. Every document, note or sheet it can read 
 
 ## 4. Set up the folder
 
-You make the top-level folder and the `raw_data` folder, and clone the `phenotype-database-format` repository, while the AI makes `runs/`. The AI is not allowed to write in `raw_data` or change the permissions of files.
+You make the top-level folder and the `raw_data` folder, and clone the `phenotheca` repository, while the AI makes `runs/`. The AI is not allowed to write in `raw_data` or change the permissions of files.
 
 Make one folder for the data contribution, named after it, such as `nordbean_irrigation_2025`. When the work is done, it looks like this:
 
@@ -100,7 +100,7 @@ Make one folder for the data contribution, named after it, such as `nordbean_irr
 nordbean_irrigation_2025/
   raw_data/                      everything from you: data, documents, answers, in any format
     notes/                       answers and notes written down during the conversion
-  phenotype-database-format/     a copy of this repository
+  phenotheca/                    a copy of this repository
   runs/
     2026-10-22/                  one run per handover
       conversion.py              the script: raw_data/ → tables/
@@ -111,14 +111,14 @@ nordbean_irrigation_2025/
 ```
 
 1. **Open the folder in VS Code**: choose *File* → *Open Folder*, and pick the contribution folder. If VS Code asks whether you trust the authors of the files in it, say yes. A terminal you open in VS Code then starts in this folder.
-2. **Copy this repository into the folder**, as `phenotype-database-format`.
+2. **Copy this repository into the folder**, as `phenotheca`.
    - With git, run this in a terminal in VS Code:
 
      ```
-     git clone https://github.com/fababase/phenotype-database-format.git
+     git clone https://github.com/phenotheca/phenotheca.git
      ```
-   - With GitHub Desktop, choose *File* → *Clone repository*, give it the address <https://github.com/fababase/phenotype-database-format.git>, and choose a local path inside the contribution folder.
-   - Without either, download it as a ZIP (*Code* → *Download ZIP* on GitHub), unzip it into the folder, and rename `phenotype-database-format-main` to `phenotype-database-format`.
+   - With GitHub Desktop, choose *File* → *Clone repository*, give it the address <https://github.com/phenotheca/phenotheca.git>, and choose a local path inside the contribution folder.
+   - Without either, download it as a ZIP (*Code* → *Download ZIP* on GitHub), unzip it into the folder, and rename `phenotheca-main` to `phenotheca`.
 3. **Make a folder `raw_data`**, and copy into it your data files and the documents that describe them. Copy rather than move them, so that you keep your originals. Subfolders are fine. Make one called `notes` as well, for what is written down during the conversion.
 4. **Make the files in `raw_data` read-only**, so that nothing can change them by accident. Do it again whenever you add files.
    - Windows: in File Explorer, right-click `raw_data`, choose *Properties*, tick *Read-only*, and apply it to all subfolders and files.
@@ -160,7 +160,7 @@ If the tool asks whether you trust the folder, say yes. It may also ask before i
 Then type:
 
 ```
-Read phenotype-database-format/conversion/AI_INSTRUCTIONS.md and follow it.
+Read phenotheca/conversion/AI_INSTRUCTIONS.md and follow it.
 ```
 
 Use the same line whenever you come back: in a new session, after a break, or with corrections or more data after a handover. The AI carries on from its notes.
@@ -265,7 +265,7 @@ The AI asks you to read `tables/contributors.yaml` too: check every name, ORCID,
 When the AI says the run is finished, start a fresh session, a new conversation, in the same folder, and type:
 
 ```
-Read phenotype-database-format/docs/review-data.md and review the latest run.
+Read phenotheca/docs/review-data.md and review the latest run.
 ```
 
 The review checks the work using only the files, and writes `review.md` in the run's folder: what it found, and a FAIR score from 1 to 5. [FAIR](https://www.go-fair.org/fair-principles/) stands for Findable, Accessible, Interoperable and Reusable, principles for data that others can find and use. The score says how well the dataset is described for that, and what would raise it.
@@ -285,7 +285,7 @@ Keep the folder after handing over, too: `raw_data`, the script and the notes ar
 
 The collection sheet is no longer the recommended way to contribute data, but it is still allowed. It is separate from the steps above: you fill in the tables by hand, with [schema.md](../schema/schema.md) as a guide, and reuse the IDs already used in the [known datasets](datasets.md) you have access to.
 
-1. Download a blank sheet from the [app](https://fababase.github.io/phenotype-database-format/), and fill it in as its *READ ME 1st* sheet says.
+1. Download a blank sheet from the [app](https://phenotheca.github.io/phenotheca/), and fill it in as its *READ ME 1st* sheet says.
 2. Write `contributors.yaml` by hand, as in [Who to credit](#who-to-credit), in a plain-text editor such as Notepad, not Word.
 3. Check both in the app, uploaded together, and fix what it reports, until they pass.
 4. Download the tables from the app (*Download tables as CSV*). `contributors.yaml` comes with them.
@@ -296,7 +296,7 @@ The collection sheet is no longer the recommended way to contribute data, but it
 
 - **`uv --version` or `git --version` says the command is not recognized, or not found.** Close VS Code, open it again, and try once more in a new terminal. If it still fails, install it again, as in [step 2](#2-install-what-you-need).
 - **The AI says that uv does not work.** Do the same, and then start the AI again with the line from [step 5](#5-open-the-folder-in-your-ai-tool).
-- **The AI cannot find `AI_INSTRUCTIONS.md`.** Check that VS Code has the contribution folder open, and that the copy of this repository is in it as `phenotype-database-format`, as in [step 4](#4-set-up-the-folder).
+- **The AI cannot find `AI_INSTRUCTIONS.md`.** Check that VS Code has the contribution folder open, and that the copy of this repository is in it as `phenotheca`, as in [step 4](#4-set-up-the-folder).
 - **VS Code cannot save a file in `raw_data/notes`.** The file is read-only: make it writable, save it, and make it read-only again, as in step 4.
 - **The AI says that a file in `raw_data` has changed.** `conversion.py` stops when a file it reads is not as it was. If you corrected the file, tell the AI why. If you didn't, find out what changed it before you go on.
 - **The AI tool says you have reached a usage limit.** Come back with the line from step 5 when it lets you. The AI carries on from its notes.

@@ -21,7 +21,7 @@ Each dataset has a folder, named after it:
 
 ```
 <dataset>/                       one folder per dataset, named after it
-  phenotype-database-format/     a copy of this repository
+  phenotheca/                    a copy of this repository
   zenodo.yaml                    the dataset on Zenodo: its title, access and curator, and its versions
   Sources/                       the contributions, as last handed over
     <contribution>/              one folder per contribution: its tables and contributors.yaml
@@ -64,10 +64,10 @@ The rules of the folder, for you and for the AI:
 ## 3. Publish a version
 
 1. **Get the contributions.** From each contributor, the `tables/` folder of their latest finished run, with its `contributors.yaml`, after a review that passes, as in [Have it reviewed](submit-data.md#9-have-it-reviewed). How they hand it over is [still to be decided](submit-data.md#10-hand-over). Copy it into the contribution's folder in `Sources/`, in place of what was there, and make the files read-only, as in [Set up the folder](submit-data.md#4-set-up-the-folder). A contribution without corrections or new data stays as it is.
-2. **Update the copy of the repository.** In `phenotype-database-format/`, run `git pull`. The first time, clone the repository into the dataset folder instead, as in [Set up the folder](submit-data.md#4-set-up-the-folder), and write `zenodo.yaml`.
+2. **Update the copy of the repository.** In `phenotheca/`, run `git pull`. The first time, clone the repository into the dataset folder instead, as in [Set up the folder](submit-data.md#4-set-up-the-folder), and write `zenodo.yaml`.
 3. **Merge with the AI.** Open your AI tool in the dataset folder, so that it sees `Sources/`, `Versions/` and the copy of the repository, as in [Open the folder in your AI tool](submit-data.md#5-open-the-folder-in-your-ai-tool), and type:
 
-   > Read `phenotype-database-format/merging/AI_INSTRUCTIONS.md` and follow it.
+   > Read `phenotheca/merging/AI_INSTRUCTIONS.md` and follow it.
 
    The AI makes `Versions/<today>`, copies `Sources/` into it, starts from the last merge, checks each contribution with the validator, and looks for where the contributions overlap: the same trait under two IDs, the same person written in two ways, and so on. It asks you about every change, never more than three questions at once, and makes none without your yes. When you don't know, say so: then nothing changes. It writes every answer in `merge-notes.md`, so that the next merge does not ask again. It sees which contributions changed since the last version, and asks you why, for `changes.md`: what changed in this version, and why, for the people who use the data. It never reads the scores: merging rests on what the rows say, not on the values measured.
 
@@ -76,7 +76,7 @@ The rules of the folder, for you and for the AI:
 5. **Upload the version to a draft.** In a terminal in the dataset folder, run
 
    ```
-   uv run phenotype-database-format/publishing/publish.py Versions/<date> --token-file <path of the token file>
+   uv run phenotheca/publishing/publish.py Versions/<date> --token-file <path of the token file>
    ```
 
    It checks the version, the copy of the repository and the last version on Zenodo, and stops with a message that says what to do if something is not right. Then it makes a draft of the version on Zenodo, lists it in `zenodo.yaml`, builds the README with the date and the DOIs, uploads it with the tables, sets the metadata, and prints the address of the draft. Run it again after a change to the merge: it takes up the same draft, and uploads only what changed.

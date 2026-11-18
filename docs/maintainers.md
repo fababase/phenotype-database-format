@@ -70,7 +70,7 @@ uv run --no-project --python 3.12 --with-requirements app/requirements.txt --wit
 
 ## The app
 
-The validation app is at **<https://fababase.github.io/phenotype-database-format/>**.
+The validation app is at **<https://phenotheca.github.io/phenotheca/>**.
 
 GitHub Pages only hands out the app's files. The app itself runs in each visitor's browser, with [Shinylive](https://shiny.posit.co/py/docs/shinylive.html), so the files they check never leave their computer. The first visit takes a while, as the browser downloads Python and the packages; later visits use its cached copy.
 
@@ -129,7 +129,7 @@ The app's *Download a blank collection sheet* button builds the sheet from `sche
 
 ## The schema diagram
 
-The diagram of how the tables link is at **<https://fababase.github.io/phenotype-database-format/diagram/>**. [schema/diagram.py](../schema/diagram.py) draws it each time the app is published, with every version of the schema:
+The diagram of how the tables link is at **<https://phenotheca.github.io/phenotheca/diagram/>**. [schema/diagram.py](../schema/diagram.py) draws it each time the app is published, with every version of the schema:
 
 - It opens at the latest version. The menu at the top switches to an earlier one.
 - An address can name a version after `#`, as in `diagram/#1.0`, to open the diagram at that version. Link this way wherever the version matters: the *READ ME 1st* sheet of the collection sheet does, and so does the README of each dataset on Zenodo.

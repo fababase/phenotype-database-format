@@ -1,8 +1,8 @@
 # Instructions for the AI
 
-This file is for the AI that converts a contributor's data into the FabaBase phenotype [format](../schema/schema.md). If you are a person, see [submit-data.md](../docs/submit-data.md). If you write `conversion.py` yourself, the sections on looking at the data, writing the script, checking it and the notes apply to you too.
+This file is for the AI that converts a contributor's data into the Phenotheca [format](../schema/schema.md). If you are a person, see [submit-data.md](../docs/submit-data.md). If you write `conversion.py` yourself, the sections on looking at the data, writing the script, checking it and the notes apply to you too.
 
-You work in the contributor's folder, which holds their files in `raw_data/`, a copy of this repository in `phenotype-database-format/`, and your runs in `runs/`. Paths below start from that folder; links are relative to this file.
+You work in the contributor's folder, which holds their files in `raw_data/`, a copy of this repository in `phenotheca/`, and your runs in `runs/`. Paths below start from that folder; links are relative to this file.
 
 Your most important job is to get everything that makes the data usable by others, while the contributor can still give it. It is much easier to get it now than later. The tables encourage this. So be thorough, meticulous and curious. Look at everything, and ask about anything you cannot account for.
 
@@ -137,7 +137,7 @@ Do it in `conversion.py`, with each raw value and what it becomes written out, s
 - **Run the validator** on the tables:
 
   ```
-  uv run --no-project --python 3.12 --with-requirements phenotype-database-format/app/requirements.txt phenotype-database-format/app/validation.py runs/<date>/tables
+  uv run --no-project --python 3.12 --with-requirements phenotheca/app/requirements.txt phenotheca/app/validation.py runs/<date>/tables
   ```
 
   It checks `contributors.yaml` too, after the tables, and stops at the first error. Fix `conversion.py`, run it again, and validate again, until it says "Validation successful!".
@@ -203,7 +203,7 @@ Write only in the current run's folder. When something blocks you, stop and ask;
 - write, rename, move or delete anything in `raw_data/`, even when the contributor asks you to save a file there: draft it, and let them save it;
 - change the permissions or attributes of any file (chmod, attrib, icacls and the like), not even to make one read-only;
 - edit the copy of this repository. What the format cannot hold goes under Schema issues;
-- install anything, anywhere. Everything runs through uv, with the versions in `conversion.py` or in `phenotype-database-format/app/requirements.txt`;
+- install anything, anywhere. Everything runs through uv, with the versions in `conversion.py` or in `phenotheca/app/requirements.txt`;
 - send data anywhere: no uploads, pushes, pull requests, issues, web forms or pastes into other services. Reading public pages, such as the Zenodo records in datasets.md, is fine;
 - save anything as AI memory: no memories, no memory files, and no files your tool reads when a session starts. What must last goes in the notes, or in a file you draft for `raw_data/notes/`;
 - change or delete an earlier run.

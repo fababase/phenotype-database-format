@@ -1,6 +1,6 @@
-# FabaBase phenotype database: format and validation
+# Phenotheca
 
-This repository describes and checks the format of the FabaBase phenotype database: a set of linked tables for phenotype data from plant experiments. It holds the schema, the validator and its app, and the guides and scripts that take data from a contributor's files to Zenodo. The data itself is not stored here, but on Zenodo: see [docs/datasets.md](docs/datasets.md).
+This repository describes and checks the Phenotheca format: a set of linked tables for phenotype data from plant experiments. It holds the schema, the validator and its app, and the guides and scripts that take data from a contributor's files to Zenodo. The data itself is not stored here, but on Zenodo: see [docs/datasets.md](docs/datasets.md).
 
 ## What is here
 
@@ -9,8 +9,8 @@ This repository describes and checks the format of the FabaBase phenotype databa
 | [schema/schema.md](schema/schema.md) | The schema: every table and column, the conventions and the special rules. **Start here.** |
 | [schema/schema.yaml](schema/schema.yaml) | The same schema in machine-readable form, with its version number and a description of every column. The validator reads it, and the collection sheet, the diagram and the tables in `schema.md` that list the tables and columns are made from it. |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each version of the format, and what the version numbers mean. |
-| [Schema diagram](https://fababase.github.io/phenotype-database-format/diagram/) | How the tables link together. Point at a column to see its description, drag the tables around, and click one to highlight its links. Earlier versions of the schema can be chosen at the top. Also as a picture: [PNG](https://fababase.github.io/phenotype-database-format/diagram/diagram.png), [SVG](https://fababase.github.io/phenotype-database-format/diagram/diagram.svg). |
-| Collection sheet | A workbook with one sheet per table, for filling in by hand. Download a blank one from the [app](https://fababase.github.io/phenotype-database-format/). |
+| [Schema diagram](https://phenotheca.github.io/phenotheca/diagram/) | How the tables link together. Point at a column to see its description, drag the tables around, and click one to highlight its links. Earlier versions of the schema can be chosen at the top. Also as a picture: [PNG](https://phenotheca.github.io/phenotheca/diagram/diagram.png), [SVG](https://phenotheca.github.io/phenotheca/diagram/diagram.svg). |
+| Collection sheet | A workbook with one sheet per table, for filling in by hand. Download a blank one from the [app](https://phenotheca.github.io/phenotheca/). |
 | [app/](app/) | The validator. `validation.py` holds the checks and runs from the command line; `app.py` is the app around it; `collection_sheet.py` builds the blank collection sheet. |
 | [docs/datasets.md](docs/datasets.md) | Every known dataset in the format, by DOI. Look here for IDs to reuse. |
 | [docs/submit-data.md](docs/submit-data.md) | For contributors: how to convert your data into the format, with an AI or without, and hand it over. |
@@ -39,7 +39,7 @@ Climate.csv, row 2, column Score: '11,7167' has ','. Numbers have '.' as the dec
 
 When everything passes, it can hand back the tables as clean CSV files, with `contributors.yaml` as it was given.
 
-**In the app**: <https://fababase.github.io/phenotype-database-format/>. It runs in your browser, so your data never leaves your computer. The first visit takes a while, as your browser downloads what the app needs to run.
+**In the app**: <https://phenotheca.github.io/phenotheca/>. It runs in your browser, so your data never leaves your computer. The first visit takes a while, as your browser downloads what the app needs to run.
 
 **From the command line**: with uv, as in [For maintainers](docs/maintainers.md#on-your-own-computer).
 

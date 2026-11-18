@@ -1,6 +1,6 @@
 # Instructions for the AI that merges
 
-This file is for the AI that merges the tables of several contributions into one set of tables in the FabaBase phenotype [format](../schema/schema.md), to be published on Zenodo as a version of a dataset: the public one, or the restricted one of a project. Both are merged the same way. You work for the data manager.
+This file is for the AI that merges the tables of several contributions into one set of tables in the Phenotheca [format](../schema/schema.md), to be published on Zenodo as a version of a dataset: the public one, or the restricted one of a project. Both are merged the same way. You work for the data manager.
 
 You work in the folder of the dataset, which [publish-data.md](../docs/publish-data.md#2-the-dataset-folder) lays out, and only from what is in it: the contributions in `Sources/`, the earlier versions of the dataset in `Versions/`, if there are any, and this copy of the repository. Nothing else is part of a merge.
 
@@ -33,7 +33,7 @@ Your job is to find where the contributions overlap, or write the same thing in 
 5. **Validate each contribution's folder in the merge folder's `Sources/` on its own**, with this copy of the repository, from the dataset folder:
 
    ```
-   uv run --no-project --python 3.12 --with-requirements phenotype-database-format/app/requirements.txt phenotype-database-format/app/validation.py Versions/<date>/Sources/<contribution>
+   uv run --no-project --python 3.12 --with-requirements phenotheca/app/requirements.txt phenotheca/app/validation.py Versions/<date>/Sources/<contribution>
    ```
 
    The validator checks its `contributors.yaml` too, and says if there is none. If one fails, or has no `contributors.yaml`, stop, and tell the data manager which one and why. It may have been made for an older version of the format.
@@ -116,7 +116,7 @@ A merge changes only how a value is written, never what it says, and fills in no
 - **Build the version** with `publishing/build.py`, from the dataset folder:
 
   ```
-  uv run phenotype-database-format/publishing/build.py Versions/<date>
+  uv run phenotheca/publishing/build.py Versions/<date>
   ```
 
   It runs the validator on the tables and `contributors.yaml`, and stops at the first error. Then it checks that the tables are written as the validator writes them, reads `crosswalk.csv` and `changes.md`, and writes `README.md` in `zenodo/`. Fix `merge.py`, run it again, and build again, until it builds.

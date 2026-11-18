@@ -13,7 +13,7 @@ Builds the README of a version of a dataset, and its metadata for Zenodo, from t
 Run it in the dataset folder, which holds the copy of this repository and the versions, as docs/publish-data.md lays
 it out:
 
-    uv run phenotype-database-format/publishing/build.py Versions/<date>
+    uv run phenotheca/publishing/build.py Versions/<date>
 
 It reads, in the dataset folder:
 
@@ -816,7 +816,7 @@ def description_html(readme: str, glance: list[str], schema: Schema, diagram: st
     intro = re.match(r"# [^\n]*\n\n(.+?)\n\n", readme, re.DOTALL)
     lines = [f"<p>{inline_html(intro[1])}</p>"] if intro else []
     lines += ["<ul>"] + [f"<li>{html.escape(item)}</li>" for item in glance] + ["</ul>"]
-    lines.append(f'<p>The tables follow version {schema.version} of the FabaBase phenotype database format, whose '
+    lines.append(f'<p>The tables follow version {schema.version} of the Phenotheca format, whose '
                  f'<a href="{diagram}">diagram</a> shows how they link. {README} says how to read and join them.</p>')
     return "\n".join(lines)
 

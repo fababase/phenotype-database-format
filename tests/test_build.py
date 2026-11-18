@@ -134,9 +134,9 @@ def test_every_place_in_the_template_is_filled_in(merge):
     assert readme.startswith("# Nordbean test dataset\n\nPhenotype data from plant experiments")
     assert "{{" not in readme
     assert "<!--" not in readme
-    assert readme.endswith(f"[https://github.com/fababase/phenotype-database-format]"
-                           f"(https://github.com/fababase/phenotype-database-format/tree/{COMMIT}).\n")
-    assert "[diagram](https://fababase.github.io/phenotype-database-format/diagram/#1.0)" in readme
+    assert readme.endswith(f"[https://github.com/phenotheca/phenotheca]"
+                           f"(https://github.com/phenotheca/phenotheca/tree/{COMMIT}).\n")
+    assert "[diagram](https://phenotheca.github.io/phenotheca/diagram/#1.0)" in readme
 
 
 def test_at_a_glance(merge):
@@ -393,7 +393,7 @@ def test_metadata(merge):
                                 "award": {"number": "NBF-2024-117",
                                           "title": {"en": "Drought tolerance in faba bean"}}}]
     assert data["related_identifiers"] == [
-        {"identifier": f"https://github.com/fababase/phenotype-database-format/tree/{COMMIT}", "scheme": "url",
+        {"identifier": f"https://github.com/phenotheca/phenotheca/tree/{COMMIT}", "scheme": "url",
          "relation_type": {"id": "isdocumentedby"}, "resource_type": {"id": "software"}}]
     assert data["description"].startswith("<p>Phenotype data from plant experiments: the scores of traits")
     assert ("<li>2 experiments, at 2 places, run in 2025</li>\n<li>1 species: Vicia faba</li>\n"
@@ -546,7 +546,7 @@ def test_a_new_version_of_the_format(tmp_path):
     second.run()
     assert compared(second).split("\n\n")[1:] == [
         "The format changed from version 0.9 to version 1.0. The [diagram]"
-        "(https://fababase.github.io/phenotype-database-format/diagram/#1.0) shows each version: choose one in its "
+        "(https://phenotheca.github.io/phenotheca/diagram/#1.0) shows each version: choose one in its "
         "menu.",
         "| Table | Added | Changed | Renamed | Removed |\n|---|---|---|---|---|\n| Germplasm | 0 | 0 | 0 | 0 |",
         "- **Germplasm.** New columns: Maintaining. Columns no longer in the format: Pedigree.",

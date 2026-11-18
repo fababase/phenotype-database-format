@@ -1,7 +1,7 @@
 cff-version: 1.2.0
-message: If you use the FabaBase phenotype database format or its validator, please cite it as below.
+message: If you use the Phenotheca format, its validator or its guides, please cite it as below.
 type: software
-title: FabaBase phenotype database format
+title: "Phenotheca: format, tools and guides"
 abstract: >-
   A format of linked tables for phenotype data from plant experiments, with a validator, guides for converting
   data into it, and scripts that publish datasets in it on Zenodo.
@@ -24,8 +24,8 @@ authors:
     affiliation: Aarhus University
 version: "1.0"
 date-released: 2026-11-12
-url: https://fababase.github.io/phenotype-database-format/
-repository-code: https://github.com/fababase/phenotype-database-format
+url: https://phenotheca.github.io/phenotheca/
+repository-code: https://github.com/phenotheca/phenotheca
 license:
   - GPL-3.0
   - CC-BY-4.0

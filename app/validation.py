@@ -1,5 +1,5 @@
 """
-Checks phenotype database tables against the schema in schema.yaml.
+Checks tables in the Phenotheca format against the schema in schema.yaml.
 
 The tables come either as CSV files, one per table and named after it (Germplasm.csv, SeedLot.csv, ...),
 or as one filled-in collection sheet (.xlsx). With either can come contributors.yaml, which says who to credit, and
@@ -171,7 +171,7 @@ def load_schema(path: Path = SCHEMA_FILE) -> Schema:
 # The collection sheet's sheet of instructions, which the validator skips. Compared ignoring case.
 READ_ME_SHEET = "READ ME 1st"
 # The first cell of the READ ME 1st sheet, which the validator reads the version from
-READ_ME_TITLE = "Collection sheet for the FabaBase phenotype database, schema version {version}"
+READ_ME_TITLE = "Collection sheet for the Phenotheca format, schema version {version}"
 SHEET_VERSION = re.compile(r"schema version (\S+)")
 
 # What row 2 of the collection sheet says about each type of column, after the column's description
@@ -1396,7 +1396,7 @@ def version_notices(path: Path = REQUIREMENTS_FILE) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Check phenotype database tables, and who to credit, against the "
+    parser = argparse.ArgumentParser(description="Check tables in the Phenotheca format, and who to credit, against the "
                                                  "schema. Stops at the first error.")
     parser.add_argument("paths", nargs="+", type=Path,
                         help="CSV files named after their tables, or one collection sheet (.xlsx), and "

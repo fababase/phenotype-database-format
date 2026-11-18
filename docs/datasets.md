@@ -1,6 +1,6 @@
 # Where the data is
 
-Every known dataset in the [phenotype database format](../schema/schema.md), and where to get it.
+Every known dataset in the [Phenotheca format](../schema/schema.md), and where to get it.
 
 Before you make new IDs for germplasm, seed lots, traits, climate variables or features, look in the Germplasm, SeedLot, PhenotypeDescription, ClimateDescription and Features tables of these datasets, and reuse the IDs that are already there. See [Identifiers](../schema/schema.md#identifiers).
 

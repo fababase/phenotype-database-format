@@ -1,4 +1,4 @@
-# Machine-readable copy of the phenotype database schema. schema.md describes it in full.
+# Machine-readable copy of the Phenotheca format. schema.md describes it in full.
 # The validator (app/validation.py) reads this file, so a change here changes what it checks. The collection sheet,
 # the diagram and the tables in schema.md that list the tables and columns are made from it too. An Action writes
 # the tables in schema.md, with schema/schema_md.py, on every push to main.

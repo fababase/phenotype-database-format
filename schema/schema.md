@@ -1,6 +1,6 @@
-# Phenotype database schema
+# The Phenotheca format
 
-The phenotype database schema is a set of 11 linked tables for phenotype data from plant experiments. Alongside the scores themselves, it records what is needed to interpret them: the plant material, the experiment and its units, what was done to them, the climate they grew in, and any extra annotations.
+The Phenotheca format is a set of 11 linked tables for phenotype data from plant experiments. Alongside the scores themselves, it records what is needed to interpret them: the plant material, the experiment and its units, what was done to them, the climate they grew in, and any extra annotations.
 
 This document describes every table and column, the conventions that apply throughout, and the few places where the schema does not behave like an ordinary relational database.
 
@@ -60,9 +60,9 @@ This is **version 1.0** of the schema. [schema.yaml](schema.yaml) is a machine-r
 
 ### How the tables fit together
 
-![Relationships between the tables](https://fababase.github.io/phenotype-database-format/diagram/diagram.png)
+![Relationships between the tables](https://phenotheca.github.io/phenotheca/diagram/diagram.png)
 
-In the [interactive diagram](https://fababase.github.io/phenotype-database-format/diagram/), the tables can be dragged around, and clicking a table highlights its links. Earlier versions of the schema can be chosen at the top.
+In the [interactive diagram](https://phenotheca.github.io/phenotheca/diagram/), the tables can be dragged around, and clicking a table highlights its links. Earlier versions of the schema can be chosen at the top.
 
 **Plant material.** A [Germplasm](#germplasm) row describes a variety, line or other genetically distinct material. A [SeedLot](#seedlot) is a physical batch of seed of one germplasm, harvested at a given time and place. A seed lot can point to the seed lot it was grown from, so seed can be traced back through generations.
 
@@ -126,7 +126,7 @@ These rules keep IDs safe wherever the data goes: `;` and `=` have occasional me
 
 - Write IDs in snake_case: lower-case words joined by `_`, such as `plant_height_cm`.
 - Pad numbers with zeros, so that IDs sort in order: `plot007`, not `plot7`.
-- In the shared reference tables (Germplasm, SeedLot, PhenotypeDescription, ClimateDescription and Features), use the same ID for the same thing in every dataset. This matters most for GPID, which links phenotypes to other data about the same plant material, such as genomic data. The known datasets, to look up IDs in, are listed in [datasets.md](https://github.com/fababase/phenotype-database-format/blob/main/docs/datasets.md).
+- In the shared reference tables (Germplasm, SeedLot, PhenotypeDescription, ClimateDescription and Features), use the same ID for the same thing in every dataset. This matters most for GPID, which links phenotypes to other data about the same plant material, such as genomic data. The known datasets, to look up IDs in, are listed in [datasets.md](https://github.com/phenotheca/phenotheca/blob/main/docs/datasets.md).
 - In the tables that belong to one experiment (Experiment, ExperimentalUnit, ExperimentIntervention, Management, Phenotype and Climate), IDs should never repeat across datasets, or the datasets cannot be merged. Give each experiment an EXPID that no one else would choose, and start the other IDs of the experiment with it.
 - Within an experiment, do not build IDs from information that is in other columns, such as the germplasm, treatment or date. Use the label a unit already has, or a counter. If an ID and a column disagree, the column is what counts.
 

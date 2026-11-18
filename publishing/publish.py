@@ -13,7 +13,7 @@ Uploads a version of a dataset to Zenodo, as a draft, for the data manager to lo
 Run it in the dataset folder, which holds the copy of this repository and the versions, as docs/publish-data.md lays
 it out, once the merge is finished:
 
-    uv run phenotype-database-format/publishing/publish.py Versions/<date> --token-file <file> [--sandbox]
+    uv run phenotheca/publishing/publish.py Versions/<date> --token-file <file> [--sandbox]
 
 The token file holds a personal access token of the Zenodo account that owns the dataset, with the scopes
 deposit:write and deposit:actions, and nothing else. The token is never shown. --sandbox uploads to

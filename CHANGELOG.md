@@ -1,6 +1,6 @@
 # Changelog
 
-What changed in each version of the format, newest first. The current version is given in [schema/schema.yaml](schema/schema.yaml), and the [diagram](https://fababase.github.io/phenotype-database-format/diagram/) can show any version.
+What changed in each version of the format, newest first. The current version is given in [schema/schema.yaml](schema/schema.yaml), and the [diagram](https://phenotheca.github.io/phenotheca/diagram/) can show any version.
 
 ## Version numbers
 

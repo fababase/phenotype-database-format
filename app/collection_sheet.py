@@ -21,8 +21,8 @@ from validation import FEATURE_TYPES, READ_ME_SHEET, READ_ME_TITLE, Column, Sche
 
 # Links in the READ ME 1st sheet, and in the README of the datasets on Zenodo (publishing/build.py). They hold the
 # repository's name, so they change if it is renamed.
-SITE = "https://fababase.github.io/phenotype-database-format/"
-REPOSITORY = "https://github.com/fababase/phenotype-database-format"
+SITE = "https://phenotheca.github.io/phenotheca/"
+REPOSITORY = "https://github.com/phenotheca/phenotheca"
 SCHEMA_DOC = f"{REPOSITORY}/blob/main/schema/schema.md"
 
 TITLE = Font(bold=True, size=14)

@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FabaBase schema diagram</title>
+<title>Phenotheca schema diagram</title>
 <!-- Pinned, as another version could lay out the tables differently -->
 <script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js"></script>
 <style>
@@ -52,7 +52,7 @@
 <header>
   <div>
     <h1>How the tables link</h1>
-    <p>FabaBase phenotype database, <label for="version">schema version</label> <select id="version"></select>
+    <p>Phenotheca format, <label for="version">schema version</label> <select id="version"></select>
       <span id="notice"></span></p>
     <p>Point at a column, a table's name or a link to see what it is. Drag a table to move it. Click a table or a
       link to highlight it; click empty space to clear.
@@ -102,7 +102,7 @@
 // version was read from, or null for the latest.
 const VERSIONS = /* versions */ null;
 // Where the schema description of each version is. It holds the repository's name, so it changes if that does.
-const REPOSITORY = "https://github.com/fababase/phenotype-database-format";
+const REPOSITORY = "https://github.com/phenotheca/phenotheca";
 
 const NS = "http://www.w3.org/2000/svg";
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
@@ -614,7 +614,7 @@ document.getElementById("reset").onclick = () => {
 document.getElementById("save").onclick = () => {
   const url = URL.createObjectURL(new Blob([diagramSvg()], {type: "image/svg+xml"}));
   const a = document.createElement("a");
-  a.href = url; a.download = `fababase-schema-${shown.version}.svg`; a.click();
+  a.href = url; a.download = `phenotheca-schema-${shown.version}.svg`; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
@@ -647,7 +647,7 @@ function diagramSvg() {
   picked = hovered = null;
   applyFocus();
   const b = bounds(), margin = 24;
-  const caption = `FabaBase phenotype database: how the tables link. Schema version ${shown.version}.`;
+  const caption = `Phenotheca format: how the tables link. Schema version ${shown.version}.`;
   const footer = make("g", {transform: `translate(${b.x},${b.y + b.h + 32})`});
   make("text", {class: "caption", dy: ".35em"}, footer).textContent = caption;
   const legendWidth = drawLegend(make("g", {transform: "translate(0,28)"}, footer));
