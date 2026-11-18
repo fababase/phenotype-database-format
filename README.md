@@ -1,55 +1,50 @@
 # Phenotheca
 
-This repository describes and checks the Phenotheca format: a set of linked tables for phenotype data from plant experiments. It holds the schema, the validator and its app, and the guides and scripts that take data from a contributor's files to Zenodo. The data itself is not stored here, but on Zenodo: see [docs/datasets.md](docs/datasets.md).
+Phenotheca is a collection of phenotype data from plant experiments. This repository holds what builds it: the format the data is kept in, a validator for that format, the guides and the AI instructions that bring data into it, and the scripts that publish the datasets on Zenodo.
 
-## What is here
+The format is 11 linked tables. They hold each score together with everything that someone who was not there needs to use it, years later: the plant material, the experiment and its units, what was done to them, and the climate they grew in.
 
-| Path | What it is |
+The data itself is not kept here: [Where the data is](docs/datasets.md) lists the datasets.
+
+## Where to start
+
+| You want to | Go to |
 |---|---|
-| [schema/schema.md](schema/schema.md) | The schema: every table and column, the conventions and the special rules. **Start here.** |
-| [schema/schema.yaml](schema/schema.yaml) | The same schema in machine-readable form, with its version number and a description of every column. The validator reads it, and the collection sheet, the diagram and the tables in `schema.md` that list the tables and columns are made from it. |
-| [CHANGELOG.md](CHANGELOG.md) | What changed in each version of the format, and what the version numbers mean. |
-| [Schema diagram](https://phenotheca.github.io/phenotheca/diagram/) | How the tables link together. Point at a column to see its description, drag the tables around, and click one to highlight its links. Earlier versions of the schema can be chosen at the top. Also as a picture: [PNG](https://phenotheca.github.io/phenotheca/diagram/diagram.png), [SVG](https://phenotheca.github.io/phenotheca/diagram/diagram.svg). |
-| Collection sheet | A workbook with one sheet per table, for filling in by hand. Download a blank one from the [app](https://phenotheca.github.io/phenotheca/). |
-| [app/](app/) | The validator. `validation.py` holds the checks and runs from the command line; `app.py` is the app around it; `collection_sheet.py` builds the blank collection sheet. |
-| [docs/datasets.md](docs/datasets.md) | Every known dataset in the format, by DOI. Look here for IDs to reuse. |
-| [docs/submit-data.md](docs/submit-data.md) | For contributors: how to convert your data into the format, with an AI or without, and hand it over. |
-| [docs/review-data.md](docs/review-data.md) | For reviewers: what a finished conversion is checked against, and its FAIR score. |
-| [docs/publish-data.md](docs/publish-data.md) | For the data manager: how the contributions become a version of a dataset on Zenodo, and the folder a dataset lives in. |
-| [conversion/AI_INSTRUCTIONS.md](conversion/AI_INSTRUCTIONS.md) | What the AI follows when it converts a contributor's data. |
-| [merging/AI_INSTRUCTIONS.md](merging/AI_INSTRUCTIONS.md) | What the AI follows when it merges contributions into one set of tables, for the data manager. |
-| [publishing/](publishing/) | Publishing on Zenodo. `build.py` builds the README and the metadata of a version from a merge, from `README_TEMPLATE.md`, and `publish.py` uploads them to a draft on Zenodo. |
-| [docs/maintainers.md](docs/maintainers.md) | For maintainers: how the pieces fit together, how to work on them on your own computer, how the app is published, and how to release a new version of the format. |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Decisions, planned work and open questions. |
+| Contribute your data | [Submitting data](docs/submit-data.md) |
+| Use the data | [Where the data is](docs/datasets.md). Each dataset comes with a README that says how to read it. |
+| Understand the format | [The Phenotheca format](schema/schema.md), and the [diagram](https://phenotheca.github.io/phenotheca/diagram/) of how its tables link |
+| Check tables against the format | [The app](https://phenotheca.github.io/phenotheca/). It runs in your browser, so the files never leave your computer. |
+| Review a contribution | [Reviewing a contribution](docs/review-data.md) |
+| Publish a version of a dataset | [Publishing data](docs/publish-data.md) |
+| Work on this repository | [For maintainers](docs/maintainers.md) |
 
-## Checking your data
+## How data gets into Phenotheca
 
-The validator checks a set of tables against the [schema](schema/schema.yaml). Give it either:
+1. **Convert.** On the contributor's own computer, an AI reads their files, asks about everything the files do not say, and writes a script that turns them into the tables. The contributor saves each answer as a file, and has the last word. Without an AI, the contributor writes the script, or fills in a workbook by hand.
+2. **Review.** A fresh AI session, or a colleague, checks the tables against the raw files, and gives them a FAIR score: how well they are described for others to find and use.
+3. **Merge.** The contributor hands over the tables, and a file that says who to credit. The data manager's AI finds where the contributions overlap, such as one trait under two IDs, and proposes what to change. The data manager decides every change.
+4. **Publish.** Each merge becomes a new version of a dataset on Zenodo, with a DOI: the public dataset, or the restricted one of a project whose data is not public yet. Everyone who made the data is named as a creator, so that they are cited with it.
 
-- one CSV file per table, named after the table: `Germplasm.csv`, `SeedLot.csv`.
-- or one filled-in collection sheet.
+The raw files, the script and the notes stay with the contributor. Nothing in the tables is edited by hand, so every change can be seen and repeated. A published version is never changed, only followed by a new one. And the same plant material, seed lot or trait gets the same ID in every dataset.
 
-With either, give it `contributors.yaml`, which says who to credit (see [Who to credit](docs/submit-data.md#who-to-credit)), and it checks that too.
+## What is in this repository
 
-It stops at the first problem it finds and says where it is and sometimes how to fix it, for example:
+- [schema/](schema/): the format. [schema.md](schema/schema.md) describes it for people. `schema.yaml` holds it for programs: the validator reads it, and the collection sheet and the diagram are made from it.
+- [app/](app/): the validator, the app around it, and the collection sheet.
+- [docs/](docs/): a guide for each role, the list of datasets, and the [roadmap](docs/ROADMAP.md).
+- [conversion/](conversion/) and [merging/](merging/): what the AI follows when it converts a contribution, and when it merges contributions.
+- [publishing/](publishing/): the scripts that build a version of a dataset and upload it to Zenodo.
+- [tests/](tests/): the tests. [tests/valid/](tests/valid/) holds a made-up dataset, the quickest way to see what the tables look like.
+- [CHANGELOG.md](CHANGELOG.md): what changed in each version of the format.
 
-```
-Climate.csv, row 2, column Score: '11,7167' has ','. Numbers have '.' as the decimal mark and no thousands separator, so write 11.7167
-```
+## Citing
 
-When everything passes, it can hand back the tables as clean CSV files, with `contributors.yaml` as it was given.
+- **The data:** cite the version of the dataset you used, by its DOI. Its README on Zenodo says how.
+- **The format, the tools or the guides:** cite this repository, as [CITATION.cff](CITATION.cff) says. GitHub shows it under *Cite this repository*.
 
-**In the app**: <https://phenotheca.github.io/phenotheca/>. It runs in your browser, so your data never leaves your computer. The first visit takes a while, as your browser downloads what the app needs to run.
+## Questions
 
-**From the command line**: with uv, as in [For maintainers](docs/maintainers.md#on-your-own-computer).
-
-## How data gets to Zenodo
-
-1. **Convert.** A contributor turns their files into the tables, with an AI, with a script of their own, or with the collection sheet, as in [docs/submit-data.md](docs/submit-data.md).
-2. **Review.** A fresh AI session or a colleague checks the result and gives it a FAIR score, as in [docs/review-data.md](docs/review-data.md).
-3. **Hand over.** How is still to be decided.
-4. **Merge.** An AI merges the contributions into one set of tables for the data manager, as in [merging/AI_INSTRUCTIONS.md](merging/AI_INSTRUCTIONS.md).
-5. **Publish.** The data manager uploads the merged tables, with `contributors.yaml` and their README, to Zenodo, as a new version of the public dataset or of a project's restricted one, as in [docs/publish-data.md](docs/publish-data.md).
+Questions about the format, the validator or the guides, and problems with them, go in an [issue](https://github.com/phenotheca/phenotheca/issues) on GitHub. Issues are public, so never put data in one. Questions about a dataset go to its contact in [Where the data is](docs/datasets.md).
 
 ## Licences
 
