@@ -33,28 +33,54 @@ You install these yourself, as the AI is not allowed to install anything. It che
 > [!NOTE]
 > **Without an AI**, you don't need the AI tool, but a script of your own still needs uv.
 
+### VS Code
+
+[VS Code](https://code.visualstudio.com/download) is a free program for working with the files in a folder. You open the contribution folder in it, work with the AI there, run commands, and read and write the files, all in one window. Download it, and install it with the choices it suggests.
+
+Files whose names end in `.md`, such as the notes and the summary, are written in Markdown: plain text, with marks for headings, lists and tables. VS Code shows them formatted: right-click one in the list of files on the left, and choose *Open Preview*.
+
 ### An AI tool
 
-It has to work in a folder on your computer, reading the files there and running commands, such as Claude Code, Codex, Gemini CLI or GitHub Copilot in agent mode. A chat in a web browser is not enough.
+It has to work in a folder on your computer, reading the files there and running commands. A chat in a web browser is not enough. These three work inside VS Code. Install the one you choose from its page, and sign in:
+
+- Claude: [Claude Code](https://code.claude.com/docs/en/vs-code), with a Claude account on a paid plan.
+- Gemini: [Google Antigravity](https://antigravity.google/docs/ide/extensions/vscode), with a Google account.
+- ChatGPT: [Codex](https://learn.chatgpt.com/docs/codex/ide), with a ChatGPT account.
 
 ### uv
 
-[uv](https://docs.astral.sh/uv/) is a small program that runs `conversion.py` and the validator with the right versions of Python and its packages, without installing them onto your computer. Install it as in [its instructions](https://docs.astral.sh/uv/getting-started/installation/), or with this in a terminal:
+[uv](https://docs.astral.sh/uv/) is a small program that runs `conversion.py` and the validator with the right versions of Python and its packages, without installing them onto your computer. Install it as in [its instructions](https://docs.astral.sh/uv/getting-started/installation/), or with a command in a terminal: a window in which you type commands rather than click. In VS Code, choose *Terminal* → *New Terminal*, and one opens at the bottom of the window. Copy the command for your computer into it, and press Enter:
 
-- Windows (PowerShell): `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
-- macOS and Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- Windows:
 
-Then open a new terminal, and check that `uv --version` prints a version number.
+  ```
+  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+  ```
+- macOS and Linux:
+
+  ```
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  ```
+
+Then close VS Code, open it again, and check in a new terminal that this prints a version number:
+
+```
+uv --version
+```
 
 ### git
 
 git is a program that copies this repository and keeps track of its versions. It is optional, but with a git copy, the notes can say exactly which version of the format your data was converted to.
 
-- Windows: download Git for Windows from <https://git-scm.com/downloads/win>, and install it with the choices it suggests. Or run `winget install --id Git.Git -e --source winget` in a terminal.
-- macOS: run `git --version` in Terminal. If git is missing, macOS offers to install it.
+- Windows: download Git for Windows from <https://git-scm.com/downloads/win>, and install it with the choices it suggests.
+- macOS: run the command below in a terminal. If git is missing, macOS offers to install it.
 - Linux: install it with your package manager, such as `sudo apt install git` on Ubuntu.
 
-Then open a new terminal, and check that `git --version` prints a version number.
+Then close VS Code, open it again, and check in a new terminal that this prints a version number:
+
+```
+git --version
+```
 
 If you would rather not use a terminal, [GitHub Desktop](https://desktop.github.com/) can copy the repository too. Without either, download it as a ZIP in step 4.
 
@@ -84,16 +110,31 @@ nordbean_irrigation_2025/
       tables/                    Germplasm.csv … Features.csv, and contributors.yaml: who to credit
 ```
 
-1. **Copy this repository into the folder**, as `phenotype-database-format`.
-   - With git, open a terminal in the contribution folder, and run `git clone https://github.com/fababase/phenotype-database-format.git`.
+1. **Open the folder in VS Code**: choose *File* → *Open Folder*, and pick the contribution folder. If VS Code asks whether you trust the authors of the files in it, say yes. A terminal you open in VS Code then starts in this folder.
+2. **Copy this repository into the folder**, as `phenotype-database-format`.
+   - With git, run this in a terminal in VS Code:
+
+     ```
+     git clone https://github.com/fababase/phenotype-database-format.git
+     ```
    - With GitHub Desktop, choose *File* → *Clone repository*, give it the address <https://github.com/fababase/phenotype-database-format.git>, and choose a local path inside the contribution folder.
    - Without either, download it as a ZIP (*Code* → *Download ZIP* on GitHub), unzip it into the folder, and rename `phenotype-database-format-main` to `phenotype-database-format`.
+3. **Make a folder `raw_data`**, and copy into it your data files and the documents that describe them. Copy rather than move them, so that you keep your originals. Subfolders are fine. Make one called `notes` as well, for what is written down during the conversion.
+4. **Make the files in `raw_data` read-only**, so that nothing can change them by accident. Do it again whenever you add files.
+   - Windows: in File Explorer, right-click `raw_data`, choose *Properties*, tick *Read-only*, and apply it to all subfolders and files.
+   - macOS and Linux: run this in a terminal in VS Code:
 
-   To open a terminal in a folder on Windows, right-click inside the folder in File Explorer and choose *Open in Terminal*. On macOS and Linux, open a terminal, type `cd ` with a space after it, drag the folder onto the window, and press Enter.
-2. **Make a folder `raw_data`**, and copy into it your data files and the documents that describe them. Copy rather than move them, so that you keep your originals. Subfolders are fine. Make one called `notes` as well, for what is written down during the conversion.
-3. **Make the files in `raw_data` read-only**, so that nothing can change them by accident. Do it again whenever you add files.
-   - Windows: right-click `raw_data`, choose *Properties*, tick *Read-only*, and apply it to all subfolders and files.
-   - macOS and Linux: in a terminal, in the contribution folder, run `find raw_data -type f -exec chmod a-w {} +`.
+     ```
+     find raw_data -type f -exec chmod a-w {} +
+     ```
+
+   To correct a file in `raw_data/notes`, make the files there writable first, and read-only again when you are done:
+   - Windows: in File Explorer, right-click `notes`, choose *Properties*, untick *Read-only*, and apply it to all subfolders and files.
+   - macOS and Linux: run this in a terminal in VS Code:
+
+     ```
+     chmod -R u+w raw_data/notes
+     ```
 
 > [!NOTE]
 > **Without an AI**, make `runs` yourself, and in it a folder named after today's date, such as `runs/2026-10-22`.
@@ -112,14 +153,15 @@ These apply to you and to the AI.
 
 The AI works in one folder, its workspace, and sees only what is in it. Make that the contribution folder, so that it sees both `raw_data` and the copy of this repository. Don't open `raw_data` or the copy of the repository on their own, or a bigger folder such as Documents, where the AI could read other files.
 
-- With a tool that runs in a terminal, such as Claude Code, Codex or Gemini CLI, open a terminal in the contribution folder, as in step 4, and type `claude`, `codex` or `gemini`.
-- In VS Code, choose *File* → *Open Folder*, and pick the contribution folder. Then open your AI tool there, such as the Claude Code panel, or Copilot Chat in *Agent* mode.
+In VS Code, open the contribution folder, as in step 4, if it is not open already. Then open your AI tool from its icon in the bar on the left.
 
-If the tool asks whether you trust the folder, say yes. It also asks before it runs a command or changes a file. Read what it wants to do: it should only ever write in `runs`.
+If the tool asks whether you trust the folder, say yes. It may also ask before it runs a command or changes a file. Read what it wants to do: it should only ever write in `runs`.
 
 Then type:
 
-> Read `phenotype-database-format/conversion/AI_INSTRUCTIONS.md` and follow it.
+```
+Read phenotype-database-format/conversion/AI_INSTRUCTIONS.md and follow it.
+```
 
 Use the same line whenever you come back: in a new session, after a break, or with corrections or more data after a handover. The AI carries on from its notes.
 
@@ -131,7 +173,15 @@ This step takes the most time, and matters most. You are the only one who can gi
 
 Before it opens your data, the AI asks what it may see: everything in `raw_data`, or only part of it. It reads everything it may see, and looks into what it cannot account for. Inconsistencies in how values are written, where the meaning is plain, it fixes itself and tells you. For the rest, it either drafts an answer for you to check and save, or asks you, one question at a time where it can and never more than three at once.
 
-Save each answer in a file in `raw_data/notes`, as the rules of the folder say. The AI can draft the file in the chat, but you save it, after reading it and correcting what is wrong. If you don't know an answer, try to find out, from a colleague, the person who ran the trial, a notebook or a protocol, and add what you find as a file. If nobody knows, or the data has been lost, it is noted as missing, and it lowers the FAIR score in the review.
+Save each answer in a file in `raw_data/notes`, as the rules of the folder say. The AI can draft the file in the chat, but you save it, after reading it and correcting what is wrong:
+
+1. In VS Code, make a new file in `raw_data/notes`, named after its subject and ending in `.md`.
+2. Copy the AI's draft into it, correct it, and save it.
+3. Make it read-only, as in [step 4](#4-set-up-the-folder).
+
+To correct a file that is already there, make it writable first, as in step 4.
+
+If you don't know an answer, try to find out, from a colleague, the person who ran the trial, a notebook or a protocol, and add what you find as a file. If nobody knows, or the data has been lost, it is noted as missing, and it lowers the FAIR score in the review.
 
 When the AI needs something you have to find or ask for, it stops and notes what it is waiting for. Come back with the same line when you have it.
 
@@ -191,7 +241,7 @@ The validator checks `contributors.yaml` along with the tables, and says what to
 
 ## 7. Make the tables
 
-The AI writes `runs/<date>/conversion.py`, which turns `raw_data` into the tables. Every decision is written in it, so that the conversion can be repeated and checked. The AI runs the script and the validator, and keeps the notes, `conversion-notes.md` in the run's folder, as it goes. You can read the notes at any time.
+The AI writes `runs/<date>/conversion.py`, which turns `raw_data` into the tables. Every decision is written in it, so that the conversion can be repeated and checked. The AI runs the script and the validator, and keeps the notes, `conversion-notes.md` in the run's folder, as it goes. You can read the notes at any time, in VS Code's [preview](#vs-code).
 
 In practice, steps 6, 7 and 8 go back and forth: making the tables raises new questions, and checking them can show something to fix.
 
@@ -214,7 +264,9 @@ The AI asks you to read `tables/contributors.yaml` too: check every name, ORCID,
 
 When the AI says the run is finished, start a fresh session, a new conversation, in the same folder, and type:
 
-> Read `phenotype-database-format/docs/review-data.md` and review the latest run.
+```
+Read phenotype-database-format/docs/review-data.md and review the latest run.
+```
 
 The review checks the work using only the files, and writes `review.md` in the run's folder: what it found, and a FAIR score from 1 to 5. [FAIR](https://www.go-fair.org/fair-principles/) stands for Findable, Accessible, Interoperable and Reusable, principles for data that others can find and use. The score says how well the dataset is described for that, and what would raise it.
 
@@ -239,3 +291,12 @@ The collection sheet is no longer the recommended way to contribute data, but it
 4. Download the tables from the app (*Download tables as CSV*). `contributors.yaml` comes with them.
 5. If you can, have a colleague review the filled-in sheet.
 6. Hand over, as in [step 10](#10-hand-over).
+
+## When something goes wrong
+
+- **`uv --version` or `git --version` says the command is not recognized, or not found.** Close VS Code, open it again, and try once more in a new terminal. If it still fails, install it again, as in [step 2](#2-install-what-you-need).
+- **The AI says that uv does not work.** Do the same, and then start the AI again with the line from [step 5](#5-open-the-folder-in-your-ai-tool).
+- **The AI cannot find `AI_INSTRUCTIONS.md`.** Check that VS Code has the contribution folder open, and that the copy of this repository is in it as `phenotype-database-format`, as in [step 4](#4-set-up-the-folder).
+- **VS Code cannot save a file in `raw_data/notes`.** The file is read-only: make it writable, save it, and make it read-only again, as in step 4.
+- **The AI says that a file in `raw_data` has changed.** `conversion.py` stops when a file it reads is not as it was. If you corrected the file, tell the AI why. If you didn't, find out what changed it before you go on.
+- **The AI tool says you have reached a usage limit.** Come back with the line from step 5 when it lets you. The AI carries on from its notes.
