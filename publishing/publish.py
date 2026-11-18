@@ -344,7 +344,7 @@ def publish(folder: Path, zenodo: Zenodo, commit: str, today: str, state: str = 
     if not online(f"{SITE}diagram/{schema.version}/diagram.png"):
         raise PublishError(f"The diagram of version {schema.version} of the format is not online, at "
                            f"{SITE}diagram/#{schema.version}. The README links to it, so publish the app first: see "
-                           "docs/deploy-app.md.")
+                           "docs/maintainers.md.")
 
     # The draft: the one made before, if it is still there, or a new one
     this = next((version for version in dataset.versions if version.folder == folder.name), None)

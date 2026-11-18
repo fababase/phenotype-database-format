@@ -11,7 +11,7 @@ The decisions behind this repository, the work still to do, and the questions st
 | One schema.yaml | There is only ever **one** `schema.yaml`, in `schema/`. It is never copied anywhere in the repository, and a test fails if a second one appears. |
 | Versions of the format | **major.minor**: major when data that passed may fail, or mean something else; minor when all that passed still passes. Fixes to the validator and rewording are not new versions, as they would only draw the same diagram again. 1.0 was first written 1.0.0, and everything reads the two as one. Each version is listed in [CHANGELOG.md](../CHANGELOG.md). |
 | Validator | Checks one CSV file per table, or a filled-in collection sheet, and `contributors.yaml`. **Stops at the first error**, as later ones are often knock-on effects of it. Each message names the table, row, column and value. Warnings point out what is allowed but often a mistake. |
-| App | **Shinylive on GitHub Pages**: it runs in the visitor's browser, so their data never leaves their computer. It hands out the blank collection sheet. The schema diagram, with every version of the schema in the git history, is published with it. See [deploy-app.md](deploy-app.md). |
+| App | **Shinylive on GitHub Pages**: it runs in the visitor's browser, so their data never leaves their computer. It hands out the blank collection sheet. The schema diagram, with every version of the schema in the git history, is published with it. See [maintainers.md](maintainers.md#the-app). |
 | Conversion | Done by **contributors**, with an AI, with a `conversion.py` of their own, or in the collection sheet, as in [submit-data.md](submit-data.md). A fresh AI session or a colleague reviews each finished run, as in [review-data.md](review-data.md). |
 | Credit | **`contributors.yaml`**, handed over with the tables, as in [Who to credit](submit-data.md#who-to-credit), and checked by the validator. Everyone in it is a creator of the dataset on Zenodo, in alphabetical order of family name. Whoever looks after the dataset is a contributor, as data curator. |
 | Merging | An **AI merges** the contributions for the data manager, who decides every change, as in [merging/AI_INSTRUCTIONS.md](../merging/AI_INSTRUCTIONS.md). |
@@ -20,7 +20,7 @@ The decisions behind this repository, the work still to do, and the questions st
 | What is published | **Only the merged tables, `contributors.yaml` and the README.** The README holds all that people using the data need, so `schema.md` and `schema.yaml` are not published. Raw files, scripts and notes are kept privately. |
 | Publishing | `publishing/build.py` builds the README and the metadata from a merge, and `publishing/publish.py` uploads them to a draft on Zenodo. The data manager presses Publish, as in [publish-data.md](publish-data.md). |
 | Existing data | The IDs to reuse are in the datasets themselves. [datasets.md](datasets.md) lists every known dataset by DOI. |
-| Guides | One per role, written for people, and read by AIs too. Only the AI instructions are written for the AI alone. |
+| Guides | One per role, for the contributor, the reviewer, the data manager and the maintainers, written for people, and read by AIs too. Only the AI instructions are written for the AI alone. |
 | Licences | Code: GPL-3.0. The schema documentation, the collection sheet and the published data: CC-BY-4.0. |
 
 ## To do
@@ -43,4 +43,4 @@ To be explored later: instead of each contributor setting up an AI, a central AI
 
 ## Open questions
 
-- **A guide for developers**: how the pieces fit together, which files are generated, and how to change the schema, the validator, the app and the Actions. [deploy-app.md](deploy-app.md) covers part of it.
+None at the moment.

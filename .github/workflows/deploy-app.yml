@@ -1,5 +1,5 @@
 # Builds the browser app with Shinylive and publishes it on GitHub Pages, on every push to main once the tests
-# pass. Can also be started by hand from the Actions tab. See docs/deploy-app.md.
+# pass. Can also be started by hand from the Actions tab. See docs/maintainers.md.
 name: Deploy app
 
 on:
@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: app/requirements.txt
 
       # The shinylive version decides the browser's package versions, which app/requirements.txt has to match.
-      # The browser check below fails if they don't. See docs/deploy-app.md before changing it.
+      # The browser check below fails if they don't. See docs/maintainers.md before changing it.
       - name: Install packages
         run: |
           pip install -r app/requirements.txt shinylive==0.8.12 playwright==1.63.0

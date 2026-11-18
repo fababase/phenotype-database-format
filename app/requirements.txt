@@ -1,5 +1,5 @@
 # The versions the browser app runs with. They are fixed by the shinylive version in
-# .github/workflows/deploy-app.yml, so change them only together with it: see docs/deploy-app.md.
+# .github/workflows/deploy-app.yml, so change them only together with it: see docs/maintainers.md.
 numpy==2.0.2
 openpyxl==3.1.5
 pandas==2.2.3

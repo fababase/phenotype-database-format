@@ -571,7 +571,7 @@ DIAGRAM_PICTURE = f"https://fababase.github.io/phenotype-database-format/diagram
     (DIAGRAM_PICTURE, [COMMIT_PAGE, DIAGRAM_PICTURE],
      f"The diagram of version {SCHEMA.version} of the format is not online, at "
      f"https://fababase.github.io/phenotype-database-format/diagram/#{SCHEMA.version}. The README links to it, so "
-     "publish the app first: see docs/deploy-app.md."),
+     "publish the app first: see docs/maintainers.md."),
 ])
 def test_what_the_readme_links_to_is_online(merge, zenodo, missing, asked, message):
     addresses = []

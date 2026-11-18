@@ -93,4 +93,4 @@ The rules of the folder, for you and for the AI:
 - **A contribution that fails the validator** was made for an earlier version of the format, or was changed after its review. Ask the contributor for a new run.
 - **publish.py stops** when something is not as it should be, and says what. Most often, the copy of the repository has changes, or is at a commit that is not on GitHub; the diagram of the format's version is not online yet, as the *Deploy app* Action is still running; or the latest version on Zenodo is not the last one in `zenodo.yaml`. Put it right, and run it again.
 
-A new version of the format is released as in [Releasing a new version of the format](deploy-app.md#releasing-a-new-version-of-the-format). After a new major version, every contribution has to be converted again before the next version of a dataset.
+A new version of the format is released as in [Releasing a new version of the format](maintainers.md#releasing-a-new-version-of-the-format). After a new major version, every contribution has to be converted again before the next version of a dataset.

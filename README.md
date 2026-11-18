@@ -19,7 +19,7 @@ This repository describes and checks the format of the FabaBase phenotype databa
 | [conversion/AI_INSTRUCTIONS.md](conversion/AI_INSTRUCTIONS.md) | What the AI follows when it converts a contributor's data. |
 | [merging/AI_INSTRUCTIONS.md](merging/AI_INSTRUCTIONS.md) | What the AI follows when it merges contributions into one set of tables, for the data manager. |
 | [publishing/](publishing/) | Publishing on Zenodo. `build.py` builds the README and the metadata of a version from a merge, from `README_TEMPLATE.md`, and `publish.py` uploads them to a draft on Zenodo. |
-| [docs/deploy-app.md](docs/deploy-app.md) | How the app is published, how to refresh it, and how to release a new version of the format. |
+| [docs/maintainers.md](docs/maintainers.md) | For maintainers: how the pieces fit together, how to work on them on your own computer, how the app is published, and how to release a new version of the format. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Decisions, planned work and open questions. |
 
 ## Checking your data
@@ -39,14 +39,9 @@ Climate.csv, row 2, column Score: '11,7167' has ','. Numbers have '.' as the dec
 
 When everything passes, it can hand back the tables as clean CSV files, with `contributors.yaml` as it was given.
 
-**From the command line** (see [Running locally](#running-locally) for the setup):
-
-```
-python app/validation.py path/to/folder-of-csv-files
-python app/validation.py collection-sheet.xlsx --out path/to/new-folder
-```
-
 **In the app**: <https://fababase.github.io/phenotype-database-format/>. It runs in your browser, so your data never leaves your computer. The first visit takes a while, as your browser downloads what the app needs to run.
+
+**From the command line**: with uv, as in [For maintainers](docs/maintainers.md#on-your-own-computer).
 
 ## How data gets to Zenodo
 
@@ -55,20 +50,6 @@ python app/validation.py collection-sheet.xlsx --out path/to/new-folder
 3. **Hand over.** How is still to be decided.
 4. **Merge.** An AI merges the contributions into one set of tables for the data manager, as in [merging/AI_INSTRUCTIONS.md](merging/AI_INSTRUCTIONS.md).
 5. **Publish.** The data manager uploads the merged tables, with `contributors.yaml` and their README, to Zenodo, as a new version of the public dataset or of a project's restricted one, as in [docs/publish-data.md](docs/publish-data.md).
-
-## Running locally
-
-With [Anaconda](https://www.anaconda.com/), from the repository folder:
-
-```
-conda create -n fababase python=3.12
-conda activate fababase
-pip install -r app/requirements.txt
-```
-
-Then either check files from the command line (`python app/validation.py --help` lists the options), or start the app with `shiny run app/app.py` and open the address it prints (usually <http://127.0.0.1:8000>). `python app/collection_sheet.py collection-sheet.xlsx` builds a blank collection sheet.
-
-After you push a change to `schema/schema.yaml`, the *Update schema.md* Action writes the tables in `schema.md` that list the tables and columns, and commits them. Pull afterwards (*Pull origin* in GitHub Desktop) to get that commit. To see the tables before pushing, run `python schema/schema_md.py`.
 
 ## Licences
 
