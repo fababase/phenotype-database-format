@@ -22,6 +22,7 @@ publishing/build.py fills it in, and leaves out comments like this one. It repla
   {{files}}              each file: what one row of it is, and its number of rows
   {{tables}}             every table and column, from schema.yaml
   {{changes}}            what changed in this version, and why: changes.md, then the comparison with the last version
+  {{contacts}}           each experiment with its contacts, who to ask about it, from contributors.yaml
   {{curator}}            who looks after the dataset, from zenodo.yaml, as a sentence, or nothing
   {{citation}}           how to cite this version
 
@@ -266,6 +267,10 @@ Feature values are read as text. Those of features of type `i` or `d` can be tur
 ## Who made it
 
 Everyone who made the data is a creator of this record: their names, ORCIDs and affiliations are on its page on Zenodo, and so is the funding. `contributors.yaml` says which experiments each person and each grant is behind.
+
+Each experiment has one or more contacts, who answer questions about it and about using its data. Reach them through their institution, or through their ORCID record if they have moved.
+
+{{contacts}}
 
 {{curator}}
 

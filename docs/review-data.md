@@ -6,6 +6,7 @@ This guide is for data reviewers. A review checks a finished run of a conversion
 
 - **(For AI) Review the latest run** in `runs/`, using only the files in the contribution folder: `raw_data/`, the run, and the copy of this repository. Don't rely on the chat of a conversion, or on memory.
 - **Keep to what the AI may see**, as the run's notes say. If that rules out a check, note it under Checks not done.
+- **(For AI) Keep to the rules under [Never](../conversion/AI_INSTRUCTIONS.md#never) in the conversion AI's instructions.** They hold for the review too.
 - **Write only `review.md`**, in the run's folder, replacing any earlier one. Change nothing else. What needs fixing goes in `review.md`, and the AI that does the conversion fixes it.
 - **Write for the contributor**, in plain words: for each problem, where it is and what would fix it.
 
@@ -19,7 +20,7 @@ This guide is for data reviewers. A review checks a finished run of a conversion
 6. **Every fact is in `raw_data/`.** Read every free-text cell, such as Description, DescriptionOfMethod and Comments, and check each fact in it against the raw files. Nothing may come from the chat, from guessing, or from what is usual but not absolutely standard in such experiments. No cell may refer to anything that a reader of the published tables cannot find.
 7. **The notes hold up.** Each item under Changed or left out rests on a file or on the raw data, as it says. Each assumption says why it could not be asked, and the reason holds. Each item under Missing says when it was asked.
 8. **The IDs are right.** IDs follow [Identifiers](../schema/schema.md#identifiers). New IDs in Germplasm, SeedLot, PhenotypeDescription, ClimateDescription and Features were checked against the datasets in [datasets.md](datasets.md), and none is a near-copy of an existing one, such as `hedin2` beside `hedin_2`.
-9. **The credit is there.** `tables/contributors.yaml` is there, so the validator checked it, and it follows the rules in [Who to credit](submit-data.md#who-to-credit) that the validator cannot check. Every name, ORCID, affiliation and grant in it is in a file in `raw_data/`, and so is which experiments each is behind, unless it is all of them.
+9. **The credit is there.** `tables/contributors.yaml` is there, so the validator checked it, and it follows the rules in [Who to credit](submit-data.md#who-to-credit) that the validator cannot check. Every name, ORCID, affiliation and grant in it is in a file in `raw_data/`, and so is which experiments each is behind, unless it is all of them, and who the contacts of each experiment are.
 
 ## FAIR score
 

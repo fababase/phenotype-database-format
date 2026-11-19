@@ -47,6 +47,8 @@ It has to work in a folder on your computer, reading the files there and running
 - Gemini: [Google Antigravity](https://antigravity.google/docs/ide/extensions/vscode), with a Google account.
 - ChatGPT: [Codex](https://learn.chatgpt.com/docs/codex/ide), with a ChatGPT account.
 
+Install it as it comes. Don't add connectors, plugins, skills or extensions to it, and turn off its memory if it has one.
+
 ### uv
 
 [uv](https://docs.astral.sh/uv/) is a small program that runs `conversion.py` and the validator with the right versions of Python and its packages, without installing them onto your computer. Install it as in [its instructions](https://docs.astral.sh/uv/getting-started/installation/), or with a command in a terminal: a window in which you type commands rather than click. In VS Code, choose *Terminal* → *New Terminal*, and one opens at the bottom of the window. Copy the command for your computer into it, and press Enter:
@@ -180,7 +182,7 @@ You have the last word: if the AI still doubts something you confirmed, it notes
 
 ### Who to credit
 
-When the data is eventually published, the people behind it should be credited, and so should its funding. The AI asks for these details early. Save them in a file in `raw_data/notes`, like any other answer. `conversion.py` writes them into `tables/contributors.yaml`, which is handed over with the tables. Credit goes only there, not in the Description of the Experiment table.
+When the data is eventually published, the people behind it should be credited, and so should its funding. Each experiment also needs someone to ask about it, in the years to come. The AI asks for these details early. Save them in a file in `raw_data/notes`, like any other answer. `conversion.py` writes them into `tables/contributors.yaml`, which is handed over with the tables. Credit goes only there, not in the Description of the Experiment table.
 
 If the data is published, everyone in `contributors.yaml` is named as a creator of the dataset on Zenodo, in alphabetical order of family name, so that they are cited with it. Its funding is listed there too.
 
@@ -196,6 +198,8 @@ people:
         ror: <ROR ID>
     experiments:
       - <EXPID>
+    contact_for:
+      - <EXPID>
 funding:
   - funder: <funder>
     ror: <ROR ID>
@@ -208,7 +212,7 @@ funding:
 How it is written:
 
 - **`people:` and `funding:` appear once each.** Under them, each person and each grant starts with `- `. For another person or grant, repeat the lines from its `- ` down.
-- **`affiliations:` and `experiments:` are lists too**, with a line that starts with `- ` for each institution or experiment.
+- **`affiliations:`, `experiments:` and `contact_for:` are lists too**, with a line that starts with `- ` for each institution or experiment.
 - **The indentation shows what belongs to what.** Keep it as in the template, and make it with spaces, never tabs.
 - **Each value goes on the same line as its key**, after the `:` and a space. Put a value in double quotes if it holds `: ` or ` #`, or starts with a symbol. Everything after a ` #` that is not in quotes is a comment, which programs skip.
 
@@ -219,8 +223,9 @@ What goes in it:
 - **ORCID:** the person's ORCID iD, from [orcid.org](https://orcid.org), without `https://orcid.org/` in front of it. The AI checks each one against its public record.
 - **Affiliations:** where the person worked when the work on this data was done, not where they are now: one or more. Write each institution as [ROR](https://ror.org), the registry of research organisations, names it, and its ROR ID without `https://ror.org/` in front of it. Only institutions, not departments. The AI can look up the ROR IDs.
 - **Experiments:** the EXPIDs of the experiments, as in the Experiment table, that the person is behind, or that the grant paid for. Every experiment needs at least one person.
+- **Contact for:** the EXPIDs of the experiments the person is the contact for. A contact answers questions about the experiment and about using its data, also years from now. Every experiment needs at least one contact, and a contact for an experiment is behind it, so it is under their experiments too. Name more than one where one of them may move on, such as a student together with their supervisor.
 - **Funding:** every grant that paid for the work on this data: the funder as ROR names it, its ROR ID, and the grant's number and title.
-- **Write `none` where something does not exist:** for a person without given names, an ORCID or an affiliation, an institution or funder without a ROR ID, a grant without a number or a title, and as `funding: none` when there was no specific funding. Then it can be told from something forgotten.
+- **Write `none` where something does not exist:** for a person without given names, an ORCID or an affiliation, a person who is the contact for no experiment, an institution or funder without a ROR ID, a grant without a number or a title, and as `funding: none` when there was no specific funding. Then it can be told from something forgotten.
 
 The validator checks `contributors.yaml` along with the tables, and says what to fix. Give it to the validator with them: in the same folder, or uploaded with them in the app.
 

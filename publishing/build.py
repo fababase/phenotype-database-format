@@ -56,8 +56,8 @@ sys.path.insert(0, str(REPOSITORY_FOLDER / "schema"))
 from collection_sheet import REPOSITORY, SITE  # noqa: E402
 from schema_md import TYPE_NAMES, link, markdown_table  # noqa: E402
 from validation import (CONTRIBUTORS_FILE, NONE, Checked, Grant, Person, Schema, TableDef,  # noqa: E402
-                        ValidationError, at, load_schema, orcid_problem, read_affiliations, read_yaml, same_version,
-                        validate_files, yaml_id, yaml_mapping, yaml_text)
+                        ValidationError, at, joined, load_schema, orcid_problem, read_affiliations, read_yaml,
+                        same_version, validate_files, yaml_id, yaml_mapping, yaml_text)
 
 TEMPLATE = HERE / "README_TEMPLATE.md"
 
@@ -204,7 +204,7 @@ def read_dataset(folder: Path, state: str = ZENODO_FILE) -> Dataset:
             curator = Person(yaml_text(ZENODO_FILE, person["family_name"], "family_name"),
                              yaml_text(ZENODO_FILE, person["given_names"], "given_names"),
                              yaml_id(ZENODO_FILE, person["orcid"], "orcid", orcid_problem),
-                             read_affiliations(ZENODO_FILE, person["affiliations"]), [])
+                             read_affiliations(ZENODO_FILE, person["affiliations"]), [], [])
         doi, versions = None, []
         if state == ZENODO_FILE:
             doi, versions = read_versions(ZENODO_FILE, values)
@@ -291,7 +291,7 @@ def read_previous(dataset: Dataset, version: Version) -> Previous:
     def text(value: str) -> str | None:
         return None if value == NONE else value
 
-    people = [Person(item["family_name"], text(item["given_names"]), text(item["orcid"]), [], [])
+    people = [Person(item["family_name"], text(item["given_names"]), text(item["orcid"]), [], [], [])
               for item in credit["people"]]
     funding = [Grant(item["funder"], text(item["ror"]), text(item["grant_number"]), text(item["grant_title"]), [])
                for item in ([] if credit["funding"] == NONE else credit["funding"])]
@@ -606,15 +606,26 @@ def tables_section(schema: Schema) -> str:
     return "\n\n".join(parts)
 
 
+def person_text(person: Person) -> str:
+    """A person by name, with their institutions and ORCID iD in brackets, if they have any."""
+    details = [ror_link(a.name, a.ror) for a in person.affiliations]
+    if person.orcid:
+        details.append(f"ORCID {orcid_link(person.orcid)}")
+    return md(name_of(person)) + (f" ({'; '.join(details)})" if details else "")
+
+
 def curator_sentence(curator: Person | None) -> str:
     """Who looks after the dataset, as a sentence, or nothing if no one is named."""
-    if curator is None:
-        return ""
-    details = [ror_link(a.name, a.ror) for a in curator.affiliations]
-    if curator.orcid:
-        details.append(f"ORCID {orcid_link(curator.orcid)}")
-    return f"The dataset is looked after by {md(name_of(curator))}" + (f" ({'; '.join(details)})." if details
-                                                                       else ".")
+    return f"The dataset is looked after by {person_text(curator)}." if curator else ""
+
+
+def contacts_list(frames: dict[str, pd.DataFrame], people: list[Person]) -> str:
+    """Each experiment with its contacts, one line each. The validator sees to it that every experiment has one."""
+    lines = []
+    for expid in frames["Experiment"]["EXPID"]:
+        contacts = [person_text(person) for person in people if expid in person.contact_for]
+        lines.append(f"- {code(expid)}: {joined(contacts)}")
+    return "\n".join(lines)
 
 
 def citation(people: list[Person], year: str, title: str, version: int, doi: str | None) -> str:
@@ -956,6 +967,7 @@ def build(folder: Path, commit: str, release: Release | None = None, state: str 
         "tables": tables_section(schema),
         "changes": "\n\n".join(part for part in (
             changes, changes_text(last, frames, schema, renames, people, funding, diagram)) if part),
+        "contacts": contacts_list(frames, people),
         "curator": curator_sentence(dataset.curator),
         "citation": citation(people, release.publication_date[:4] if release else NOT_YET.strip("()"),
                              dataset.title, number, release.doi if release else None),

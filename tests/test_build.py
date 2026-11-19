@@ -229,6 +229,10 @@ def test_files_links_and_tables(merge):
            "[Features cells](#features-cells). |" in tables
 
 
+RHEA = ("Rhea Plicate (Northfield Agricultural College; Nordbean Breeding Programme; ORCID "
+        "[0000-0002-1825-0097](https://orcid.org/0000-0002-1825-0097))")
+
+
 def test_who_made_it(merge):
     """The people and the funding are on the record's page and in contributors.yaml, which is uploaded."""
     merge.run()
@@ -236,6 +240,10 @@ def test_who_made_it(merge):
         "Everyone who made the data is a creator of this record: their names, ORCIDs and affiliations are on its "
         "page on Zenodo, and so is the funding. `contributors.yaml` says which experiments each person and each "
         "grant is behind.\n\n"
+        "Each experiment has one or more contacts, who answer questions about it and about using its data. Reach "
+        "them through their institution, or through their ORCID record if they have moved.\n\n"
+        f"- `{TRIAL}`: {RHEA}\n"
+        f"- `{GREENHOUSE}`: Ann Ova (Northfield Agricultural College) and {RHEA}\n\n"
         "The dataset is looked after by Dana Keeper (Northfield Agricultural College).")
     assert "Ann Ova" not in merge.readme().split("## Who made it")[0]
 
@@ -285,7 +293,8 @@ def test_citation_of_a_preview(merge):
     ([(f"P{i}", "Ann") for i in range(21)], ", ".join(f"P{i}, A." for i in range(19)) + ", . . . P20, A."),
 ])
 def test_authors_in_a_citation(people, authors):
-    found = build.citation([build.Person(family, given, None, [], []) for family, given in people], "2026", "T", 1,
+    found = build.citation([build.Person(family, given, None, [], [], []) for family, given in people], "2026", "T",
+                           1,
                            "10.5281/zenodo.1")
     assert found == f"> {authors} (2026). *T* (Version 1) [Data set]. Zenodo. https://doi.org/10.5281/zenodo.1"
 
@@ -421,7 +430,8 @@ def test_what_changed(tmp_path):
     tables.add_row("Germplasm", GPID="kelda", Name="Kelda")
     rename_trait(second, HEIGHT, "plant_height_cm")
     tables.edit_contributors("\nfunding:", f"\n  - family_name: Nym\n    given_names: Ano\n    orcid: none\n"
-                                           f"    affiliations: none\n    experiments:\n      - {TRIAL}\nfunding:")
+                                           f"    affiliations: none\n    experiments:\n      - {TRIAL}\n"
+                                           "    contact_for: none\nfunding:")
     second.crosswalk((NORDBEAN, "PhenotypeDescription", HEIGHT, "plant_height_cm"))
     built = second.run(SECOND)
     assert built.lines[1] == "Compared with version 1."

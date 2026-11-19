@@ -990,11 +990,12 @@ CONTRIBUTORS_FILE = "contributors.yaml"
 NONE = "none"
 # The keys of the file, and of each person, affiliation and grant in it
 CONTRIBUTORS_KEYS = ("people", "funding")
-PERSON_KEYS = ("family_name", "given_names", "orcid", "affiliations", "experiments")
+PERSON_KEYS = ("family_name", "given_names", "orcid", "affiliations", "experiments", "contact_for")
 AFFILIATION_KEYS = ("name", "ror")
 GRANT_KEYS = ("funder", "ror", "grant_number", "grant_title", "experiments")
 # The keys that can be none
-CAN_BE_NONE = {"funding", "given_names", "orcid", "affiliations", "ror", "grant_number", "grant_title"}
+CAN_BE_NONE = {"funding", "given_names", "orcid", "affiliations", "contact_for", "ror", "grant_number",
+               "grant_title"}
 # An ORCID iD: four groups of four digits joined by '-', where the last is a check digit, which can be X
 ORCID = re.compile(r"[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]")
 # A ROR ID: 0, six characters of Crockford's base 32 in lower case, and two check digits
@@ -1018,6 +1019,7 @@ class Person:
     orcid: str | None        # None where the person has no ORCID iD
     affiliations: list[Affiliation]  # empty where the person has none
     experiments: list[str]   # the EXPIDs of the experiments the person is behind
+    contact_for: list[str]   # the EXPIDs of the experiments the person is the contact for
 
 
 @dataclass
@@ -1161,18 +1163,26 @@ def yaml_id(source: str, node: yaml.Node, key: str, problem: Callable[[str], str
     return value
 
 
-def yaml_experiments(source: str, node: yaml.Node, experiments: Table) -> list[str]:
-    """The EXPIDs listed under experiments, each of which has to be in the Experiment table, once."""
+def yaml_experiments(source: str, node: yaml.Node, experiments: Table, key: str = "experiments",
+                     behind: list[str] | None = None) -> list[str]:
+    """
+    The EXPIDs listed under key, each of which has to be in the Experiment table, once. For contact_for, behind
+    gives the experiments the person is behind, which each of them has to be among.
+    """
     expids = set(experiments.values("EXPID"))
     loose = {expid.lower(): expid for expid in expids}
     found = []
-    for item in yaml_list(source, node, "experiments"):
-        expid = yaml_text(source, item, "experiments", "an item of experiments")
+    for item in yaml_list(source, node, key):
+        expid = yaml_text(source, item, "experiments", f"an item of {key}")
         if expid not in expids:
             near = loose.get(expid.lower())
             hint = f"Did you mean '{near}'?" if near else "Check the spelling."
             raise ValidationError(f"{at(source, item)}: '{expid}' is not an EXPID in {experiments.source}. "
                                   f"EXPIDs have to match exactly, character for character. {hint}")
+        if behind is not None and expid not in behind:
+            raise ValidationError(f"{at(source, item)}: '{expid}' is under {key}, but not under the experiments of "
+                                  "this person. A contact for an experiment is behind it, so list it under "
+                                  "experiments too.")
         if expid in found:
             raise ValidationError(f"{at(source, item)}: '{expid}' is listed twice. Keep only one.")
         found.append(expid)
@@ -1196,11 +1206,13 @@ def read_affiliations(source: str, node: yaml.Node) -> list[Affiliation]:
 
 def read_person(source: str, node: yaml.Node, experiments: Table) -> Person:
     values = yaml_mapping(source, node, PERSON_KEYS, "a person")
+    behind = yaml_experiments(source, values["experiments"], experiments)
     return Person(yaml_text(source, values["family_name"], "family_name"),
                   yaml_text(source, values["given_names"], "given_names"),
                   yaml_id(source, values["orcid"], "orcid", orcid_problem),
                   read_affiliations(source, values["affiliations"]),
-                  yaml_experiments(source, values["experiments"], experiments))
+                  behind,
+                  yaml_experiments(source, values["contact_for"], experiments, "contact_for", behind))
 
 
 def read_grant(source: str, node: yaml.Node, experiments: Table) -> Grant:
@@ -1235,7 +1247,7 @@ def check_contributors(source: str, content: bytes, experiments: Table) -> Contr
     Checks contributors.yaml, which says who to credit, against its format, in "Who to credit" in
     docs/submit-data.md. It is read as text throughout, so that YAML never turns a value into something else, such
     as 0123 into 83 or no into false. Each experiment it lists has to be in the Experiment table, and each
-    experiment there needs at least one person.
+    experiment there needs at least one person behind it, and at least one contact.
     Parameters:
         source: the file's name, for messages.
         content: the file's content.
@@ -1271,6 +1283,10 @@ def check_contributors(source: str, content: bytes, experiments: Table) -> Contr
     fail_first(experiments, "EXPID", ~expids.isin(credited), lambda i: (
         f"nobody in {source} is behind experiment '{expids.iat[i]}'. List it under the experiments of each person "
         "behind it."))
+    contacts = {expid for person in people for expid in person.contact_for}
+    fail_first(experiments, "EXPID", ~expids.isin(contacts), lambda i: (
+        f"nobody in {source} is the contact for experiment '{expids.iat[i]}'. List it under contact_for of each "
+        "person to ask about it."))
     return Contributors(source, text, people, funding)
 
 

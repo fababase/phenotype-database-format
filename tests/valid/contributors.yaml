@@ -9,6 +9,8 @@ people:
         ror: none
     experiments:
       - nordbean_leaf_spectra_greenhouse_2025
+    contact_for:
+      - nordbean_leaf_spectra_greenhouse_2025
   - family_name: Plicate
     given_names: Rhea
     orcid: 0000-0002-1825-0097
@@ -18,6 +20,9 @@ people:
       - name: Nordbean Breeding Programme
         ror: none
     experiments:
+      - nordbean_irrigation_northfield_2025
+      - nordbean_leaf_spectra_greenhouse_2025
+    contact_for:
       - nordbean_irrigation_northfield_2025
       - nordbean_leaf_spectra_greenhouse_2025
 funding:

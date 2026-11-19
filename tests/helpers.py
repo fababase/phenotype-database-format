@@ -141,7 +141,10 @@ class Dataset:
         self.contributors.write_text(text.replace(old, new, 1), encoding="utf-8", newline="")
 
     def credit_experiment(self, expid: str) -> None:
-        """Adds an experiment to the experiments of the last person in contributors.yaml."""
+        """Adds an experiment to the experiments of the last person in contributors.yaml, as its contact."""
+        text = self.contributors.read_text(encoding="utf-8")
+        where = text.rindex("    contact_for:")
+        self.contributors.write_text(text[:where] + f"      - {expid}\n" + text[where:], encoding="utf-8", newline="")
         self.edit_contributors("\nfunding:", f"\n      - {expid}\nfunding:")
 
     def line(self, text: str, occurrence: int = 1) -> int:

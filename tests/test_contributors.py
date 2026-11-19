@@ -19,9 +19,11 @@ def test_read_as_written(dataset):
     credit = checked.contributors
     assert credit.source == "contributors.yaml"
     assert credit.people == [
-        Person("Ova", "Ann", None, [Affiliation("Northfield Agricultural College", None)], [GREENHOUSE]),
+        Person("Ova", "Ann", None, [Affiliation("Northfield Agricultural College", None)], [GREENHOUSE],
+               [GREENHOUSE]),
         Person("Plicate", "Rhea", RHEA, [Affiliation("Northfield Agricultural College", None),
-                                         Affiliation("Nordbean Breeding Programme", None)], [TRIAL, GREENHOUSE]),
+                                         Affiliation("Nordbean Breeding Programme", None)], [TRIAL, GREENHOUSE],
+               [TRIAL, GREENHOUSE]),
     ]
     assert credit.funding == [Grant("Nordic Bean Foundation", None, "NBF-2024-117", "Drought tolerance in faba bean",
                                     [TRIAL])]
@@ -51,10 +53,12 @@ def test_none_where_something_does_not_exist(dataset):
     dataset.edit_contributors("    affiliations:\n      - name: Northfield Agricultural College\n        ror: none\n"
                               "    experiments:\n      - nordbean_leaf",
                               "    affiliations: none\n    experiments:\n      - nordbean_leaf")
+    dataset.edit_contributors(f"    contact_for:\n      - {GREENHOUSE}\n  - family",
+                              "    contact_for: none\n  - family")
     dataset.edit_contributors("    grant_number: NBF-2024-117\n    grant_title: Drought tolerance in faba bean",
                               "    grant_number: none\n    grant_title: none")
     checked, _ = check(dataset.files())
-    assert checked.contributors.people[0] == Person("Ova", None, None, [], [GREENHOUSE])
+    assert checked.contributors.people[0] == Person("Ova", None, None, [], [GREENHOUSE], [])
     assert checked.contributors.funding[0] == Grant("Nordic Bean Foundation", None, None, None, [TRIAL])
 
 
@@ -173,9 +177,28 @@ def test_grant_listed_twice(dataset):
 
 
 def test_experiment_nobody_is_behind(dataset):
-    dataset.edit_contributors(f"      - {TRIAL}\n      - {GREENHOUSE}\nfunding", f"      - {GREENHOUSE}\nfunding")
+    dataset.edit_contributors(f"    experiments:\n      - {TRIAL}\n      - {GREENHOUSE}\n"
+                              f"    contact_for:\n      - {TRIAL}\n      - {GREENHOUSE}\nfunding",
+                              f"    experiments:\n      - {GREENHOUSE}\n    contact_for:\n      - {GREENHOUSE}\n"
+                              "funding")
     fails(dataset.files(), f"{dataset.where('Experiment', TRIAL, 'EXPID')}: nobody in contributors.yaml is behind "
                            f"experiment '{TRIAL}'. List it under the experiments of each person behind it.")
+
+
+def test_experiment_nobody_is_the_contact_for(dataset):
+    dataset.edit_contributors(f"    contact_for:\n      - {TRIAL}\n      - {GREENHOUSE}\nfunding",
+                              f"    contact_for:\n      - {GREENHOUSE}\nfunding")
+    fails(dataset.files(), f"{dataset.where('Experiment', TRIAL, 'EXPID')}: nobody in contributors.yaml is the "
+                           f"contact for experiment '{TRIAL}'. List it under contact_for of each person to ask "
+                           "about it.")
+
+
+def test_a_contact_for_an_experiment_is_behind_it(dataset):
+    dataset.edit_contributors(f"    contact_for:\n      - {GREENHOUSE}\n  - family",
+                              f"    contact_for:\n      - {TRIAL}\n  - family")
+    fails(dataset.files(), f"contributors.yaml, line {dataset.line('contact_for:') + 1}: '{TRIAL}' is under "
+                           "contact_for, but not under the experiments of this person. A contact for an experiment "
+                           "is behind it, so list it under experiments too.")
 
 
 # ---------------------------------------------------------------- Values
@@ -205,7 +228,7 @@ BROKEN = [
      "a grant has no 'grant_title'. Add it, or write grant_title: none if there is none."),
     ("  - family_name: Ova", "  - Ova\n  - family_name: Ova", "- Ova",
      "a person is not written as keys with their values. Write the keys family_name, given_names, orcid, "
-     "affiliations and experiments, each on a line of its own, followed by ':' and its value."),
+     "affiliations, experiments and contact_for, each on a line of its own, followed by ':' and its value."),
     ("      - name: Northfield Agricultural College\n        ror: none\n    experiments:\n      - nordbean_leaf",
      "      - Northfield Agricultural College\n    experiments:\n      - nordbean_leaf", "- Northfield",
      "an affiliation is not written as keys with their values. Write the keys name and ror, each on a line of its "
@@ -272,5 +295,5 @@ def test_broken(dataset, old, new, on_line, message):
 
 def test_empty_item_of_a_list(dataset):
     dataset.edit_contributors(f"      - {GREENHOUSE}\n  - family", "      -\n  - family")
-    fails(dataset.files(), f"contributors.yaml, line {dataset.line('experiments:') + 1}: an item of experiments is "
+    fails(dataset.files(), f"contributors.yaml, line {dataset.line('contact_for:') + 1}: an item of contact_for is "
                            "empty. Fill it in.")
