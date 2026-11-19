@@ -355,6 +355,7 @@ def test_a_restricted_dataset(tmp_path, zenodo):
     merge = Merge(tmp_path / "dataset", access="restricted")
     run(merge, zenodo)
     assert zenodo.records[FIRST]["access"] == {"record": "public", "files": "restricted"}
+    assert zenodo.records[FIRST]["metadata"]["rights"] == [{"id": "other-closed"}]
 
 
 def test_running_again_takes_up_the_same_draft(merge, zenodo):

@@ -51,4 +51,4 @@ Questions about the format, the validator or the guides, and problems with them,
 ## Licences
 
 - **Code.** The scripts in `app/`, `schema/`, `publishing/` and `docs/images/`, and the tests, are under GPL-3.0, as in [LICENSE](LICENSE).
-- **Content.** The schema documentation and diagram, the pictures, the collection sheet and the published data are under CC-BY-4.0, as in [LICENSE-CONTENT](LICENSE-CONTENT).
+- **Content.** The schema documentation and diagram, the pictures, the collection sheet and the public dataset are under CC-BY-4.0, as in [LICENSE-CONTENT](LICENSE-CONTENT). The README of a restricted dataset says what its data may be used for.

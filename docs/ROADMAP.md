@@ -21,7 +21,7 @@ The decisions behind this repository, the work still to do, and the questions st
 | Publishing | `publishing/build.py` builds the README and the metadata from a merge, and `publishing/publish.py` uploads them to a draft on Zenodo. The data manager presses Publish, as in [publish-data.md](publish-data.md). |
 | Existing data | The IDs to reuse are in the datasets themselves. [datasets.md](datasets.md) lists every known dataset by DOI. |
 | Guides | One per role, for the contributor, the reviewer, the data manager and the maintainers, written for people, and read by AIs too. Only the AI instructions are written for the AI alone. |
-| Licences | Code: GPL-3.0. The schema documentation, the collection sheet and the published data: CC-BY-4.0. |
+| Licences | Code: GPL-3.0. The schema documentation, the collection sheet and the public dataset: CC-BY-4.0. A restricted dataset is Other (Not Open) on Zenodo, and its README says that passing its data on, publishing from them or using them outside the project needs the permission of everyone who made them. |
 
 ## To do
 

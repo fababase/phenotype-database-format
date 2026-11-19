@@ -75,6 +75,26 @@ DATASET_KEYS = ("title", "access")
 DATASET_OPTIONAL = ("curator", "doi", "versions")
 # Who can download the files of the dataset: anyone, or only those given access on Zenodo
 ACCESS = ("open", "restricted")
+# The licence on Zenodo for each access: CC-BY-4.0 for the public dataset, and "Other (Not Open)" for a restricted
+# one, whose README says its terms
+LICENCES = {"open": "cc-by-4.0", "restricted": "other-closed"}
+CC_BY = "[CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/)"
+# The licence line at the top of the README, and the text of its Licence section, for each access
+LICENCE_LINE = {
+    "open": "- **Licence:** [CC-BY-4.0](#licence).",
+    "restricted": "- **Licence:** [Other (Not Open)](#licence). The data are not public yet.",
+}
+LICENCE_TEXT = {
+    "open": f"The data are licensed under {CC_BY}. You may share and adapt them, for any purpose, as long as you "
+            "give credit, by citing the dataset as above, and say what you changed.",
+    "restricted": "These data belong to a project and are not public yet, so their licence on Zenodo is Other (Not "
+                  "Open). They are for the people given access on Zenodo, for the project's work. Passing the files "
+                  "on, publishing anything from the data, or using them outside the project needs the permission of "
+                  "everyone who made them. For the data of an experiment, that is everyone behind it in "
+                  "`contributors.yaml`, and its contacts, under [Who made it](#who-made-it), are who to ask. Cite "
+                  "the version you used. When the data are published in the public dataset, they will be licensed "
+                  f"under {CC_BY} there.",
+}
 CURATOR_KEYS = ("family_name", "given_names", "orcid", "affiliations")
 VERSION_KEYS = ("version", "folder", "id", "date", "format")
 CROSSWALK_HEADER = ["Contribution", "Table", "OldID", "NewID"]
@@ -168,7 +188,8 @@ def plain(node: yaml.Node):
 def read_dataset(folder: Path, state: str = ZENODO_FILE) -> Dataset:
     """
     zenodo.yaml in the dataset folder, which says what the dataset is called, who can download its files, and who
-    looks after it, if someone does, in the same way as a person in contributors.yaml, without experiments:
+    looks after it, which a restricted dataset has to say and the public one may, in the same way as a person in
+    contributors.yaml, without experiments:
 
         title: <title>
         access: <open, for anyone, or restricted, for only those given access on Zenodo>
@@ -205,6 +226,9 @@ def read_dataset(folder: Path, state: str = ZENODO_FILE) -> Dataset:
                              yaml_text(ZENODO_FILE, person["given_names"], "given_names"),
                              yaml_id(ZENODO_FILE, person["orcid"], "orcid", orcid_problem),
                              read_affiliations(ZENODO_FILE, person["affiliations"]), [], [])
+        if access == "restricted" and curator is None:
+            raise BuildError(f"{ZENODO_FILE} names no curator. A restricted dataset needs one, as the contact for the "
+                             "dataset in its README. Add it, as docs/publish-data.md says.")
         doi, versions = None, []
         if state == ZENODO_FILE:
             doi, versions = read_versions(ZENODO_FILE, values)
@@ -849,7 +873,8 @@ def metadata(dataset: Dataset, version: int, release: Release | None, people: li
              frames: dict[str, pd.DataFrame], description: str, commit: str) -> dict:
     """
     The record's metadata, as Zenodo takes it. Everyone in contributors.yaml is a creator, and the curator, if
-    there is one, is a contributor, unless they are a creator already.
+    there is one, is a contributor, unless they are a creator already. The licence is the one for the dataset's
+    access.
     """
     data = {"resource_type": {"id": "dataset"}, "title": dataset.title, "creators": [creator(p) for p in people]}
     if dataset.curator and not any(same_person(dataset.curator, person) for person in people):
@@ -857,7 +882,7 @@ def metadata(dataset: Dataset, version: int, release: Release | None, people: li
     if release:
         data["publication_date"] = release.publication_date
     data |= {"version": str(version), "description": description, "publisher": "Zenodo",
-             "rights": [{"id": "cc-by-4.0"}], "languages": [{"id": "eng"}]}
+             "rights": [{"id": LICENCES[dataset.access]}], "languages": [{"id": "eng"}]}
 
     species = sorted(set(frames["Germplasm"]["Species"]) - {""})
     if species:
@@ -957,6 +982,7 @@ def build(folder: Path, commit: str, release: Release | None = None, state: str 
         "concept_doi": doi_link(release.concept_doi if release else dataset.doi),
         "schema_version": schema.version,
         "diagram": diagram,
+        "licence_line": LICENCE_LINE[dataset.access],
         "repository": f"[{REPOSITORY}]({REPOSITORY}/tree/{commit})",
         "at_a_glance": "\n".join(f"- {md(item)}" for item in glance),
         "experiments": experiments_table(frames),
@@ -971,6 +997,7 @@ def build(folder: Path, commit: str, release: Release | None = None, state: str 
         "curator": curator_sentence(dataset.curator),
         "citation": citation(people, release.publication_date[:4] if release else NOT_YET.strip("()"),
                              dataset.title, number, release.doi if release else None),
+        "licence": LICENCE_TEXT[dataset.access],
     }
     readme = render(TEMPLATE.read_text(encoding="utf-8"), values)
     description = description_html(readme, glance, schema, diagram)

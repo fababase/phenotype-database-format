@@ -258,12 +258,46 @@ def test_no_funding_and_a_curator_with_an_orcid_id(tmp_path):
 
 
 def test_no_curator(merge):
-    """Naming who looks after the dataset is optional."""
+    """Naming who looks after the public dataset is optional."""
     text = merge.zenodo.read_text(encoding="utf-8")
     merge.zenodo.write_text(text[:text.index("curator:")], encoding="utf-8")
     built = merge.run()
     assert "looked after" not in merge.readme()
     assert "contributors" not in built.metadata
+
+
+def test_a_restricted_dataset_needs_a_curator(tmp_path):
+    merge = Merge(tmp_path / "dataset", access="restricted")
+    text = merge.zenodo.read_text(encoding="utf-8")
+    merge.zenodo.write_text(text[:text.index("curator:")], encoding="utf-8")
+    with pytest.raises(build.BuildError) as found:
+        merge.run()
+    assert str(found.value) == ("zenodo.yaml names no curator. A restricted dataset needs one, as the contact for the "
+                                "dataset in its README. Add it, as docs/publish-data.md says.")
+
+
+def test_licence_of_the_public_dataset(merge):
+    built = merge.run()
+    assert "- **Licence:** [CC-BY-4.0](#licence).\n" in merge.readme()
+    assert merge.section("Licence") == (
+        "The data are licensed under [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/). You may share and "
+        "adapt them, for any purpose, as long as you give credit, by citing the dataset as above, and say what you "
+        "changed.")
+    assert built.metadata["rights"] == [{"id": "cc-by-4.0"}]
+
+
+def test_terms_of_a_restricted_dataset(tmp_path):
+    merge = Merge(tmp_path / "dataset", access="restricted")
+    built = merge.run()
+    assert "- **Licence:** [Other (Not Open)](#licence). The data are not public yet.\n" in merge.readme()
+    assert merge.section("Licence") == (
+        "These data belong to a project and are not public yet, so their licence on Zenodo is Other (Not Open). They "
+        "are for the people given access on Zenodo, for the project's work. Passing the files on, publishing anything "
+        "from the data, or using them outside the project needs the permission of everyone who made them. For the "
+        "data of an experiment, that is everyone behind it in `contributors.yaml`, and its contacts, under [Who made "
+        "it](#who-made-it), are who to ask. Cite the version you used. When the data are published in the public "
+        "dataset, they will be licensed under [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/) there.")
+    assert built.metadata["rights"] == [{"id": "other-closed"}]
 
 
 def test_text_from_the_data_is_shown_as_it_is(merge):

@@ -11,6 +11,7 @@ publishing/build.py fills it in, and leaves out comments like this one. It repla
   {{concept_doi}}        the DOI of all versions, which leads to the latest one
   {{schema_version}}     the version of the format the tables follow
   {{diagram}}            the address of the diagram at that version: .../diagram/#<version>
+  {{licence_line}}       the licence, by the dataset's access
   {{repository}}         the address of the format's repository, at the commit used
   {{at_a_glance}}        how many experiments, places, years, species, germplasm, seed lots, units, traits and
                          scores there are
@@ -25,6 +26,8 @@ publishing/build.py fills it in, and leaves out comments like this one. It repla
   {{contacts}}           each experiment with its contacts, who to ask about it, from contributors.yaml
   {{curator}}            who looks after the dataset, from zenodo.yaml, as a sentence, or nothing
   {{citation}}           how to cite this version
+  {{licence}}            the Licence section: CC-BY-4.0 for the public dataset, and the terms of use for a restricted
+                         one
 
 Every {{name}} must be filled in. build.py stops if one is not, or if one is not in this list.
 
@@ -38,7 +41,7 @@ Phenotype data from plant experiments: the scores of traits measured on field pl
 - **Version:** {{version}}, published {{publication_date}}.
 - **DOI:** {{doi}}. The DOI {{concept_doi}} always leads to the latest version.
 - **Format:** version {{schema_version}} of the Phenotheca format. The [diagram]({{diagram}}) shows how its tables link.
-- **Licence:** [CC-BY-4.0](#licence).
+{{licence_line}}
 
 This README holds all you need to read the tables and join them.
 
@@ -282,7 +285,7 @@ Cite the version you used, so that others can get the same data.
 
 ## Licence
 
-The data are licensed under [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/). You may share and adapt them, for any purpose, as long as you give credit, by citing the dataset as above, and say what you changed.
+{{licence}}
 
 ## How the data were made
 
