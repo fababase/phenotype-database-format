@@ -46,8 +46,9 @@ class FakeZenodo:
     Zenodo's REST API for records, as far as publish.py uses it, kept in memory. It behaves as Zenodo does where it
     matters: it gives records in the format of InvenioRDM only when asked for it, and otherwise in its own format, with
     the DOI elsewhere; setting the metadata of a draft replaces the whole draft, so a reserved DOI that is not sent back
-    is lost, and no other can be reserved; a new version starts with no files and no DOI; and the DOI of all versions
-    is given when the first version is published.
+    is lost, and no other can be reserved; it refuses the metadata if a ROR ID in it is one that it does not know; a
+    new version starts with no files and no DOI; and the DOI of all versions is given when the first version is
+    published.
     """
     PREFIX = "10.5072"
     INVENIO_JSON = "application/vnd.inveniordm.v1+json"
@@ -58,6 +59,7 @@ class FakeZenodo:
         self.parents: dict[str, dict] = {}
         self.requests: list[tuple[str, str]] = []
         self.errors: list[dict] = []  # given back when the metadata of a draft is set
+        self.unknown_ror: set[str] = set()  # ROR IDs that are not in Zenodo's copy of ROR yet
         fake = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -103,6 +105,8 @@ class FakeZenodo:
         ("POST", r"/api/records/(\w+)/versions", "new_version"),
         ("GET", r"/api/records/(\w+)/versions/latest", "latest"),
         ("GET", r"/api/records/(\w+)/files", "files"),
+        ("GET", r"/api/affiliations/(\w+)", "ror"),
+        ("GET", r"/api/funders/(\w+)", "ror"),
     ]
 
     def handle(self, method: str, path: str, headers, body: bytes) -> tuple[int, dict | None, str | None]:
@@ -182,6 +186,13 @@ class FakeZenodo:
 
     def update(self, rid, body):
         record = self.draft(rid)
+        metadata = body["metadata"]
+        people = metadata["creators"] + metadata.get("contributors", [])
+        ids = [a.get("id") for person in people for a in person.get("affiliations", [])]
+        ids += [grant["funder"].get("id") for grant in metadata.get("funding", [])]
+        for ror in ids:
+            if ror in self.unknown_ror:
+                raise Answer(400, f"Invalid value {ror}.")
         record["access"] = body["access"]
         record["metadata"] = body["metadata"]
         record["settings"] = body["files"]
@@ -251,6 +262,11 @@ class FakeZenodo:
     def files(self, rid):
         record = self.records[rid]
         return 200, {"entries": [self.entry(key, file) for key, file in record["files"].items()]}, None
+
+    def ror(self, ror):
+        if ror in self.unknown_ror:
+            raise Answer(404, "Not found.")
+        return 200, {"id": ror}, None
 
     # ------------------------------------------------ What the data manager does on Zenodo's pages
 
@@ -520,6 +536,21 @@ def test_zenodo_finds_problems_in_the_metadata(merge, zenodo):
         "Invalid value. Unknown funder. Correct zenodo.yaml or the merge, or build.py if it builds the metadata "
         "wrong, and run publish.py again.")
     assert [version["id"] for version in versions(merge)] == [FIRST]
+
+
+def test_ror_ids_that_zenodo_does_not_know_yet(merge, zenodo):
+    merge.tables.edit_contributors("        ror: none", "        ror: 01aj84f44")
+    merge.tables.edit_contributors("Programme\n        ror: none", "Programme\n        ror: 03fe9nm75")
+    merge.tables.edit_contributors("    ror: none\n    grant_number", "    ror: 05gq02987\n    grant_number")
+    zenodo.unknown_ror = {"03fe9nm75", "05gq02987"}
+    assert run(merge, zenodo)[2] == (
+        "Zenodo does not know the ROR IDs 03fe9nm75 and 05gq02987 yet, so the metadata gives those organisations by "
+        "name only. The ROR IDs are still in contributors.yaml, among the files, and a later version gives them in the "
+        "metadata too, once Zenodo knows them.")
+    data = zenodo.records[FIRST]["metadata"]
+    assert [person["affiliations"] for person in data["creators"]] == [
+        [{"id": "01aj84f44"}], [{"name": "Northfield Agricultural College"}, {"name": "Nordbean Breeding Programme"}]]
+    assert data["funding"][0]["funder"] == {"name": "Nordic Bean Foundation"}
 
 
 def test_a_lost_doi(merge, zenodo):

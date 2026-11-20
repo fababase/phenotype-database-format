@@ -147,6 +147,9 @@ class Release:
     publication_date: str  # YYYY-MM-DD
     doi: str               # of this version
     concept_doi: str       # of all versions
+    # The ROR IDs of affiliations, and of funders, that Zenodo does not know yet, so the metadata gives those by name
+    unknown_affiliations: frozenset[str] = frozenset()
+    unknown_funders: frozenset[str] = frozenset()
 
 
 @dataclass
@@ -856,8 +859,8 @@ def description_html(readme: str, glance: list[str], schema: Schema, diagram: st
     return "\n".join(lines)
 
 
-def creator(person: Person) -> dict:
-    """A person, as Zenodo's metadata has them."""
+def creator(person: Person, unknown: frozenset[str] = frozenset()) -> dict:
+    """A person, as Zenodo's metadata has them, with the affiliations whose ROR ID is unknown by name."""
     name = {"type": "personal", "family_name": person.family_name}
     if person.given_names:
         name["given_name"] = person.given_names
@@ -865,7 +868,8 @@ def creator(person: Person) -> dict:
         name["identifiers"] = [{"scheme": "orcid", "identifier": person.orcid}]
     entry = {"person_or_org": name}
     if person.affiliations:
-        entry["affiliations"] = [{"id": a.ror} if a.ror else {"name": a.name} for a in person.affiliations]
+        entry["affiliations"] = [{"id": a.ror} if a.ror and a.ror not in unknown else {"name": a.name}
+                                 for a in person.affiliations]
     return entry
 
 
@@ -874,11 +878,14 @@ def metadata(dataset: Dataset, version: int, release: Release | None, people: li
     """
     The record's metadata, as Zenodo takes it. Everyone in contributors.yaml is a creator, and the curator, if
     there is one, is a contributor, unless they are a creator already. The licence is the one for the dataset's
-    access.
+    access. An affiliation or funder whose ROR ID Zenodo does not know yet is given by name, as Zenodo refuses the ID.
     """
-    data = {"resource_type": {"id": "dataset"}, "title": dataset.title, "creators": [creator(p) for p in people]}
+    unknown_affiliations = release.unknown_affiliations if release else frozenset()
+    unknown_funders = release.unknown_funders if release else frozenset()
+    data = {"resource_type": {"id": "dataset"}, "title": dataset.title,
+            "creators": [creator(p, unknown_affiliations) for p in people]}
     if dataset.curator and not any(same_person(dataset.curator, person) for person in people):
-        data["contributors"] = [creator(dataset.curator) | {"role": {"id": "datacurator"}}]
+        data["contributors"] = [creator(dataset.curator, unknown_affiliations) | {"role": {"id": "datacurator"}}]
     if release:
         data["publication_date"] = release.publication_date
     data |= {"version": str(version), "description": description, "publisher": "Zenodo",
@@ -902,7 +909,8 @@ def metadata(dataset: Dataset, version: int, release: Release | None, people: li
     if funding:
         grants = []
         for grant in funding:
-            entry = {"funder": {"id": grant.ror} if grant.ror else {"name": grant.funder}}
+            entry = {"funder": {"id": grant.ror} if grant.ror and grant.ror not in unknown_funders
+                     else {"name": grant.funder}}
             if grant.grant_number and grant.grant_title:
                 entry["award"] = {"number": grant.grant_number, "title": {"en": grant.grant_title}}
             grants.append(entry)

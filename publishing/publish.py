@@ -49,7 +49,7 @@ from pathlib import Path
 from build import (FILES, LIMIT, README, REPOSITORY_FOLDER, VERSIONS, ZENODO_FILE, BuildError, Dataset, Release,
                    Version, build, repository_commit, sentence, write_dataset)
 from collection_sheet import REPOSITORY, SITE
-from validation import CONTRIBUTORS_FILE, Schema, ValidationError, load_schema
+from validation import CONTRIBUTORS_FILE, Schema, ValidationError, joined, load_schema
 
 ZENODO = "https://zenodo.org"
 SANDBOX = "https://sandbox.zenodo.org"
@@ -193,6 +193,29 @@ def concept_doi(draft: dict, doi: str) -> str:
                            "all versions cannot be worked out before the first version is published. publish.py has "
                            "to be changed to fit how Zenodo makes DOIs now.")
     return f"{prefix}/zenodo.{draft['parent']['id']}"
+
+
+def unknown_ror(zenodo: Zenodo, metadata: dict) -> tuple[frozenset[str], frozenset[str]]:
+    """
+    The ROR IDs of affiliations, and of funders, in the metadata that Zenodo does not know. Zenodo refuses those, as
+    its copy of ROR lags behind ROR.
+    """
+    people = metadata["creators"] + metadata.get("contributors", [])
+    affiliations = {a["id"] for person in people for a in person.get("affiliations", []) if "id" in a}
+    funders = {grant["funder"]["id"] for grant in metadata.get("funding", []) if "id" in grant["funder"]}
+    return (frozenset(ror for ror in affiliations if zenodo.find(f"/api/affiliations/{ror}") is None),
+            frozenset(ror for ror in funders if zenodo.find(f"/api/funders/{ror}") is None))
+
+
+def by_name(unknown: list[str]) -> list[str]:
+    """A line saying which ROR IDs the metadata gives by name, if any."""
+    if not unknown:
+        return []
+    one = len(unknown) == 1
+    return [f"Zenodo does not know the ROR {'ID' if one else 'IDs'} {joined(unknown)} yet, so the metadata gives "
+            f"{'that organisation' if one else 'those organisations'} by name only. The ROR "
+            f"{'ID is' if one else 'IDs are'} still in {CONTRIBUTORS_FILE}, among the files, and a later version "
+            f"gives {'it' if one else 'them'} in the metadata too, once Zenodo knows {'it' if one else 'them'}."]
 
 
 def link(zenodo: Zenodo, draft: dict) -> str:
@@ -340,7 +363,8 @@ def publish(folder: Path, zenodo: Zenodo, commit: str, today: str, state: str = 
 
     # Everything that can be checked without Zenodo, before anything is sent to it
     with tempfile.TemporaryDirectory() as check:
-        dataset = build(folder, commit, state=state, notice=notice, warning=warning, out=Path(check)).dataset
+        preview = build(folder, commit, state=state, notice=notice, warning=warning, out=Path(check))
+    dataset = preview.dataset
     if not online(f"{REPOSITORY}/tree/{commit}"):
         raise PublishError(f"The commit {commit}, which the copy of the repository is at, is not on GitHub, at "
                            f"{REPOSITORY}. The README links to it, so push it first, or clone the repository again.")
@@ -393,7 +417,9 @@ def publish(folder: Path, zenodo: Zenodo, commit: str, today: str, state: str = 
     this.doi, this.date, this.format = doi, today, schema.version
     dataset.doi = dataset.doi or concept
     write_dataset(dataset)
-    built = build(folder, commit, Release(today, doi, concept), state, notice=notice, warning=warning)
+    affiliations, funders = unknown_ror(zenodo, preview.metadata)
+    built = build(folder, commit, Release(today, doi, concept, affiliations, funders), state, notice=notice,
+                  warning=warning)
 
     upload_files(zenodo, draft_id, folder / FILES, names, say)
     # Setting the metadata replaces the whole draft, so the DOI is sent back as it is, or it would be lost
@@ -413,6 +439,7 @@ def publish(folder: Path, zenodo: Zenodo, commit: str, today: str, state: str = 
         f"Uploaded version {built.version} of {dataset.title} to a draft on {zenodo.address}: "
         f"{link(zenodo, updated)}",
         f"Its DOI will be {doi}, and the DOI of all versions {concept}. They work once it is published.",
+    ] + by_name(sorted(affiliations | funders)) + [
         "Look at the draft on Zenodo: the files, the README and the metadata. To change something, correct the merge, "
         "and run publish.py again, which updates the same draft.",
         "When all is right, press Publish on Zenodo. A published version cannot be changed or taken back. Then run "
