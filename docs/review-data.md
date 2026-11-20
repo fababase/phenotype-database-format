@@ -7,8 +7,8 @@ This guide is for data reviewers. A review checks a finished run of a conversion
 - **(For AI) Review the latest run** in `runs/`, using only the files in the contribution folder: `raw_data/`, the run, and the copy of this repository. Don't rely on the chat of a conversion, or on memory.
 - **Keep to what the AI may see**, as the run's notes say. If that rules out a check, note it under Checks not done.
 - **(For AI) Keep to the rules under [Never](../conversion/AI_INSTRUCTIONS.md#never) in the conversion AI's instructions.** They hold for the review too.
-- **Write only `review.md`**, in the run's folder, replacing any earlier one. Change nothing else. What needs fixing goes in `review.md`, and the AI that does the conversion fixes it.
-- **Write for the contributor**, in plain words: for each problem, where it is and what would fix it.
+- **Write only `review.md`**, in the run's folder, replacing any earlier one. Change nothing else. What it finds goes in `review.md`, and the AI that does the conversion fixes what can be fixed.
+- **Write for the contributor**, in plain words: for each problem, where it is and what would fix it. When it cannot be fixed, perhaps as a known limitation, say that instead.
 
 ## Checks
 
@@ -56,7 +56,7 @@ Write `review.md` from this template, and keep the line in italics under each he
 
 ## Problems
 
-*Each with where it is and what would fix it. Empty if there are none.*
+*Each with where it is and what would fix it, or that it cannot be fixed. Empty if there are none.*
 
 ## Checks not done
 
