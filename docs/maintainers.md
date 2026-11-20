@@ -189,7 +189,7 @@ After a new major version, the contributions have to be converted again before t
 
 In the repository's **Settings → Pages**, under *Build and deployment*, *Source* is set to **GitHub Actions**. Only an admin of the repository can change this.
 
-In each clone of the repository, turn on the hook that writes `schema.md` and the pictures into every commit, with this command in a terminal in the repository folder. GitHub Desktop runs it too.
+In each clone of the repository, turn on the hook that writes `schema.md` and the pictures into every commit, with this command in a terminal in the repository folder.
 
 ```
 git config core.hooksPath .githooks

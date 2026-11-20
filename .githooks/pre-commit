@@ -9,14 +9,7 @@
 set -e
 cd "$(git rev-parse --show-toplevel)"
 
-# uv, also where a program such as GitHub Desktop does not look for it
-uv=$(command -v uv || true)
-for candidate in "$HOME/.local/bin/uv" "$HOME/.local/bin/uv.exe" "$HOME/.cargo/bin/uv"; do
-    if [ -z "$uv" ] && [ -x "$candidate" ]; then
-        uv=$candidate
-    fi
-done
-if [ -z "$uv" ]; then
+if ! command -v uv >/dev/null; then
     echo "The hook needs uv to write schema.md and draw the pictures. Install it as in step 2 of docs/submit-data.md." >&2
     exit 1
 fi
@@ -30,6 +23,12 @@ if ! git diff --quiet -- $files; then
     exit 1
 fi
 
-"$uv" run --quiet --no-project --python 3.12 --with-requirements app/requirements.txt schema/schema_md.py >/dev/null
-"$uv" run --quiet --no-project --python 3.12 docs/images/draw.py >/dev/null
+# First with what uv already has on the computer, so that a commit needs no network; only when something is
+# not there does uv fetch it.
+run() {
+    uv run --quiet --offline --no-project --python 3.12 "$@" >/dev/null 2>&1 ||
+        uv run --quiet --no-project --python 3.12 "$@" >/dev/null
+}
+run --with-requirements app/requirements.txt schema/schema_md.py
+run docs/images/draw.py
 git add schema/schema.md docs/images
