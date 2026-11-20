@@ -218,6 +218,18 @@ def by_name(unknown: list[str]) -> list[str]:
             f"gives {'it' if one else 'them'} in the metadata too, once Zenodo knows {'it' if one else 'them'}."]
 
 
+def without_points(metadata: dict) -> dict | None:
+    """
+    The metadata with the locations as place names only, if more than one has a point, or None if not. The sandbox
+    cannot index a record with more than one point, and answers that its search is misconfigured. Zenodo itself can.
+    """
+    features = metadata.get("locations", {}).get("features", [])
+    if sum("geometry" in feature for feature in features) < 2:
+        return None
+    return metadata | {"locations": {"features": [{key: value for key, value in feature.items() if key != "geometry"}
+                                                  for feature in features]}}
+
+
 def link(zenodo: Zenodo, draft: dict) -> str:
     """The page of a draft on Zenodo."""
     return draft.get("links", {}).get("self_html") or f"{zenodo.address}/uploads/{draft['id']}"
@@ -422,10 +434,11 @@ def publish(folder: Path, zenodo: Zenodo, commit: str, today: str, state: str = 
                   warning=warning)
 
     upload_files(zenodo, draft_id, folder / FILES, names, say)
+    placed = without_points(built.metadata) if zenodo.address != ZENODO else None
     # Setting the metadata replaces the whole draft, so the DOI is sent back as it is, or it would be lost
     updated = zenodo.request("PUT", f"/api/records/{draft_id}/draft", {
         "access": access, "files": {"enabled": True, "default_preview": README, "order": names},
-        "metadata": built.metadata, "pids": draft.get("pids", {})})
+        "metadata": placed or built.metadata, "pids": draft.get("pids", {})})
     if doi_of(updated) != doi:
         raise PublishError(f"Zenodo lost the DOI of the draft when its metadata was set. Delete the draft on Zenodo, "
                            f"at {link(zenodo, draft)}, and run publish.py again, which makes a new one.")
@@ -439,7 +452,9 @@ def publish(folder: Path, zenodo: Zenodo, commit: str, today: str, state: str = 
         f"Uploaded version {built.version} of {dataset.title} to a draft on {zenodo.address}: "
         f"{link(zenodo, updated)}",
         f"Its DOI will be {doi}, and the DOI of all versions {concept}. They work once it is published.",
-    ] + by_name(sorted(affiliations | funders)) + [
+    ] + by_name(sorted(affiliations | funders)) + ([
+        "The sandbox cannot take a record with more than one point on its map, so the locations there are place names "
+        "only. Zenodo itself gets the points."] if placed else []) + [
         "Look at the draft on Zenodo: the files, the README and the metadata. To change something, correct the merge, "
         "and run publish.py again, which updates the same draft.",
         "When all is right, press Publish on Zenodo. A published version cannot be changed or taken back. Then run "

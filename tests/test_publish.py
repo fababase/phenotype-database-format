@@ -15,7 +15,7 @@ import pytest
 
 import publish
 import build
-from helpers import COMMIT, ROOT, SCHEMA, SCORE, Merge
+from helpers import COMMIT, GREENHOUSE, ROOT, SCHEMA, SCORE, TRIAL, Merge
 from validation import ValidationError
 
 TOKEN = "secret-token-0123456789"
@@ -30,6 +30,8 @@ NEXT_STEPS = [
     "When all is right, press Publish on Zenodo. A published version cannot be changed or taken back. Then run "
     "publish.py again, which checks what was published.",
 ]
+NO_POINTS = ("The sandbox cannot take a record with more than one point on its map, so the locations there are place "
+             "names only. Zenodo itself gets the points.")
 
 
 class Answer(Exception):
@@ -46,9 +48,9 @@ class FakeZenodo:
     Zenodo's REST API for records, as far as publish.py uses it, kept in memory. It behaves as Zenodo does where it
     matters: it gives records in the format of InvenioRDM only when asked for it, and otherwise in its own format, with
     the DOI elsewhere; setting the metadata of a draft replaces the whole draft, so a reserved DOI that is not sent back
-    is lost, and no other can be reserved; it refuses the metadata if a ROR ID in it is one that it does not know; a
-    new version starts with no files and no DOI; and the DOI of all versions is given when the first version is
-    published.
+    is lost, and no other can be reserved; it refuses the metadata if a ROR ID in it is one that it does not know, or,
+    as the sandbox, if it has more than one point; a new version starts with no files and no DOI; and the DOI of all
+    versions is given when the first version is published.
     """
     PREFIX = "10.5072"
     INVENIO_JSON = "application/vnd.inveniordm.v1+json"
@@ -60,6 +62,7 @@ class FakeZenodo:
         self.requests: list[tuple[str, str]] = []
         self.errors: list[dict] = []  # given back when the metadata of a draft is set
         self.unknown_ror: set[str] = set()  # ROR IDs that are not in Zenodo's copy of ROR yet
+        self.sandbox = True  # as publish.py takes any Zenodo but zenodo.org for the sandbox
         fake = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -193,6 +196,9 @@ class FakeZenodo:
         for ror in ids:
             if ror in self.unknown_ror:
                 raise Answer(400, f"Invalid value {ror}.")
+        points = [feature for feature in metadata.get("locations", {}).get("features", []) if "geometry" in feature]
+        if self.sandbox and len(points) > 1:
+            raise Answer(500, "Misconfigured search.")
         record["access"] = body["access"]
         record["metadata"] = body["metadata"]
         record["settings"] = body["files"]
@@ -350,8 +356,12 @@ def next_merge(tmp_path: Path) -> Merge:
 
 
 def metadata(merge: Merge, release: publish.Release) -> dict:
-    """The metadata of the version, as build.py makes it with the version's date and DOIs."""
-    return build.build(merge.folder, COMMIT, release).metadata
+    """
+    The metadata of the version, as build.py makes it with the version's date and DOIs, and as publish.py sends it to
+    the sandbox, with the two locations of the valid dataset as place names only.
+    """
+    data = build.build(merge.folder, COMMIT, release).metadata
+    return data | {"locations": {"features": [{"place": TRIAL}, {"place": GREENHOUSE}]}}
 
 
 # ---------------------------------------------------------------- The first version
@@ -362,6 +372,7 @@ def test_first_version(merge, zenodo):
         f"Uploaded version 1 of Nordbean test dataset to a draft on {zenodo.address}: "
         f"{zenodo.address}/uploads/{FIRST}",
         f"Its DOI will be {doi}, and the DOI of all versions {CONCEPT}. They work once it is published.",
+        NO_POINTS,
     ] + NEXT_STEPS
     assert merge.state() == {
         "title": "Nordbean test dataset", "access": "open",
@@ -424,6 +435,7 @@ def test_after_publishing(merge, zenodo):
 
 def test_after_publishing_on_zenodo_itself(tmp_path, zenodo, monkeypatch):
     monkeypatch.setattr(publish, "ZENODO", zenodo.address)
+    zenodo.sandbox = False
     first = published_first(tmp_path, zenodo)
     assert run(first, zenodo)[1] == f"Add the dataset to docs/datasets.md, with the DOI of all versions, {CONCEPT}."
     second = next_merge(tmp_path)
@@ -553,6 +565,21 @@ def test_ror_ids_that_zenodo_does_not_know_yet(merge, zenodo):
     assert data["funding"][0]["funder"] == {"name": "Nordic Bean Foundation"}
 
 
+def test_zenodo_itself_gets_the_points(merge, zenodo, monkeypatch):
+    monkeypatch.setattr(publish, "ZENODO", zenodo.address)
+    zenodo.sandbox = False
+    assert NO_POINTS not in run(merge, zenodo)
+    features = zenodo.records[FIRST]["metadata"]["locations"]["features"]
+    assert [feature["place"] for feature in features if "geometry" in feature] == [TRIAL, GREENHOUSE]
+
+
+def test_the_sandbox_keeps_a_single_point(merge, zenodo):
+    merge.tables.set("Experiment", GREENHOUSE, "GPSCoordinates", "")
+    assert NO_POINTS not in run(merge, zenodo)
+    features = zenodo.records[FIRST]["metadata"]["locations"]["features"]
+    assert [feature["place"] for feature in features if "geometry" in feature] == [TRIAL]
+
+
 def test_a_lost_doi(merge, zenodo):
     run(merge, zenodo)
     zenodo.records[FIRST]["pids"] = {}
@@ -664,8 +691,9 @@ def test_command_line(merge, zenodo, tmp_path, monkeypatch, capsys):
     token_file.write_text(f"{TOKEN}\n", encoding="utf-8")
     assert publish.main([str(merge.folder), "--token-file", str(token_file), "--sandbox"]) == 0
     out = capsys.readouterr().out
-    assert out.splitlines()[-4].startswith(f"Uploaded version 1 of Nordbean test dataset to a draft on "
+    assert out.splitlines()[-5].startswith(f"Uploaded version 1 of Nordbean test dataset to a draft on "
                                            f"{zenodo.address}: ")
+    assert out.splitlines()[-3] == NO_POINTS
     assert "Uploading Phenotype.csv, " in out
     assert TOKEN not in out
     assert [version["id"] for version in versions(merge, "sandbox.yaml")] == [FIRST]
