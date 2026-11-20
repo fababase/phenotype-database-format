@@ -44,11 +44,13 @@ class Answer(Exception):
 class FakeZenodo:
     """
     Zenodo's REST API for records, as far as publish.py uses it, kept in memory. It behaves as Zenodo does where it
-    matters: setting the metadata of a draft replaces the whole draft, so a reserved DOI that is not sent back is lost,
-    and no other can be reserved; a new version starts with no files and no DOI; and the DOI of all versions is given
-    when the first version is published.
+    matters: it gives records in the format of InvenioRDM only when asked for it, and otherwise in its own format, with
+    the DOI elsewhere; setting the metadata of a draft replaces the whole draft, so a reserved DOI that is not sent back
+    is lost, and no other can be reserved; a new version starts with no files and no DOI; and the DOI of all versions
+    is given when the first version is published.
     """
     PREFIX = "10.5072"
+    INVENIO_JSON = "application/vnd.inveniordm.v1+json"
 
     def __init__(self):
         self.next_id = int(PARENT)
@@ -116,9 +118,12 @@ class FakeZenodo:
                 elif body:
                     arguments.append(json.loads(body))
                 try:
-                    return getattr(self, name)(*arguments)
+                    status, payload, location = getattr(self, name)(*arguments)
                 except Answer as e:
                     return e.status, {"status": e.status, "message": e.message}, None
+                if payload and "pids" in payload and self.INVENIO_JSON not in headers.get("Accept", ""):
+                    payload = self.own_format(payload)
+                return status, payload, location
         return 404, {"status": 404, "message": "The requested URL was not found on the server."}, None
 
     def new_id(self) -> str:
@@ -138,6 +143,16 @@ class FakeZenodo:
                 "pids": json.loads(json.dumps(record["pids"])), "access": record["access"],
                 "metadata": record["metadata"], "files": record["settings"],
                 "links": {"self_html": f"{self.address}/{page}/{rid}"}}
+
+    @staticmethod
+    def own_format(view: dict) -> dict:
+        """A record in Zenodo's own format, with the DOI at the top instead of in pids, and no parent."""
+        doi = view["pids"].get("doi", {}).get("identifier")
+        concept = view["parent"]["pids"].get("doi", {}).get("identifier")
+        title = view["metadata"].get("title")
+        return {"id": int(view["id"]), "recid": view["id"], "conceptrecid": view["parent"]["id"], "doi": doi,
+                "title": title, "metadata": {"title": title, "doi": doi},
+                "links": view["links"]} | ({"conceptdoi": concept} if concept else {})
 
     def draft(self, rid: str) -> dict:
         if rid not in self.records or self.records[rid]["published"]:

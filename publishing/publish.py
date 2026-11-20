@@ -59,6 +59,9 @@ SANDBOX_FILE = "sandbox.yaml"
 FILES_ACCESS = {"open": "public", "restricted": "restricted"}
 # Seconds to wait for Zenodo, or GitHub, to answer
 TIMEOUT = 300
+# The format of InvenioRDM, which Zenodo is built on, and which publish.py reads. Asked for application/json, Zenodo
+# answers in an older format of its own, with the DOI in another place.
+INVENIO_JSON = "application/vnd.inveniordm.v1+json"
 
 
 class PublishError(ValueError):
@@ -85,7 +88,7 @@ class Zenodo:
         Sends a request, with body as JSON, or the content of the file upload, and returns the JSON of the answer,
         or {} if it has none.
         """
-        headers = {"Authorization": f"Bearer {self._token}", "Accept": "application/json"}
+        headers = {"Authorization": f"Bearer {self._token}", "Accept": INVENIO_JSON}
         data = None
         if body is not None:
             data = json.dumps(body).encode("utf-8")
