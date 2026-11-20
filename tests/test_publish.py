@@ -47,13 +47,15 @@ class FakeZenodo:
     """
     Zenodo's REST API for records, as far as publish.py uses it, kept in memory. It behaves as Zenodo does where it
     matters: it gives records in the format of InvenioRDM only when asked for it, and otherwise in its own format, with
-    the DOI elsewhere; setting the metadata of a draft replaces the whole draft, so a reserved DOI that is not sent back
+    the DOI elsewhere; it gives the files of a published version only in application/json, and refuses a request that
+    does not accept that; setting the metadata of a draft replaces the whole draft, so a reserved DOI that is not sent back
     is lost, and no other can be reserved; it refuses the metadata if a ROR ID in it is one that it does not know, or,
     as the sandbox, if it has more than one point; a new version starts with no files and no DOI; and the DOI of all
     versions is given when the first version is published.
     """
     PREFIX = "10.5072"
     INVENIO_JSON = "application/vnd.inveniordm.v1+json"
+    JSON_ONLY = {"files"}  # the routes that answer only in application/json
 
     def __init__(self):
         self.next_id = int(PARENT)
@@ -119,6 +121,10 @@ class FakeZenodo:
         for route_method, pattern, name in self.ROUTES:
             match = re.fullmatch(pattern, path)
             if match and method == route_method:
+                accepted = {part.split(";")[0].strip() for part in headers.get("Accept", "").split(",")}
+                if name in self.JSON_ONLY and "application/json" not in accepted:
+                    return 406, {"status": 406, "message": "Invalid 'Accept' header. Expected one of: "
+                                                           "application/json"}, None
                 arguments = list(match.groups())
                 if name == "upload":
                     arguments.append(body)
@@ -128,7 +134,7 @@ class FakeZenodo:
                     status, payload, location = getattr(self, name)(*arguments)
                 except Answer as e:
                     return e.status, {"status": e.status, "message": e.message}, None
-                if payload and "pids" in payload and self.INVENIO_JSON not in headers.get("Accept", ""):
+                if payload and "pids" in payload and self.INVENIO_JSON not in accepted:
                     payload = self.own_format(payload)
                 return status, payload, location
         return 404, {"status": 404, "message": "The requested URL was not found on the server."}, None
